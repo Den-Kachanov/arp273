@@ -52,4 +52,6 @@ Not all directories exist yet.
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+CERN Open Hardware Licence Version 2, Strongly Reciprocal (CERN-OHL-S-2.0). See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Under this licence, modified designs and products made from them must be shared under the same terms. For other terms, contact the copyright holder.

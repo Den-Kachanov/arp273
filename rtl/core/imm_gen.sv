@@ -1,1 +1,1 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: CERN-OHL-S-2.0
