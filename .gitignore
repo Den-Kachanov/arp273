@@ -1,0 +1,61 @@
+# Secrets and local config
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# Verilator and simulation outputs
+obj_dir/
+build/
+sim_build/
+*.vcd
+*.fst
+*.ghw
+*.log
+!docs/**/*.log
+results.xml
+
+# Software build outputs
+*.o
+*.elf
+*.dis
+*.map
+*.hex
+*.bin
+
+# Spike and trace logs
+spike.log
+trace.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# FPGA toolchains
+*.bit
+*.dcp
+*.jou
+*.backup.log
+.Xil/
+vivado*.str
+*.json.nextpnr
+*.asc
+*.config
+fpga/**/work/
+fpga/**/out/
+
+# LaTeX
+*.aux
+*.toc
+*.out
+*.synctex.gz
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
