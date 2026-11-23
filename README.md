@@ -2,7 +2,7 @@
 
 RV64 SoC: CPU, vector unit and SIMT GPU
 
-> **Status: work in progress.** Currently stage 1, the RV64I core. Nothing below is implemented yet.
+> **Status: work in progress.** Currently stage 1, the RV64I core.
 
 A learning project in SystemVerilog: a small system-on-chip built from scratch.
 
