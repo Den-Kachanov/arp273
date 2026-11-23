@@ -189,6 +189,58 @@ async def test_word_random_values(dut):
             assert result == (expected := model(a, b)), f"{alu_op}W failed for ({hex(a)}, {hex(b)})\nExpected: {hex(expected)}, got {hex(result)}"
 
 
+@cocotb.test()
+async def test_shift_amounts(dut):
+    """
+    SLL, SRL, SRA by every amount 0..2*XLEN+1, also with upper bits of b set
+
+    Dependencies: common.xlen, common.mask
+    """
+    x = common.xlen()
+    upper = common.mask() & ~(x - 1)
+    for alu_op in ("ALU_SLL", "ALU_SRL", "ALU_SRA"):
+        for a in (1, common.mask(), 1 << (x - 1), 0x123456789ABCDEF0 & common.mask()):
+            for amount in range(2 * x + 2):
+                for b in (amount, amount | upper):
+                    result = await apply(dut, ALU[alu_op], a, b)
+                    assert result == (expected := ALU_EXPECTED[alu_op](a, b)), f"{alu_op} failed for ({hex(a)}, {hex(b)})\nExpected: {hex(expected)}, got {hex(result)}"
+
+@cocotb.test()
+async def test_word_shift_amounts(dut):
+    """
+    SLLW, SRLW, SRAW by every amount 0..69, also with upper bits of b set (RV64 only)
+
+    Dependencies: common.mask
+    """
+    if common.xlen() != 64:
+        return
+
+    upper = common.mask() & ~31
+    for alu_op in ("ALU_SLL", "ALU_SRL", "ALU_SRA"):
+        for a in (1, common.mask(), 0x80000000, 0xFFFFFFFF80000000, 0x123456789ABCDEF0):
+            for amount in range(70):
+                for b in (amount, amount | upper):
+                    result = await apply(dut, ALU[alu_op], a, b, word=1)
+                    assert result == (expected := ALU_WORD_EXPECTED[alu_op](a, b)), f"{alu_op}W failed for ({hex(a)}, {hex(b)})\nExpected: {hex(expected)}, got {hex(result)}"
+
+@cocotb.test()
+async def test_word_known_cases(dut):
+    """Known W results: sign extension, 5-bit shift amount, bit 31 as sign (RV64 only)"""
+    if common.xlen() != 64:
+        return
+
+    cases = [
+        ("ALU_ADD", 0x7FFFFFFF,         1,  0xFFFFFFFF80000000),
+        ("ALU_SLL", 1,                  31, 0xFFFFFFFF80000000),
+        ("ALU_SLL", 1,                  32, 1),
+        ("ALU_SRL", 0xFFFFFFFF80000000, 1,  0x40000000),
+        ("ALU_SRA", 0x80000000,         1,  0xFFFFFFFFC0000000),
+    ]
+    for alu_op, a, b, expected in cases:
+        result = await apply(dut, ALU[alu_op], a, b, word=1)
+        assert result == expected, f"{alu_op}W failed for ({hex(a)}, {hex(b)})\nExpected: {hex(expected)}, got {hex(result)}"
+
+
 @pytest.mark.parametrize("xlen", common.XLENS)
 def test_alu_runner(xlen):
     """Build the ALU for this XLEN and run the cocotb tests"""
