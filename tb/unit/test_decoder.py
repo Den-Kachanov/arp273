@@ -1,0 +1,257 @@
+# SPDX-License-Identifier: CERN-OHL-S-2.0
+import random
+
+import cocotb
+import common
+import pytest
+from cocotb.triggers import Timer
+
+# Codes of the enums in riscv_pkg.sv: they must match
+ALU = {
+    "ADD": 0b0000, "SLL": 0b0001, "SLT": 0b0010, "SLTU": 0b0011, "XOR": 0b0100,
+    "SRL": 0b0101, "OR": 0b0110, "AND": 0b0111, "SUB": 0b1000, "SRA": 0b1101,
+}
+IMM = {"I": 0b000, "S": 0b001, "B": 0b010, "U": 0b011, "J": 0b100}
+A_RS1, A_PC, A_ZERO = 0b00, 0b01, 0b10
+B_RS2, B_IMM = 0, 1
+WB_ALU, WB_MEM, WB_PC4 = 0b00, 0b01, 0b10
+
+OPC = {
+    "OP": 0b0110011, "OP_IMM": 0b0010011, "OP_32": 0b0111011, "OP_IMM_32": 0b0011011,
+    "LUI": 0b0110111, "AUIPC": 0b0010111, "LOAD": 0b0000011, "STORE": 0b0100011,
+    "BRANCH": 0b1100011, "JAL": 0b1101111, "JALR": 0b1100111, "MISC_MEM": 0b0001111,
+    "SYSTEM": 0b1110011,
+}
+
+SIDE_EFFECTS = ("reg_we", "mem_re", "mem_we", "branch", "jal", "jalr")
+
+
+# Encoders: instruction formats from the RISC-V specification
+
+def r_type(f7, rs2, rs1, f3, rd, opc):
+    return (f7 << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | opc
+
+
+def i_type(imm, rs1, f3, rd, opc):
+    return ((imm & 0xFFF) << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | opc
+
+
+def s_type(imm, rs2, rs1, f3, opc):
+    return (((imm >> 5) & 0x7F) << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | ((imm & 0x1F) << 7) | opc
+
+
+def b_type(imm, rs2, rs1, f3, opc):
+    return (((imm >> 12) & 1) << 31) | (((imm >> 5) & 0x3F) << 25) | (rs2 << 20) | (rs1 << 15) \
+        | (f3 << 12) | (((imm >> 1) & 0xF) << 8) | (((imm >> 11) & 1) << 7) | opc
+
+
+def u_type(imm20, rd, opc):
+    return ((imm20 & 0xFFFFF) << 12) | (rd << 7) | opc
+
+
+def j_type(imm, rd, opc):
+    return (((imm >> 20) & 1) << 31) | (((imm >> 1) & 0x3FF) << 21) | (((imm >> 11) & 1) << 20) \
+        | (((imm >> 12) & 0xFF) << 12) | (rd << 7) | opc
+
+
+# Expected outputs. Only the listed signals are checked: a missing key means "don't care"
+
+def alu_instr(alu, imm=None, word=0):
+    """Expected signals of an instruction that writes the ALU result to rd"""
+    exp = {"alu_op": ALU[alu], "word": word, "reg_we": 1, "mem_re": 0, "mem_we": 0,
+           "branch": 0, "jal": 0, "jalr": 0, "wb_sel": WB_ALU, "a_sel": A_RS1, "illegal": 0}
+    if imm is None:
+        exp["b_sel"] = B_RS2
+    else:
+        exp["b_sel"] = B_IMM
+        exp["imm_sel"] = IMM[imm]
+    return exp
+
+
+def build_instructions(r, xlen):
+    """
+    List of (name, instruction word generator, expected signals, rv64_only)
+
+    A generator takes no arguments and returns a word with random registers and immediates,
+    so the decoder is checked to ignore rd, rs1, rs2 and immediate bits
+
+    Dependencies: common.xlen
+    """
+    reg = lambda: r.randrange(32)
+    imm12 = lambda: r.randrange(-2048, 2048)
+    shamt = lambda: r.randrange(xlen)
+    out = []
+
+    # R-type and OP-32
+    r_ops = {"ADD": (0, 0, "ADD"), "SUB": (0b0100000, 0, "SUB"), "SLL": (0, 1, "SLL"),
+             "SLT": (0, 2, "SLT"), "SLTU": (0, 3, "SLTU"), "XOR": (0, 4, "XOR"),
+             "SRL": (0, 5, "SRL"), "SRA": (0b0100000, 5, "SRA"), "OR": (0, 6, "OR"),
+             "AND": (0, 7, "AND")}
+    for name, (f7, f3, alu) in r_ops.items():
+        out.append((name, lambda f7=f7, f3=f3: r_type(f7, reg(), reg(), f3, reg(), OPC["OP"]),
+                    alu_instr(alu), False))
+    for name in ("ADD", "SUB", "SLL", "SRL", "SRA"):
+        f7, f3, alu = r_ops[name]
+        out.append((name + "W", lambda f7=f7, f3=f3: r_type(f7, reg(), reg(), f3, reg(), OPC["OP_32"]),
+                    alu_instr(alu, word=1), True))
+
+    # I-type ALU: inst[30] belongs to the immediate, so the ALU op must not become SUB
+    i_ops = {"ADDI": (0, "ADD"), "SLTI": (2, "SLT"), "SLTIU": (3, "SLTU"), "XORI": (4, "XOR"),
+             "ORI": (6, "OR"), "ANDI": (7, "AND")}
+    for name, (f3, alu) in i_ops.items():
+        out.append((name, lambda f3=f3: i_type(imm12(), reg(), f3, reg(), OPC["OP_IMM"]),
+                    alu_instr(alu, imm="I"), False))
+    shifts = {"SLLI": (0b000000, 1, "SLL"), "SRLI": (0b000000, 5, "SRL"), "SRAI": (0b010000, 5, "SRA")}
+    for name, (f6, f3, alu) in shifts.items():
+        out.append((name, lambda f6=f6, f3=f3: i_type((f6 << 6) | shamt(), reg(), f3, reg(), OPC["OP_IMM"]),
+                    alu_instr(alu, imm="I"), False))
+    out.append(("ADDIW", lambda: i_type(imm12(), reg(), 0, reg(), OPC["OP_IMM_32"]),
+                alu_instr("ADD", imm="I", word=1), True))
+    w_shifts = {"SLLIW": (0b0000000, 1, "SLL"), "SRLIW": (0b0000000, 5, "SRL"), "SRAIW": (0b0100000, 5, "SRA")}
+    for name, (f7, f3, alu) in w_shifts.items():
+        out.append((name, lambda f7=f7, f3=f3: r_type(f7, reg(), reg(), f3, reg(), OPC["OP_IMM_32"]),
+                    alu_instr(alu, imm="I", word=1), True))
+
+    # LUI, AUIPC
+    lui = {"alu_op": ALU["ADD"], "word": 0, "reg_we": 1, "mem_re": 0, "mem_we": 0, "branch": 0,
+           "jal": 0, "jalr": 0, "wb_sel": WB_ALU, "imm_sel": IMM["U"], "b_sel": B_IMM, "illegal": 0}
+    out.append(("LUI", lambda: u_type(r.getrandbits(20), reg(), OPC["LUI"]), dict(lui, a_sel=A_ZERO), False))
+    out.append(("AUIPC", lambda: u_type(r.getrandbits(20), reg(), OPC["AUIPC"]), dict(lui, a_sel=A_PC), False))
+
+    # loads and stores: address = rs1 + imm
+    mem = {"alu_op": ALU["ADD"], "word": 0, "a_sel": A_RS1, "b_sel": B_IMM, "branch": 0,
+           "jal": 0, "jalr": 0, "illegal": 0}
+    loads = {"LB": (0, False), "LH": (1, False), "LW": (2, False), "LD": (3, True),
+             "LBU": (4, False), "LHU": (5, False), "LWU": (6, True)}
+    for name, (f3, rv64) in loads.items():
+        out.append((name, lambda f3=f3: i_type(imm12(), reg(), f3, reg(), OPC["LOAD"]),
+                    dict(mem, reg_we=1, mem_re=1, mem_we=0, wb_sel=WB_MEM, imm_sel=IMM["I"], funct3=f3), rv64))
+    stores = {"SB": (0, False), "SH": (1, False), "SW": (2, False), "SD": (3, True)}
+    for name, (f3, rv64) in stores.items():
+        out.append((name, lambda f3=f3: s_type(imm12(), reg(), reg(), f3, OPC["STORE"]),
+                    dict(mem, reg_we=0, mem_re=0, mem_we=1, imm_sel=IMM["S"], funct3=f3), rv64))
+
+    # branches: the ALU computes pc + imm
+    br = {"alu_op": ALU["ADD"], "word": 0, "a_sel": A_PC, "b_sel": B_IMM, "imm_sel": IMM["B"],
+          "reg_we": 0, "mem_re": 0, "mem_we": 0, "branch": 1, "jal": 0, "jalr": 0, "illegal": 0}
+    for name, f3 in {"BEQ": 0, "BNE": 1, "BLT": 4, "BGE": 5, "BLTU": 6, "BGEU": 7}.items():
+        out.append((name, lambda f3=f3: b_type(r.randrange(-4096, 4096) & ~1, reg(), reg(), f3, OPC["BRANCH"]),
+                    dict(br, funct3=f3), False))
+
+    # jumps: rd = pc + 4
+    jmp = {"alu_op": ALU["ADD"], "word": 0, "b_sel": B_IMM, "reg_we": 1, "mem_re": 0, "mem_we": 0,
+           "branch": 0, "wb_sel": WB_PC4, "illegal": 0}
+    out.append(("JAL", lambda: j_type(r.randrange(-(1 << 20), 1 << 20) & ~1, reg(), OPC["JAL"]),
+                dict(jmp, a_sel=A_PC, imm_sel=IMM["J"], jal=1, jalr=0), False))
+    out.append(("JALR", lambda: i_type(imm12(), reg(), 0, reg(), OPC["JALR"]),
+                dict(jmp, a_sel=A_RS1, imm_sel=IMM["I"], jal=0, jalr=1), False))
+
+    # FENCE: legal, does nothing
+    out.append(("FENCE", lambda: i_type(r.getrandbits(12), reg(), 0, reg(), OPC["MISC_MEM"]),
+                {"reg_we": 0, "mem_re": 0, "mem_we": 0, "branch": 0, "jal": 0, "jalr": 0, "illegal": 0}, False))
+    return out
+
+
+async def apply(dut, inst):
+    """Drive the instruction, await, return all outputs as a dict"""
+    dut.inst_i.value = inst
+    await Timer(1, "ns")
+    return {
+        "alu_op": int(dut.alu_op_o.value), "word": int(dut.word_o.value),
+        "imm_sel": int(dut.imm_sel_o.value), "a_sel": int(dut.a_sel_o.value),
+        "b_sel": int(dut.b_sel_o.value), "wb_sel": int(dut.wb_sel_o.value),
+        "reg_we": int(dut.reg_we_o.value), "mem_re": int(dut.mem_re_o.value),
+        "mem_we": int(dut.mem_we_o.value), "branch": int(dut.branch_o.value),
+        "jal": int(dut.jal_o.value), "jalr": int(dut.jalr_o.value),
+        "funct3": int(dut.funct3_o.value), "illegal": int(dut.illegal_o.value),
+    }
+
+
+def check_illegal(name, inst, got):
+    """An illegal instruction must be flagged and have no side effects"""
+    assert got["illegal"] == 1, f"{name} {inst:#010x} must be illegal"
+    for key in SIDE_EFFECTS:
+        assert got[key] == 0, f"{name} {inst:#010x} is illegal but {key} = 1"
+
+
+@cocotb.test()
+async def test_all_instructions(dut):
+    """Every RV64I instruction with random registers and immediates (RV64-only ones are illegal at XLEN=32)"""
+    xlen = common.xlen()
+    r = random.Random(1)
+    for name, make, expected, rv64_only in build_instructions(r, xlen):
+        for _ in range(20):
+            inst = make()
+            got = await apply(dut, inst)
+            if rv64_only and xlen == 32:
+                check_illegal(name, inst, got)
+                continue
+            for key, value in expected.items():
+                assert got[key] == value, f"{name} {inst:#010x}: {key} expected {value:#x}, got {got[key]:#x}"
+
+
+@cocotb.test()
+async def test_op_imm_does_not_become_sub(dut):
+    """inst[30] is an immediate bit in OP-IMM: ADDI with a negative immediate must stay ADD"""
+    for f3, alu in ((0, "ADD"), (2, "SLT"), (3, "SLTU"), (4, "XOR"), (6, "OR"), (7, "AND")):
+        for imm in (-1, -2048, 0x400, 0x7FF):
+            inst = i_type(imm, 1, f3, 2, OPC["OP_IMM"])
+            got = await apply(dut, inst)
+            assert got["illegal"] == 0
+            assert got["alu_op"] == ALU[alu], f"{alu}I with imm {imm}: alu_op {got['alu_op']:#06b}"
+
+
+@cocotb.test()
+async def test_illegal_encodings(dut):
+    """Reserved and unsupported encodings are flagged and have no side effects"""
+    xlen = common.xlen()
+    cases = {
+        "all zeros": 0x00000000,
+        "all ones": 0xFFFFFFFF,
+        "MUL (funct7 = 1)": r_type(0b0000001, 3, 2, 0, 1, OPC["OP"]),
+        "SLL with funct7 = 0100000": r_type(0b0100000, 3, 2, 1, 1, OPC["OP"]),
+        "ADD with funct7 = 0100001": r_type(0b0100001, 3, 2, 0, 1, OPC["OP"]),
+        "SLLI with funct6 != 0": i_type((0b000001 << 6) | 1, 2, 1, 1, OPC["OP_IMM"]),
+        "SRLI with funct6 = 100000": i_type((0b100000 << 6) | 1, 2, 5, 1, OPC["OP_IMM"]),
+        "LOAD funct3 = 7": i_type(0, 2, 7, 1, OPC["LOAD"]),
+        "STORE funct3 = 4": s_type(0, 3, 2, 4, OPC["STORE"]),
+        "BRANCH funct3 = 2": b_type(8, 3, 2, 2, OPC["BRANCH"]),
+        "BRANCH funct3 = 3": b_type(8, 3, 2, 3, OPC["BRANCH"]),
+        "JALR funct3 = 1": i_type(0, 2, 1, 1, OPC["JALR"]),
+        "FENCE.I": i_type(0, 0, 1, 0, OPC["MISC_MEM"]),
+        "ECALL (not yet supported)": 0x00000073,
+        "EBREAK (not yet supported)": 0x00100073,
+        "CSRRW (not yet supported)": i_type(0x300, 2, 1, 1, OPC["SYSTEM"]),
+        "SLLI with shamt[5] = 1 is RV64 only" if xlen == 32 else "SLTW does not exist":
+            i_type((1 << 5) | 1, 2, 1, 1, OPC["OP_IMM"]) if xlen == 32
+            else r_type(0, 3, 2, 2, 1, OPC["OP_32"]),
+        "OP-IMM-32 funct3 = 1 with funct7 = 0100000": r_type(0b0100000, 3, 2, 1, 1, OPC["OP_IMM_32"]),
+        "OP-32 funct3 = 4": r_type(0, 3, 2, 4, 1, OPC["OP_32"]),
+    }
+    for name, inst in cases.items():
+        check_illegal(name, inst, await apply(dut, inst))
+
+
+@cocotb.test()
+async def test_random_words_invariants(dut):
+    """On random words: illegal means no side effects; word only for ADD, SUB, SLL, SRL, SRA; no two actions at once"""
+    r = random.Random(2)
+    word_ops = {ALU["ADD"], ALU["SUB"], ALU["SLL"], ALU["SRL"], ALU["SRA"]}
+    for _ in range(5000):
+        inst = r.getrandbits(32)
+        got = await apply(dut, inst)
+        if got["illegal"]:
+            check_illegal("random", inst, got)
+            continue
+        if got["word"]:
+            assert got["alu_op"] in word_ops, f"{inst:#010x}: word with alu_op {got['alu_op']:#06b}"
+        assert got["mem_re"] + got["mem_we"] + got["branch"] + got["jal"] + got["jalr"] <= 1, \
+            f"{inst:#010x}: several actions at once"
+        if got["mem_re"]:
+            assert got["reg_we"] == 1 and got["wb_sel"] == WB_MEM, f"{inst:#010x}: bad load"
+
+
+@pytest.mark.parametrize("xlen", common.XLENS)
+def test_decoder_runner(xlen):
+    """Build the decoder for this XLEN and run the cocotb tests"""
+    common.run("decoder", __file__, xlen)
