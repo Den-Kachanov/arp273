@@ -28,6 +28,9 @@ results.xml
 spike.log
 trace.log
 
+# Yosys (written to the current directory by abc)
+abc.history
+
 # Python
 __pycache__/
 *.pyc

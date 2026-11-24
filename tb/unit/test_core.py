@@ -2,6 +2,7 @@
 import asm
 import cocotb
 import common
+import mext
 import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge, Timer
@@ -65,6 +66,10 @@ async def run_program(dut, words, max_cycles=MAX_CYCLES):
             assert int(dut.dmem_wstrb_o.value) == 0, f"store during a trap at {pc:#x}"
             assert int(dut.dmem_re_o.value) == 0, f"load during a trap at {pc:#x}"
             return trace, mem, pc
+        if not int(dut.commit_valid_o.value):
+            # a waiting instruction (multiplier/divider) changes nothing until it is done
+            assert int(dut.commit_we_o.value) == 0, f"register write while waiting at {pc:#x}"
+            assert int(dut.dmem_wstrb_o.value) == 0, f"store while waiting at {pc:#x}"
         if int(dut.commit_valid_o.value):
             trace.append({"pc": int(dut.commit_pc_o.value), "inst": int(dut.commit_inst_o.value),
                           "we": int(dut.commit_we_o.value), "rd": int(dut.commit_rd_o.value),
@@ -268,6 +273,101 @@ async def test_perf_counters(dut):
     assert int(dut.perf_cycles_o.value) >= len(trace)
 
 
+def check_committed_once(trace, n_instructions):
+    """A waiting instruction must be committed exactly once: the pcs are consecutive"""
+    pcs = [c["pc"] for c in trace]
+    assert pcs == [BASE + 4 * i for i in range(n_instructions)], "an instruction was committed twice or skipped"
+
+
+@cocotb.test()
+async def test_m_instructions(dut):
+    """All M instructions: results, one commit each, rd = x0, the same register as source and destination"""
+    x = common.xlen()
+    m = common.mask()
+    a, b = (-7) & m, 2
+    prog = [
+        asm.addi(1, 0, -7),             # 0
+        asm.addi(2, 0, 2),              # 1
+        asm.addi(3, 0, 0),              # 2
+        asm.mul(4, 1, 2),               # 3
+        asm.mulh(5, 1, 2),              # 4
+        asm.mulhsu(6, 1, 2),            # 5
+        asm.mulhu(7, 1, 2),             # 6
+        asm.div(8, 1, 2),               # 7
+        asm.divu(9, 1, 2),              # 8
+        asm.rem(10, 1, 2),              # 9
+        asm.remu(11, 1, 2),             # 10
+        asm.div(12, 1, 3),              # 11: by zero
+        asm.rem(13, 1, 3),              # 12: by zero
+        asm.addi(20, 0, 1),             # 13
+        asm.slli(20, 20, x - 1),        # 14: x20 = MIN
+        asm.addi(21, 0, -1),            # 15
+        asm.div(22, 20, 21),            # 16: MIN / -1
+        asm.rem(23, 20, 21),            # 17
+        asm.mul(0, 1, 2),               # 18: rd = x0: waits, writes nothing
+        asm.mul(1, 1, 1),               # 19: x1 = 49, reads and writes x1
+        asm.addi(14, 0, 5),             # 20
+    ]
+    if x == 64:
+        prog += [
+            asm.mulw(15, 2, 2),         # 21
+            asm.divw(16, 20, 21),       # 22: upper half of x20 is 0, W works on the low 32 bits
+            asm.divuw(17, 21, 2),       # 23
+            asm.remw(18, 21, 2),        # 24
+            asm.remuw(19, 21, 2),       # 25
+        ]
+    n = len(prog)
+    n_md = sum(1 for w in prog if (w & 0x7F) in (asm.OPC["OP"], asm.OPC["OP_32"]) and (w >> 25) == 1)
+    prog.append(asm.ECALL)
+    trace, _, trap_pc = await run_program(dut, prog, max_cycles=3000)
+    r = registers(trace)
+    check_committed_once(trace, n)
+    assert trap_pc == BASE + 4 * n
+
+    for reg, f3 in ((4, 0), (5, 1), (6, 2), (7, 3), (8, 4), (9, 5), (10, 6), (11, 7)):
+        assert r[reg] == mext.expected(f3, a, b), f"{mext.NAMES[f3]}: {r[reg]:#x}"
+    assert r[12] == m and r[13] == a, "division by zero"
+    assert r[22] == 1 << (x - 1) and r[23] == 0, "MIN / -1"
+    assert r[1] == 49, "MUL x1, x1, x1"
+    assert all(not (c["we"] and c["rd"] == 0) for c in trace)
+    assert r[14] == 5, "the instruction after the last M must run"
+    if x == 64:
+        # x2 = 2, x20 = MIN (low 32 bits are 0), x21 = -1
+        assert r[15] == 4, "MULW"
+        assert r[16] == 0, "DIVW: low word of MIN is 0, 0 / -1 = 0"
+        assert r[17] == 0x7FFFFFFF, "DIVUW: 0xFFFFFFFF / 2"
+        assert r[18] == m, "REMW: -1 % 2 = -1, sign-extended"
+        assert r[19] == 1, "REMUW: 0xFFFFFFFF % 2"
+        assert r[16] == mext.expected(4, 1 << 63, m, 1) and r[17] == mext.expected(5, m, 2, 1)
+
+    assert int(dut.perf_instret_o.value) == len(trace)
+    assert int(dut.perf_stalls_o.value) == n_md * (x + 1), "each M instruction waits XLEN + 1 cycles"
+    assert int(dut.perf_cycles_o.value) == len(trace) + int(dut.perf_stalls_o.value)
+
+
+@cocotb.test()
+async def test_m_in_a_loop(dut):
+    """Factorial with MUL in a loop: the multiplier result feeds the loop, branches around M instructions work"""
+    prog = [
+        asm.addi(1, 0, 1),
+        asm.addi(2, 0, 5),
+        asm.mul(1, 1, 2),       # loop
+        asm.addi(2, 2, -1),
+        asm.bne(2, 0, -8),
+        asm.addi(3, 0, 100),
+        asm.addi(4, 0, 7),
+        asm.div(5, 3, 4),       # 100 / 7 = 14
+        asm.rem(6, 3, 4),       # 100 % 7 = 2
+        asm.ECALL,
+    ]
+    trace, _, _ = await run_program(dut, prog, max_cycles=3000)
+    r = registers(trace)
+    assert r[1] == 120 and r[5] == 14 and r[6] == 2
+    x = common.xlen()
+    assert int(dut.perf_stalls_o.value) == 7 * (x + 1)
+    assert int(dut.perf_flushes_o.value) == 4, "BNE is taken 4 times"
+
+
 @cocotb.test()
 async def test_x0_is_never_written(dut):
     """Instructions with rd = x0 do not appear as register writes and x0 stays 0"""
@@ -313,5 +413,5 @@ async def test_misaligned_store_traps(dut):
 @pytest.mark.parametrize("xlen", common.XLENS)
 def test_core_runner(xlen):
     """Build the core with all its modules for this XLEN and run the cocotb tests"""
-    others = [f"rtl/core/{m}.sv" for m in ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters")]
+    others = [f"rtl/core/{m}.sv" for m in ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters", "muldiv")]
     common.run("core", __file__, xlen, extra_sources=[str(common.REPO / o) for o in others])

@@ -56,6 +56,7 @@ module core #(
 	logic                branch;
 	logic                jal;
 	logic                jalr;
+	logic                muldiv;
 	logic [2:0]          funct3;
 	logic                illegal;
 
@@ -70,6 +71,11 @@ module core #(
 	logic [X-1:0] wb_data;
 	logic         taken;
 	logic         reg_we_eff;
+
+	// M extension: the multiplier/divider takes several cycles, the core waits on the same instruction
+	logic         md_done;
+	logic [X-1:0] md_result;
+	logic         stall;
 
 	// load/store
 	logic [X-1:0]   lsu_wdata;
@@ -96,13 +102,17 @@ module core #(
 		.branch_o  (branch),
 		.jal_o     (jal),
 		.jalr_o    (jalr),
+		.muldiv_o  (muldiv),
 		.funct3_o  (funct3),
 		.illegal_o (illegal)
 	);
 
 	// a trapping instruction changes nothing: no register write, no store, pc stays
 	assign trap_o     = illegal | (misaligned & (mem_re | mem_we));
-	assign reg_we_eff = reg_we & ~trap_o;
+
+	// a waiting instruction changes nothing either: it is committed in the cycle when the unit is done
+	assign stall      = muldiv & ~md_done;
+	assign reg_we_eff = reg_we & ~trap_o & ~stall;
 
 	// single-cycle core: the write belongs to the instruction that reads, so reads must see the old value
 	regfile #(.WRITE_THROUGH(1'b0)) u_regfile (
@@ -150,6 +160,18 @@ module core #(
 		.taken_o  (taken)
 	);
 
+	muldiv u_muldiv (
+		.clk_i    (clk_i),
+		.rst_ni   (rst_ni),
+		.valid_i  (muldiv),
+		.funct3_i (funct3),
+		.word_i   (word),
+		.a_i      (rs1_data),
+		.b_i      (rs2_data),
+		.done_o   (md_done),
+		.result_o (md_result)
+	);
+
 	lsu u_lsu (
 		.funct3_i     (funct3),
 		.addr_lo_i    (alu_r[2:0]),
@@ -172,6 +194,7 @@ module core #(
 		case (wb_sel)
 			riscv_pkg::WB_MEM: wb_data = load_data;
 			riscv_pkg::WB_PC4: wb_data = pc_plus4;
+			riscv_pkg::WB_MD:  wb_data = md_result;
 			default:           wb_data = alu_r;
 		endcase // wb_sel
 	end
@@ -180,7 +203,7 @@ module core #(
 	always_comb begin
 		pc_d = pc_plus4;
 
-		if (trap_o)                    pc_d = pc_q;
+		if (trap_o || stall)               pc_d = pc_q;
 		else if (jal || (branch && taken)) pc_d = alu_r;
 		else if (jalr)                 pc_d = {alu_r[X-1:1], 1'b0};
 	end
@@ -191,19 +214,20 @@ module core #(
 	end
 
 	// commit trace: writes to x0 are not reported
-	assign commit_valid_o = rst_ni & ~trap_o;
+	assign commit_valid_o = rst_ni & ~trap_o & ~stall;
 	assign commit_pc_o    = pc_q;
 	assign commit_inst_o  = inst;
 	assign commit_we_o    = reg_we_eff & (rd != 5'd0);
 	assign commit_rd_o    = rd;
 	assign commit_data_o  = wb_data;
 
-	// a single-cycle core never stalls; a redirect is the event that flushes the pipeline later
+	// the only stall of the single-cycle core is waiting for the multiplier/divider;
+	// a redirect is the event that flushes the pipeline later
 	perf_counters u_perf_counters (
 		.clk_i     (clk_i),
 		.rst_ni    (rst_ni),
 		.commit_i  (commit_valid_o),
-		.stall_i   (1'b0),
+		.stall_i   (rst_ni & stall),
 		.flush_i   (commit_valid_o & (jal | jalr | (branch & taken))),
 		.cycles_o  (perf_cycles_o),
 		.instret_o (perf_instret_o),

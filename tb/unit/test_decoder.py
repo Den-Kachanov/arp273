@@ -15,9 +15,9 @@ ALU = {
 IMM = {"I": 0b000, "S": 0b001, "B": 0b010, "U": 0b011, "J": 0b100}
 A_RS1, A_PC, A_ZERO = 0b00, 0b01, 0b10
 B_RS2, B_IMM = 0, 1
-WB_ALU, WB_MEM, WB_PC4 = 0b00, 0b01, 0b10
+WB_ALU, WB_MEM, WB_PC4, WB_MD = 0b00, 0b01, 0b10, 0b11
 
-SIDE_EFFECTS = ("reg_we", "mem_re", "mem_we", "branch", "jal", "jalr")
+SIDE_EFFECTS = ("reg_we", "mem_re", "mem_we", "branch", "jal", "jalr", "muldiv")
 
 
 # Expected outputs. Only the listed signals are checked: a missing key means "don't care"
@@ -60,6 +60,18 @@ def build_instructions(r, xlen):
         f7, f3, alu = r_ops[name]
         out.append((name + "W", lambda f7=f7, f3=f3: r_type(f7, reg(), reg(), f3, reg(), OPC["OP_32"]),
                     alu_instr(alu, word=1), True))
+
+    # M extension: funct7 = 1; the result comes from the multiplier/divider, not from the ALU
+    m_exp = {"alu_op": ALU["ADD"], "reg_we": 1, "mem_re": 0, "mem_we": 0, "branch": 0, "jal": 0,
+             "jalr": 0, "wb_sel": WB_MD, "a_sel": A_RS1, "b_sel": B_RS2, "muldiv": 1, "illegal": 0}
+    m_ops = {"MUL": 0, "MULH": 1, "MULHSU": 2, "MULHU": 3, "DIV": 4, "DIVU": 5, "REM": 6, "REMU": 7}
+    for name, f3 in m_ops.items():
+        out.append((name, lambda f3=f3: r_type(1, reg(), reg(), f3, reg(), OPC["OP"]),
+                    dict(m_exp, word=0, funct3=f3), False))
+    for name in ("MUL", "DIV", "DIVU", "REM", "REMU"):
+        f3 = m_ops[name]
+        out.append((name + "W", lambda f3=f3: r_type(1, reg(), reg(), f3, reg(), OPC["OP_32"]),
+                    dict(m_exp, word=1, funct3=f3), True))
 
     # I-type ALU: inst[30] belongs to the immediate, so the ALU op must not become SUB
     i_ops = {"ADDI": (0, "ADD"), "SLTI": (2, "SLT"), "SLTIU": (3, "SLTU"), "XORI": (4, "XOR"),
@@ -129,6 +141,7 @@ async def apply(dut, inst):
         "reg_we": int(dut.reg_we_o.value), "mem_re": int(dut.mem_re_o.value),
         "mem_we": int(dut.mem_we_o.value), "branch": int(dut.branch_o.value),
         "jal": int(dut.jal_o.value), "jalr": int(dut.jalr_o.value),
+        "muldiv": int(dut.muldiv_o.value),
         "funct3": int(dut.funct3_o.value), "illegal": int(dut.illegal_o.value),
     }
 
@@ -152,6 +165,7 @@ async def test_all_instructions(dut):
             if rv64_only and xlen == 32:
                 check_illegal(name, inst, got)
                 continue
+            expected.setdefault("muldiv", 0)
             for key, value in expected.items():
                 assert got[key] == value, f"{name} {inst:#010x}: {key} expected {value:#x}, got {got[key]:#x}"
 
@@ -174,7 +188,13 @@ async def test_illegal_encodings(dut):
     cases = {
         "all zeros": 0x00000000,
         "all ones": 0xFFFFFFFF,
-        "MUL (funct7 = 1)": r_type(0b0000001, 3, 2, 0, 1, OPC["OP"]),
+        "OP with funct7 = 0000010": r_type(0b0000010, 3, 2, 0, 1, OPC["OP"]),
+        "OP with funct7 = 1000001": r_type(0b1000001, 3, 2, 0, 1, OPC["OP"]),
+        "OP with funct7 = 0100001 (SUB and M mixed)": r_type(0b0100001, 3, 2, 0, 1, OPC["OP"]),
+        "OP-32 funct7 = 1 with funct3 = 1 (no MULHW-like)": r_type(1, 3, 2, 1, 1, OPC["OP_32"]),
+        "OP-32 funct7 = 1 with funct3 = 2": r_type(1, 3, 2, 2, 1, OPC["OP_32"]),
+        "OP-32 funct7 = 1 with funct3 = 3": r_type(1, 3, 2, 3, 1, OPC["OP_32"]),
+        "SLLIW with funct7 = 1 (not an M instruction)": r_type(1, 3, 2, 1, 1, OPC["OP_IMM_32"]),
         "SLL with funct7 = 0100000": r_type(0b0100000, 3, 2, 1, 1, OPC["OP"]),
         "ADD with funct7 = 0100001": r_type(0b0100001, 3, 2, 0, 1, OPC["OP"]),
         "SLLI with funct6 != 0": i_type((0b000001 << 6) | 1, 2, 1, 1, OPC["OP_IMM"]),
@@ -200,7 +220,7 @@ async def test_illegal_encodings(dut):
 
 @cocotb.test()
 async def test_random_words_invariants(dut):
-    """On random words: illegal means no side effects; word only for ADD, SUB, SLL, SRL, SRA; no two actions at once"""
+    """On random words: illegal means no side effects; word only for ADD, SUB, SLL, SRL, SRA (M uses ADD); no two actions at once"""
     r = random.Random(2)
     word_ops = {ALU["ADD"], ALU["SUB"], ALU["SLL"], ALU["SRL"], ALU["SRA"]}
     for _ in range(5000):
@@ -215,6 +235,12 @@ async def test_random_words_invariants(dut):
             f"{inst:#010x}: several actions at once"
         if got["mem_re"]:
             assert got["reg_we"] == 1 and got["wb_sel"] == WB_MEM, f"{inst:#010x}: bad load"
+        # the multiplier/divider is selected by muldiv and by nothing else
+        assert (got["wb_sel"] == WB_MD) == bool(got["muldiv"]), f"{inst:#010x}: wb_sel and muldiv disagree"
+        if got["muldiv"]:
+            assert got["reg_we"] == 1 and got["a_sel"] == A_RS1 and got["b_sel"] == B_RS2, f"{inst:#010x}: bad M op"
+            assert got["mem_re"] + got["mem_we"] + got["branch"] + got["jal"] + got["jalr"] == 0
+            assert (inst >> 25) == 1, f"{inst:#010x}: M op needs funct7 = 1"
 
 
 @pytest.mark.parametrize("xlen", common.XLENS)

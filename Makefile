@@ -52,7 +52,7 @@ synth:
 # Software and simulation (RV64I: one ELF runs on Spike and on the core)
 BUILD    := build
 CC       := riscv64-elf-gcc
-CFLAGS   := -march=rv64i_zicsr -mabi=lp64 -mcmodel=medany -O2 -ffreestanding -nostdlib -nostartfiles
+CFLAGS   := -march=rv64im_zicsr -mabi=lp64 -mcmodel=medany -O2 -ffreestanding -nostdlib -nostartfiles
 SPIKE    := spike
 PROGS    := $(basename $(notdir $(wildcard sw/*.c)))
 CORE_SRC := $(sort $(wildcard rtl/core/*.sv))
@@ -80,7 +80,7 @@ sim: $(BUILD)/core_sim $(BUILD)/$(PROG).bin
 	  $$(riscv64-elf-nm $(BUILD)/$(PROG).elf | awk '$$3=="tohost"{print $$1}')
 
 compare: sim
-	-$(SPIKE) --isa=rv64i -m0x80000000:0x100000 --log-commits $(BUILD)/$(PROG).elf 2> $(BUILD)/$(PROG).spike.log
+	-$(SPIKE) --isa=rv64im -m0x80000000:0x100000 --log-commits $(BUILD)/$(PROG).elf 2> $(BUILD)/$(PROG).spike.log
 	$(PYTHON) scripts/compare.py $(BUILD)/$(PROG).core.log $(BUILD)/$(PROG).spike.log
 
 regress:

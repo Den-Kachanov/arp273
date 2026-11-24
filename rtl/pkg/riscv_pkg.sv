@@ -59,7 +59,8 @@ package riscv_pkg;
 	typedef enum logic [1:0] {
 		WB_ALU = 2'b00,
 		WB_MEM = 2'b01,
-		WB_PC4 = 2'b10
+		WB_PC4 = 2'b10,
+		WB_MD  = 2'b11
 	} wb_sel_t;
 
 endpackage

@@ -66,6 +66,12 @@ add, sub, sll, slt, sltu = _op(0, 0, "OP"), _op(0b0100000, 0, "OP"), _op(0, 1, "
 xor, srl, sra, or_, and_ = _op(0, 4, "OP"), _op(0, 5, "OP"), _op(0b0100000, 5, "OP"), _op(0, 6, "OP"), _op(0, 7, "OP")
 addw, subw = _op(0, 0, "OP_32"), _op(0b0100000, 0, "OP_32")
 
+# M extension: funct7 = 1
+mul, mulh, mulhsu, mulhu = _op(1, 0, "OP"), _op(1, 1, "OP"), _op(1, 2, "OP"), _op(1, 3, "OP")
+div, divu, rem, remu = _op(1, 4, "OP"), _op(1, 5, "OP"), _op(1, 6, "OP"), _op(1, 7, "OP")
+mulw, divw, divuw, remw, remuw = (_op(1, 0, "OP_32"), _op(1, 4, "OP_32"), _op(1, 5, "OP_32"),
+                                  _op(1, 6, "OP_32"), _op(1, 7, "OP_32"))
+
 addi, slti, sltiu, xori, ori, andi = (_op_imm(0), _op_imm(2), _op_imm(3), _op_imm(4), _op_imm(6), _op_imm(7))
 addiw = _op_imm(0, "OP_IMM_32")
 

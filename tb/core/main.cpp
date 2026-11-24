@@ -98,6 +98,12 @@ int main(int argc, char **argv)
 			break;
 		}
 
+		// the core waits for the multiplier/divider: nothing is committed in this cycle
+		if (!top->commit_valid_o) {
+			tick(top);
+			continue;
+		}
+
 		uint64_t pc = top->commit_pc_o;
 		fprintf(log, "core   0: 3 0x%016llx (0x%08x)", (unsigned long long)pc, top->commit_inst_o);
 		if (top->commit_we_o)

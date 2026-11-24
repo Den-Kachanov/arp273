@@ -14,6 +14,7 @@ module decoder (
 	output logic                branch_o,
 	output logic                jal_o,
 	output logic                jalr_o,
+	output logic                muldiv_o,
 	output logic [2:0]          funct3_o,
 	output logic                illegal_o
 );
@@ -50,19 +51,28 @@ module decoder (
 		branch_o  = 1'b0;
 		jal_o     = 1'b0;
 		jalr_o    = 1'b0;
+		muldiv_o  = 1'b0;
 		illegal_o = 1'b1;
 
 		case (inst_i[6:0])
-			// R-type: op = {funct7[5], funct3}; funct7 is 0, or 0100000 for SUB and SRA
+			// R-type: op = {funct7[5], funct3}; funct7 is 0, or 0100000 for SUB and SRA.
+			// funct7 = 0000001 is the M extension: MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU;
+			// the ALU is not used, the result comes from the multiplier/divider
 			riscv_pkg::OPC_OP: begin
 				reg_we_o = 1'b1;
 				alu_op_o = riscv_pkg::alu_op_t'({funct7[5], funct3});
 				if (funct7 == 7'b0000000 ||
 				    (funct7 == 7'b0100000 && (funct3 == 3'b000 || funct3 == 3'b101)))
 					illegal_o = 1'b0;
+				if (funct7 == 7'b0000001) begin
+					alu_op_o  = riscv_pkg::ALU_ADD;
+					wb_sel_o  = riscv_pkg::WB_MD;
+					muldiv_o  = 1'b1;
+					illegal_o = 1'b0;
+				end
 			end
 
-			// RV64 only: ADDW, SUBW, SLLW, SRLW, SRAW
+			// RV64 only: ADDW, SUBW, SLLW, SRLW, SRAW; with funct7 = 0000001: MULW, DIVW, DIVUW, REMW, REMUW
 			riscv_pkg::OPC_OP_32: begin
 				reg_we_o = 1'b1;
 				word_o   = 1'b1;
@@ -72,6 +82,13 @@ module decoder (
 				    (funct3 == 3'b001 && funct7 == 7'b0000000) ||
 				    (funct3 == 3'b101 && (funct7 == 7'b0000000 || funct7 == 7'b0100000))))
 					illegal_o = 1'b0;
+				if (RV64 && funct7 == 7'b0000001 &&
+				    (funct3 == 3'b000 || funct3[2])) begin
+					alu_op_o  = riscv_pkg::ALU_ADD;
+					wb_sel_o  = riscv_pkg::WB_MD;
+					muldiv_o  = 1'b1;
+					illegal_o = 1'b0;
+				end
 			end
 
 			// I-type ALU: inst[30] belongs to the immediate, so the top bit of op is
@@ -200,6 +217,7 @@ module decoder (
 			branch_o = 1'b0;
 			jal_o    = 1'b0;
 			jalr_o   = 1'b0;
+			muldiv_o = 1'b0;
 		end
 	end
 
