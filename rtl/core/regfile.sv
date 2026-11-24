@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
 
-module regfile (
+module regfile #(
+    // 1: a read of the register being written returns wdata_i (pipeline, ADR 004)
+    // 0: it returns the old value (single-cycle core, where the write belongs to the same instruction)
+    parameter bit WRITE_THROUGH = 1'b1
+) (
     input  logic                       clk_i,
     input  logic                       we_i,
     input  logic [4:0]                 waddr_i,
@@ -29,7 +33,7 @@ module regfile (
         if (raddr1_i == 5'd0) begin
             rdata1_o = '0;
         end
-        else if (we_i && (waddr_i == raddr1_i)) begin
+        else if (WRITE_THROUGH && we_i && (waddr_i == raddr1_i)) begin
             rdata1_o = wdata_i;
         end
         else begin
@@ -40,7 +44,7 @@ module regfile (
         if (raddr2_i == 5'd0) begin
             rdata2_o = '0;
         end
-        else if (we_i && (waddr_i == raddr2_i)) begin
+        else if (WRITE_THROUGH && we_i && (waddr_i == raddr2_i)) begin
             rdata2_o = wdata_i;
         end
         else begin

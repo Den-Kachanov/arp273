@@ -37,4 +37,29 @@ package riscv_pkg;
 		ALU_SRA  = 4'b1101
 	} alu_op_t;
 
+	typedef enum logic [2:0] {
+		IMM_I = 3'b000,
+		IMM_S = 3'b001,
+		IMM_B = 3'b010,
+		IMM_U = 3'b011,
+		IMM_J = 3'b100
+	} imm_sel_t;
+
+	typedef enum logic [1:0] {
+		A_RS1  = 2'b00,
+		A_PC   = 2'b01,
+		A_ZERO = 2'b10
+	} a_sel_t;
+
+	typedef enum logic {
+		B_RS2 = 1'b0,
+		B_IMM = 1'b1
+	} b_sel_t;
+
+	typedef enum logic [1:0] {
+		WB_ALU = 2'b00,
+		WB_MEM = 2'b01,
+		WB_PC4 = 2'b10
+	} wb_sel_t;
+
 endpackage

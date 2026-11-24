@@ -249,6 +249,26 @@ async def test_jumps_and_branches(dut):
 
 
 @cocotb.test()
+async def test_perf_counters(dut):
+    """Sum loop: instret counts retired instructions, flushes count taken branches, no stalls"""
+    prog = [
+        asm.addi(1, 0, 0),
+        asm.addi(2, 0, 1),
+        asm.addi(3, 0, 4),
+        asm.add(1, 1, 2),       # loop, 3 iterations
+        asm.addi(2, 2, 1),
+        asm.bne(2, 3, -8),
+        asm.ECALL,
+    ]
+    trace, _, _ = await run_program(dut, prog)
+    assert len(trace) == 3 + 3 * 3
+    assert int(dut.perf_instret_o.value) == len(trace)
+    assert int(dut.perf_flushes_o.value) == 2, "BNE is taken twice, falls through once"
+    assert int(dut.perf_stalls_o.value) == 0
+    assert int(dut.perf_cycles_o.value) >= len(trace)
+
+
+@cocotb.test()
 async def test_x0_is_never_written(dut):
     """Instructions with rd = x0 do not appear as register writes and x0 stays 0"""
     prog = [
@@ -293,5 +313,5 @@ async def test_misaligned_store_traps(dut):
 @pytest.mark.parametrize("xlen", common.XLENS)
 def test_core_runner(xlen):
     """Build the core with all its modules for this XLEN and run the cocotb tests"""
-    others = [f"rtl/core/{m}.sv" for m in ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu")]
+    others = [f"rtl/core/{m}.sv" for m in ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters")]
     common.run("core", __file__, xlen, extra_sources=[str(common.REPO / o) for o in others])

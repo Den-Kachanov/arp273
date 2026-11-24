@@ -4,6 +4,7 @@ import random
 import cocotb
 import common
 import pytest
+from asm import OPC, b_type, i_type, j_type, r_type, s_type, u_type
 from cocotb.triggers import Timer
 
 # Codes of the enums in riscv_pkg.sv: they must match
@@ -16,42 +17,7 @@ A_RS1, A_PC, A_ZERO = 0b00, 0b01, 0b10
 B_RS2, B_IMM = 0, 1
 WB_ALU, WB_MEM, WB_PC4 = 0b00, 0b01, 0b10
 
-OPC = {
-    "OP": 0b0110011, "OP_IMM": 0b0010011, "OP_32": 0b0111011, "OP_IMM_32": 0b0011011,
-    "LUI": 0b0110111, "AUIPC": 0b0010111, "LOAD": 0b0000011, "STORE": 0b0100011,
-    "BRANCH": 0b1100011, "JAL": 0b1101111, "JALR": 0b1100111, "MISC_MEM": 0b0001111,
-    "SYSTEM": 0b1110011,
-}
-
 SIDE_EFFECTS = ("reg_we", "mem_re", "mem_we", "branch", "jal", "jalr")
-
-
-# Encoders: instruction formats from the RISC-V specification
-
-def r_type(f7, rs2, rs1, f3, rd, opc):
-    return (f7 << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | opc
-
-
-def i_type(imm, rs1, f3, rd, opc):
-    return ((imm & 0xFFF) << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | opc
-
-
-def s_type(imm, rs2, rs1, f3, opc):
-    return (((imm >> 5) & 0x7F) << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | ((imm & 0x1F) << 7) | opc
-
-
-def b_type(imm, rs2, rs1, f3, opc):
-    return (((imm >> 12) & 1) << 31) | (((imm >> 5) & 0x3F) << 25) | (rs2 << 20) | (rs1 << 15) \
-        | (f3 << 12) | (((imm >> 1) & 0xF) << 8) | (((imm >> 11) & 1) << 7) | opc
-
-
-def u_type(imm20, rd, opc):
-    return ((imm20 & 0xFFFFF) << 12) | (rd << 7) | opc
-
-
-def j_type(imm, rd, opc):
-    return (((imm >> 20) & 1) << 31) | (((imm >> 1) & 0x3FF) << 21) | (((imm >> 11) & 1) << 20) \
-        | (((imm >> 12) & 0xFF) << 12) | (rd << 7) | opc
 
 
 # Expected outputs. Only the listed signals are checked: a missing key means "don't care"

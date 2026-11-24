@@ -26,7 +26,13 @@ module core #(
 	output logic [31:0]                   commit_inst_o,
 	output logic                          commit_we_o,
 	output logic [4:0]                    commit_rd_o,
-	output logic [riscv_pkg::XLEN-1:0]    commit_data_o
+	output logic [riscv_pkg::XLEN-1:0]    commit_data_o,
+
+	// performance counters: cycles, retired instructions, stalls, flushes (taken branches and jumps)
+	output logic [63:0]                   perf_cycles_o,
+	output logic [63:0]                   perf_instret_o,
+	output logic [63:0]                   perf_stalls_o,
+	output logic [63:0]                   perf_flushes_o
 );
 
 	localparam int X = riscv_pkg::XLEN;
@@ -191,5 +197,18 @@ module core #(
 	assign commit_we_o    = reg_we_eff & (rd != 5'd0);
 	assign commit_rd_o    = rd;
 	assign commit_data_o  = wb_data;
+
+	// a single-cycle core never stalls; a redirect is the event that flushes the pipeline later
+	perf_counters u_perf_counters (
+		.clk_i     (clk_i),
+		.rst_ni    (rst_ni),
+		.commit_i  (commit_valid_o),
+		.stall_i   (1'b0),
+		.flush_i   (commit_valid_o & (jal | jalr | (branch & taken))),
+		.cycles_o  (perf_cycles_o),
+		.instret_o (perf_instret_o),
+		.stalls_o  (perf_stalls_o),
+		.flushes_o (perf_flushes_o)
+	);
 
 endmodule : core
