@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: CERN-OHL-S-2.0
+"""
+Tiny assembler for tests: instruction encoders (formats from the RISC-V specification)
+and mnemonic helpers that return a 32-bit instruction word
+"""
+
+OPC = {
+    "OP": 0b0110011, "OP_IMM": 0b0010011, "OP_32": 0b0111011, "OP_IMM_32": 0b0011011,
+    "LUI": 0b0110111, "AUIPC": 0b0010111, "LOAD": 0b0000011, "STORE": 0b0100011,
+    "BRANCH": 0b1100011, "JAL": 0b1101111, "JALR": 0b1100111, "MISC_MEM": 0b0001111,
+    "SYSTEM": 0b1110011,
+}
+
+
+# Formats
+
+def r_type(f7, rs2, rs1, f3, rd, opc):
+    return (f7 << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | opc
+
+
+def i_type(imm, rs1, f3, rd, opc):
+    return ((imm & 0xFFF) << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | opc
+
+
+def s_type(imm, rs2, rs1, f3, opc):
+    return (((imm >> 5) & 0x7F) << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | ((imm & 0x1F) << 7) | opc
+
+
+def b_type(imm, rs2, rs1, f3, opc):
+    return (((imm >> 12) & 1) << 31) | (((imm >> 5) & 0x3F) << 25) | (rs2 << 20) | (rs1 << 15) \
+        | (f3 << 12) | (((imm >> 1) & 0xF) << 8) | (((imm >> 11) & 1) << 7) | opc
+
+
+def u_type(imm20, rd, opc):
+    return ((imm20 & 0xFFFFF) << 12) | (rd << 7) | opc
+
+
+def j_type(imm, rd, opc):
+    return (((imm >> 20) & 1) << 31) | (((imm >> 1) & 0x3FF) << 21) | (((imm >> 11) & 1) << 20) \
+        | (((imm >> 12) & 0xFF) << 12) | (rd << 7) | opc
+
+
+# Mnemonics (rd, rs1, rs2, imm, offset in bytes)
+
+def _op(f7, f3, opc):
+    return lambda rd, rs1, rs2: r_type(f7, rs2, rs1, f3, rd, OPC[opc])
+
+
+def _op_imm(f3, opc="OP_IMM"):
+    return lambda rd, rs1, imm: i_type(imm, rs1, f3, rd, OPC[opc])
+
+
+def _load(f3):
+    return lambda rd, imm, rs1: i_type(imm, rs1, f3, rd, OPC["LOAD"])
+
+
+def _store(f3):
+    return lambda rs2, imm, rs1: s_type(imm, rs2, rs1, f3, OPC["STORE"])
+
+
+def _branch(f3):
+    return lambda rs1, rs2, off: b_type(off, rs2, rs1, f3, OPC["BRANCH"])
+
+
+add, sub, sll, slt, sltu = _op(0, 0, "OP"), _op(0b0100000, 0, "OP"), _op(0, 1, "OP"), _op(0, 2, "OP"), _op(0, 3, "OP")
+xor, srl, sra, or_, and_ = _op(0, 4, "OP"), _op(0, 5, "OP"), _op(0b0100000, 5, "OP"), _op(0, 6, "OP"), _op(0, 7, "OP")
+addw, subw = _op(0, 0, "OP_32"), _op(0b0100000, 0, "OP_32")
+
+addi, slti, sltiu, xori, ori, andi = (_op_imm(0), _op_imm(2), _op_imm(3), _op_imm(4), _op_imm(6), _op_imm(7))
+addiw = _op_imm(0, "OP_IMM_32")
+
+
+def slli(rd, rs1, shamt):
+    return i_type(shamt, rs1, 1, rd, OPC["OP_IMM"])
+
+
+def srli(rd, rs1, shamt):
+    return i_type(shamt, rs1, 5, rd, OPC["OP_IMM"])
+
+
+def srai(rd, rs1, shamt):
+    return i_type((0b010000 << 6) | shamt, rs1, 5, rd, OPC["OP_IMM"])
+
+
+lb, lh, lw, ld, lbu, lhu, lwu = (_load(0), _load(1), _load(2), _load(3), _load(4), _load(5), _load(6))
+sb, sh, sw, sd = _store(0), _store(1), _store(2), _store(3)
+beq, bne, blt, bge, bltu, bgeu = (_branch(0), _branch(1), _branch(4), _branch(5), _branch(6), _branch(7))
+
+
+def lui(rd, imm20):
+    return u_type(imm20, rd, OPC["LUI"])
+
+
+def auipc(rd, imm20):
+    return u_type(imm20, rd, OPC["AUIPC"])
+
+
+def jal(rd, off):
+    return j_type(off, rd, OPC["JAL"])
+
+
+def jalr(rd, imm, rs1):
+    return i_type(imm, rs1, 0, rd, OPC["JALR"])
+
+
+ECALL = 0x00000073
