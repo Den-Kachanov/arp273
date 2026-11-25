@@ -60,7 +60,9 @@ jobs:
       contents: read
     timeout-minutes: 90
     env:
-      SPIKE_REF: v1.1.0
+      # riscv-isa-sim master at the commit the comparisons were validated against locally
+      # (the v1.1.0 tag from 2022 no longer builds with the GCC of ubuntu-24.04: missing <cstdint>)
+      SPIKE_REF: 982f078e65ab52d5d9a91248c2178f5399df7783
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -79,7 +81,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-riscv64-unknown-elf device-tree-compiler libboost-regex-dev libboost-system-dev
 
-      # Spike is built from source and cached; change SPIKE_REF to change the version
+      # Spike is built from source and cached by commit; change SPIKE_REF to change the version
       - name: Spike cache
         id: spike-cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -90,7 +92,10 @@ jobs:
       - name: Build Spike
         if: steps.spike-cache.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch "$SPIKE_REF" https://github.com/riscv-software-src/riscv-isa-sim.git "$RUNNER_TEMP/spike-src"
+          # a commit, not a branch or tag: fetch exactly that commit
+          git init -q "$RUNNER_TEMP/spike-src"
+          git -C "$RUNNER_TEMP/spike-src" fetch -q --depth 1 https://github.com/riscv-software-src/riscv-isa-sim.git "$SPIKE_REF"
+          git -C "$RUNNER_TEMP/spike-src" checkout -q FETCH_HEAD
           mkdir "$RUNNER_TEMP/spike-src/build"
           cd "$RUNNER_TEMP/spike-src/build"
           ../configure --prefix="$HOME/spike"
