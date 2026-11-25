@@ -16,6 +16,7 @@ Nothing below is copied into the repository; these are tools that are installed 
 | elkjs (dependency of netlistsvg) | graph layout for netlistsvg | EPL-1.0 |
 | Graphviz | layout of the flattened core (`make schematics M=core LEVEL=flat`) | EPL-1.0 |
 | python-igraph (pip, pinned in `requirements.txt`) | DrL layout of large netlists (graph level) | GPL-2.0-or-later |
+| riscv-tests and riscv-test-env (git submodule `third_party/riscv-tests`, not a copy) | ISA tests `rv64ui-p`, `rv64um-p` (`make riscv-tests`) | BSD-3-Clause |
 
-Planned, not yet used: `riscv-tests` (git submodule, not a copy), RISCOF and riscv-arch-test.
+Planned, not yet used: RISCOF and riscv-arch-test.
 Check the license of each before it is added, and add test data (for example MNIST) here too.

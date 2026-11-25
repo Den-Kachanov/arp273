@@ -12,7 +12,7 @@ MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard rt
 XLENS   := 64 32
 VLINT   := verilator --lint-only -Wall
 
-.PHONY: help lint struct unit synth sim compare regress fuzz release-check area schematics schematics-all floorplan docs-img mutate spdx clean
+.PHONY: help lint struct unit synth sim compare regress fuzz release-check riscv-tests area schematics schematics-all floorplan docs-img mutate spdx clean
 
 help:
 	@echo "make lint            lint every module for XLEN = 64 and 32"
@@ -25,6 +25,7 @@ help:
 	@echo "make regress           compare every program in sw/ with Spike (CORE=pipe: the pipelined core)"
 	@echo "make fuzz SEEDS='1 2 3'  random programs (scripts/gen_prog.py) against Spike"
 	@echo "make release-check   the release build of the pipeline (DEBUG = 0) behaves like the debug build"
+	@echo "make riscv-tests     riscv-tests rv64ui-p and rv64um-p on the pipelined core (git submodule third_party/riscv-tests)"
 	@echo "make area            area and logic delay of the modules (scripts/area.py); RELEASE=1: core_pipe without debug parts"
 	@echo "make schematics      schematics drawn from the RTL (scripts/schematic.py, needs npm --prefix tools ci)"
 	@echo "make schematics-all  every module at every level, in parallel (J=8 to limit the jobs)"
@@ -175,6 +176,14 @@ fuzz:
 	  $(MAKE) --no-print-directory compare PROG=fuzz_$$n CORE=$(CORE) > $(BUILD)/fuzz_$$n.$(CORE).regress.log 2>&1 || { tail -15 $(BUILD)/fuzz_$$n.$(CORE).regress.log; exit 1; }; \
 	  tail -1 $(BUILD)/fuzz_$$n.$(CORE).regress.log; \
 	done
+
+# riscv-tests (git submodule, with its env submodule): self-checking ISA tests; the core takes their
+# exceptions itself (TRAP_STOP=0 in the script). MEM_STALL works here too
+RISCV_TESTS ?= third_party/riscv-tests
+RT_SUITES   ?= rv64ui rv64um
+riscv-tests: $(BUILD)/core_pipe_sim
+	$(PYTHON) scripts/riscv_tests.py --sim $(BUILD)/core_pipe_sim --src $(RISCV_TESTS) --cross $(CROSS) \
+	  --suites $(RT_SUITES) --out $(BUILD)/riscv-tests
 
 area:
 	@mkdir -p $(BUILD)

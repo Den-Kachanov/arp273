@@ -13,7 +13,10 @@
 //   -DPIPE -DRELEASE  the pipelined core built with DEBUG = 0: no commit trace, so the program ends
 //            when the data port accepts the store to tohost, and no commit log is written.
 //            The debug pipeline build ends at the same point when env END_ON_STORE=1: then both
-//            builds read the counters in the same cycle (make release-check compares them)
+//            builds read the counters in the same cycle (make release-check compares them).
+//            The pipelined core takes exceptions (ADR 014): by default the run still stops at the first
+//            one (trap_o), as the C programs install no handler; env TRAP_STOP=0 lets the core enter its
+//            handler at mtvec (riscv-tests end with ECALL, and their handler writes tohost)
 
 #include <cstdint>
 #include <cstdio>
@@ -136,6 +139,8 @@ int main(int argc, char **argv)
 	double stall = getenv("MEM_STALL") ? atof(getenv("MEM_STALL")) : 0.0;
 	rng_state = getenv("MEM_SEED") ? strtoull(getenv("MEM_SEED"), nullptr, 10) | 1 : 1;
 	pending_t pi, pd;
+	bool trap_stop = !(getenv("TRAP_STOP") && atoi(getenv("TRAP_STOP")) == 0);
+	uint64_t ntraps = 0;
 #ifdef RELEASE
 	bool end_on_store = true;
 #else
@@ -179,6 +184,11 @@ int main(int argc, char **argv)
 		top->eval();
 #endif
 
+#ifdef PIPE
+		if (top->trap_o && !trap_stop) {
+			ntraps++;
+		} else
+#endif
 		if (top->trap_o) {
 #ifdef PIPE
 			uint64_t trap_pc = top->commit_pc_o;
@@ -279,6 +289,10 @@ int main(int argc, char **argv)
 		(unsigned long long)top->perf_flushes_o);
 	if (instret)
 		fprintf(stderr, "CPI %.3f\n", (double)cycles / (double)instret);
+#ifdef PIPE
+	if (ntraps)
+		fprintf(stderr, "exceptions taken %llu\n", (unsigned long long)ntraps);
+#endif
 	delete top;
 	if (status == 3)
 		fprintf(stderr, "no tohost write within %llu cycles\n", (unsigned long long)max_cycles);

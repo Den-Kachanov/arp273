@@ -67,6 +67,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          # riscv-tests and its env are git submodules (third_party/riscv-tests)
+          submodules: recursive
 
       - uses: YosysHQ/setup-oss-cad-suite@aefa8397bbf8fc6670a0a62af9805a89738f3cde # v3
         with:
@@ -124,3 +126,8 @@ jobs:
 
       - name: The release build of the pipeline behaves like the debug build
         run: make release-check CROSS=riscv64-unknown-elf- SEEDS="1 2 3 4 5 6 7 8"
+
+      - name: riscv-tests rv64ui-p and rv64um-p on the pipelined core (BRAM, then a stalling memory)
+        run: |
+          make riscv-tests CROSS=riscv64-unknown-elf-
+          MEM_STALL=0.3 make riscv-tests CROSS=riscv64-unknown-elf-
