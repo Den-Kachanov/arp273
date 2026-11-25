@@ -2,53 +2,81 @@
 
 RV64 SoC: CPU, vector unit and SIMT GPU
 
-> **Status: work in progress.** Currently stage 1, the RV64I core.
+> **Status: work in progress.** Stage 1 (the RV64IM core) is functionally complete; stage 2 (SoC, FPGA) is next.
 
-A learning project in SystemVerilog: a small system-on-chip built from scratch.
-
-1. **CPU:** RV64I core, 5-stage pipeline, M-mode, caches, M extension, FPGA bring-up, CoreMark.
+1. **CPU:** RV64IM core, 5-stage pipeline, M-mode CSRs and precise exceptions, caches, FPGA bring-up, CoreMark.
 2. **Vector unit:** subset of RVV 1.0 (Zve32x, VLEN = 128 as a parameter), checked against Spike.
 3. **GPU:** SIMT, [Vortex](https://github.com/vortexgpgpu/vortex)-style (a RISC-V core per thread with thread-control instructions), driver, MNIST and 3D cube demos. Inspired by Vortex, no code reused.
 
-The RTL, unit tests and verification are written by the me, with no third-party RTL.
+No third-party RTL is used.
+
+![Five-stage pipeline](docs/img/pipeline.svg)
+
+## Current state
+
+- RV64IM (also builds as RV32IM with `XLEN = 32`), 5-stage pipeline: forwarding, 1-cycle load-use, 2-cycle taken branch, iterative multiplier/divider
+- valid/ready memory ports that tolerate any latency (tested against randomly stalling memories)
+- M-mode CSRs, precise exceptions taken in WB, ECALL, EBREAK, MRET, FENCE.I
+- `riscv-tests` rv64ui-p and rv64um-p: 66/66 pass (`ma_data` not run: misaligned access traps)
+- Commit log matches Spike on C programs and on random programs
+- Mutation-tested unit tests (cocotb), lint and structural checks (no latches, loops, async resets) in CI
+
+Measured 2026-11-25 (Yosys 0.66, estimates; the commit hash will be added with the next measurement):
+
+| | |
+|---|---|
+| CPI on a 1-cycle BRAM | fib 1.141, alu 1.103, mem 1.216 |
+| Area, XLEN = 64 (generic LUT6) | 5920 LUT6, 4000 flip-flops (release build: 5907 / 3741) |
+| Fmax | pending FPGA place-and-route |
+
+Design decisions are recorded in [docs/adr](docs/adr), module descriptions in [docs/modules](docs/modules/overview.md), diagrams generated from the RTL in [docs/diagrams.md](docs/diagrams.md).
 
 ## Roadmap
 
-- [ ] Stage 1: RV64I core, single-cycle then pipelined, `rv64ui` tests, Spike comparison
-- [ ] Stage 2: CSR and exceptions, M extension, compliance, SoC, FPGA, CoreMark, 4 KB cache
+- [x] Stage 1: RV64IM core, single-cycle reference and 5-stage pipeline, CSRs and exceptions, `riscv-tests`, Spike comparison
+- [ ] Stage 2: timer and interrupts, SoC bus, UART, FPGA, CoreMark, 4 KB cache, `riscv-arch-test`
 - [ ] Stage 3: vector unit, Zve32x
 - [ ] Stage 4: GPU specification and SIMT core in simulation
 - [ ] Stage 5: integration, driver, MNIST and 3D cube demos
 - [ ] Stage 6: report and write-up
 
-Dates are plans, not promises. Items are checked off only when tests pass.
-
 ## Verification approach
 
-- Module tests with cocotb, including edge cases (0, -1, smallest and largest values).
+- Module tests with cocotb, including edge cases (0, -1, smallest and largest values); mutation checks of the tests.
 - Commit-log comparison against [Spike](https://github.com/riscv-software-src/riscv-isa-sim) (`--log-commits`), stopping at the first mismatch.
 - Compliance: `riscv-tests`, later `riscv-arch-test` via RISCOF.
 - Random program generator with saved seeds.
-- Assertions, later SymbiYosys / riscv-formal.
+- Random initial register state in every simulation, as on silicon.
+- Later: SymbiYosys / riscv-formal.
 
-Performance figures will be published only from measurements, with the date and commit hash.
+Performance figures are published only from measurements, with the date (and the commit hash).
 
 ## Getting started
 
-Coming with stage 1. The planned entry points are `make lint`, `make unit`, `make sim PROG=...` and `make compare PROG=...`.
+Needs Verilator 5, Yosys, a RISC-V GCC (`riscv64-elf-`), Spike, Python 3.12.
+
+```sh
+git clone --recursive https://github.com/Den-Kachanov/arp273.git
+cd arp273
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+make lint unit                      # lint and unit tests
+make compare PROG=fib CORE=pipe     # run a C program and compare with Spike
+make riscv-tests                    # rv64ui-p and rv64um-p
+make help                           # all targets
+```
+
+If the repository was cloned without `--recursive`: `git submodule update --init --recursive`.
 
 ## Repository layout
 
 ```
-rtl/      pkg, core, vec, gpu, soc
-tb/       unit (cocotb), core (Verilator harness)
-sw/       crt0, linker script, test programs, benchmarks
-scripts/  Spike comparison, program generator, utilities
-fpga/     constraints, build scripts
-docs/     specs, ADRs, diagrams
+rtl/          pkg, core (vec, gpu, soc to come)
+tb/           unit (cocotb), core (Verilator harness)
+sw/           crt0, linker script, test programs
+scripts/      Spike comparison, program generator, riscv-tests runner, area, schematics
+third_party/  riscv-tests (git submodule)
+docs/         ADRs, module descriptions, diagrams
 ```
-
-Not all directories exist yet.
 
 ## License
 
