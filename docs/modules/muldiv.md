@@ -64,4 +64,4 @@ Measured 2026-11-25, Yosys 0.66, `make area`, no commit hash (estimate): XLEN = 
 
 ## Status
 
-`make lint` and `make struct` are clean, `make unit` passes, Yosys synthesizes the module. Not done: radix-4, multiplication on DSPs (board-dependent), a registered result (for frequency), an abort input for the pipeline, a constant-time mode (disables the short path).
+`make lint` and `make struct` are clean, `make unit` passes, Yosys synthesizes the module. Not done: radix-4, multiplication on DSPs (board-dependent), a registered result (for frequency), a constant-time mode (disables the short path).

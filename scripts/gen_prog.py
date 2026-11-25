@@ -11,7 +11,7 @@ it returns 0. Registers: x5..x28 are random operands and results; x29 is a loop 
 to a 256-byte data buffer, x31 holds jump targets; ra, sp, gp, tp are never written, so the return
 to crt0 works. Control flow is safe by construction: branches and jumps go forward to a label,
 loops count down a register that the body does not write, loads and stores are aligned and stay
-inside the buffer. No CSR, ECALL or FENCE.I, which the core does not support yet
+inside the buffer. No CSR, ECALL or FENCE.I: the single-cycle reference core does not support them (ADR 014)
 
 What it exercises: every RV64IM computation instruction (also W forms), edge-valued operands
 (0, 1, -1, MIN, MAX, 32-bit boundaries), all load/store sizes with signed and unsigned loads,
