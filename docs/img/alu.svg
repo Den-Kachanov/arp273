@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 540" width="1000" height="540" font-family="DejaVu Sans, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+  <rect width="1000" height="540" fill="#ffffff"/>
+
+  <text x="500" y="24" text-anchor="middle" font-size="16" font-weight="bold" fill="#222">alu.sv: hardware structure (ADR 007, ADR 010)</text>
+
+  <!-- inputs -->
+  <text x="14" y="94" fill="#222">a_i</text>
+  <text x="14" y="124" fill="#222">b_i</text>
+  <text x="14" y="404" fill="#222">op_i</text>
+  <text x="14" y="444" fill="#222">word_i</text>
+  <line x1="44" y1="90" x2="300" y2="90" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="44" y1="120" x2="300" y2="120" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="200" y1="90" x2="200" y2="290" stroke="#333" stroke-width="1.5"/>
+  <line x1="200" y1="210" x2="300" y2="210" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="200" y1="290" x2="300" y2="290" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="230" y1="120" x2="230" y2="320" stroke="#333" stroke-width="1.5"/>
+  <line x1="230" y1="225" x2="300" y2="225" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="230" y1="320" x2="300" y2="320" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="200" cy="90" r="3" fill="#333"/>
+  <circle cx="230" cy="120" r="3" fill="#333"/>
+  <circle cx="200" cy="210" r="3" fill="#333"/>
+  <circle cx="230" cy="225" r="3" fill="#333"/>
+  <line x1="60" y1="400" x2="90" y2="400" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="60" y1="440" x2="90" y2="440" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- decode -->
+  <rect x="90" y="370" width="170" height="110" rx="6" fill="#fbf1ea" stroke="#8a4b22"/>
+  <text x="175" y="390" text-anchor="middle" font-weight="bold" fill="#5e2f12">decode</text>
+  <text x="175" y="410" text-anchor="middle" fill="#222" font-size="11">f3 = op_i[2:0], alt = op_i[3]</text>
+  <text x="175" y="428" text-anchor="middle" fill="#555" font-size="11">is_add, is_sll, is_slt, is_cmp,</text>
+  <text x="175" y="443" text-anchor="middle" fill="#555" font-size="11">is_xor, is_shr, is_or, is_and</text>
+  <text x="175" y="458" text-anchor="middle" fill="#555" font-size="11">is_sub = is_add·alt + is_cmp</text>
+  <text x="175" y="473" text-anchor="middle" fill="#555" font-size="11">is_sra = is_shr·alt</text>
+  <line x1="260" y1="425" x2="740" y2="425" stroke="#8a4b22" stroke-width="1.2" stroke-dasharray="5,4"/>
+  <text x="500" y="418" text-anchor="middle" fill="#8a4b22" font-size="11">one-hot control to every block</text>
+
+  <!-- adder -->
+  <rect x="300" y="50" width="250" height="110" rx="6" fill="#eef4fb" stroke="#33597f"/>
+  <text x="425" y="70" text-anchor="middle" font-weight="bold" fill="#1d3b5c">XLEN + 1-bit adder</text>
+  <text x="425" y="92" text-anchor="middle" fill="#222" font-size="12">{a_ext, a} + ({b_ext, b} ^ sub) + sub</text>
+  <text x="425" y="112" text-anchor="middle" fill="#555" font-size="11">ext = is_slt · sign (SLT), 0 (SLTU)</text>
+  <text x="425" y="128" text-anchor="middle" fill="#555" font-size="11">ADD, SUB: sum[XLEN−1:0]</text>
+  <text x="425" y="144" text-anchor="middle" fill="#555" font-size="11">SLT, SLTU: a &lt; b = sum[XLEN]</text>
+
+  <!-- logic -->
+  <rect x="300" y="185" width="250" height="55" rx="6" fill="#f3f7ee" stroke="#4b6b2f"/>
+  <text x="425" y="206" text-anchor="middle" font-weight="bold" fill="#2f4a1b">logic</text>
+  <text x="425" y="226" text-anchor="middle" fill="#222" font-size="12">a ^ b,  a | b,  a &amp; b</text>
+
+  <!-- shifter -->
+  <rect x="300" y="265" width="250" height="135" rx="6" fill="#eef4fb" stroke="#33597f"/>
+  <text x="425" y="285" text-anchor="middle" font-weight="bold" fill="#1d3b5c">one right shifter</text>
+  <text x="425" y="305" text-anchor="middle" fill="#222" font-size="11">input: SLL — reversed a; otherwise a</text>
+  <text x="425" y="321" text-anchor="middle" fill="#555" font-size="11">SRLW, SRAW: upper word = 0 or a[31]</text>
+  <text x="425" y="337" text-anchor="middle" fill="#555" font-size="11">shamt = b[5:0]; W: b[4:0]</text>
+  <text x="425" y="353" text-anchor="middle" fill="#555" font-size="11">fill = is_sra · a[XLEN−1]</text>
+  <text x="425" y="373" text-anchor="middle" fill="#222" font-size="11">sh_r = {fill, sh_in} &gt;&gt;&gt; shamt</text>
+  <text x="425" y="390" text-anchor="middle" fill="#555" font-size="11">SLL = reversed sh_r (wiring only)</text>
+
+  <!-- to result mux -->
+  <line x1="550" y1="105" x2="610" y2="105" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="550" y1="212" x2="610" y2="212" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="550" y1="330" x2="610" y2="330" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="580" y="98" text-anchor="middle" fill="#555" font-size="10">sum</text>
+  <text x="580" y="323" text-anchor="middle" fill="#555" font-size="10">sh_r</text>
+
+  <!-- result mux -->
+  <rect x="610" y="50" width="160" height="350" rx="6" fill="#f3f7ee" stroke="#4b6b2f"/>
+  <text x="690" y="72" text-anchor="middle" font-weight="bold" fill="#2f4a1b">AND-OR output</text>
+  <text x="690" y="100" text-anchor="middle" fill="#222" font-size="11">for every bit i:</text>
+  <text x="690" y="124" text-anchor="middle" fill="#555" font-size="11">is_add · sum[i]</text>
+  <text x="690" y="142" text-anchor="middle" fill="#555" font-size="11">| is_xor · (a ^ b)[i]</text>
+  <text x="690" y="160" text-anchor="middle" fill="#555" font-size="11">| is_or · (a | b)[i]</text>
+  <text x="690" y="178" text-anchor="middle" fill="#555" font-size="11">| is_and · (a &amp; b)[i]</text>
+  <text x="690" y="196" text-anchor="middle" fill="#555" font-size="11">| is_sll · sh_r[XLEN−1−i]</text>
+  <text x="690" y="214" text-anchor="middle" fill="#555" font-size="11">| is_shr · sh_r[i]</text>
+  <text x="690" y="246" text-anchor="middle" fill="#222" font-size="11">bit 0 also:</text>
+  <text x="690" y="264" text-anchor="middle" fill="#555" font-size="11">| is_cmp · sum[XLEN]</text>
+  <text x="690" y="300" text-anchor="middle" fill="#555" font-size="11">no priority:</text>
+  <text x="690" y="316" text-anchor="middle" fill="#555" font-size="11">exactly one is_*</text>
+  <text x="690" y="332" text-anchor="middle" fill="#555" font-size="11">is 1</text>
+
+  <!-- W extension -->
+  <line x1="770" y1="225" x2="800" y2="225" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="785" y="216" text-anchor="middle" fill="#555" font-size="10">r_full</text>
+  <rect x="800" y="180" width="120" height="90" rx="6" fill="#fbf1ea" stroke="#8a4b22"/>
+  <text x="860" y="200" text-anchor="middle" font-weight="bold" fill="#5e2f12">W</text>
+  <text x="860" y="220" text-anchor="middle" fill="#222" font-size="11">word_i = 1:</text>
+  <text x="860" y="236" text-anchor="middle" fill="#222" font-size="11">sext(r_full[31:0])</text>
+  <text x="860" y="256" text-anchor="middle" fill="#555" font-size="10">RV64 only (g_rv64)</text>
+  <line x1="920" y1="225" x2="950" y2="225" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="955" y="229" fill="#222">r_o</text>
+
+  <!-- notes -->
+  <text x="20" y="508" fill="#333" font-size="11">Critical path on xc7 (XLEN = 64): LUT (b ^ sub) → 64-bit carry chain (17 CARRY4) → result mux.</text>
+  <text x="20" y="526" fill="#333" font-size="11">The decoder never sends op_i codes outside alu_op_t; their result is undefined. word_i is unused for XLEN = 32.</text>
+</svg>
