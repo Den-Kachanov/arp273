@@ -318,6 +318,13 @@ async def test_m_instructions(dut):
         ]
     n = len(prog)
     n_md = sum(1 for w in prog if (w & 0x7F) in (asm.OPC["OP"], asm.OPC["OP_32"]) and (w >> 25) == 1)
+    # the operands each M instruction sees, in program order: the stall count depends on them (ADR 011)
+    minv = 1 << (x - 1)
+    md_ops = [(0, a, b, 0), (1, a, b, 0), (2, a, b, 0), (3, a, b, 0), (4, a, b, 0), (5, a, b, 0), (6, a, b, 0),
+              (7, a, b, 0), (4, a, 0, 0), (6, a, 0, 0), (4, minv, m, 0), (6, minv, m, 0), (0, a, b, 0), (0, a, a, 0)]
+    if x == 64:
+        md_ops += [(0, 2, 2, 1), (4, minv, m, 1), (5, m, 2, 1), (6, m, 2, 1), (7, m, 2, 1)]
+    assert len(md_ops) == n_md
     prog.append(asm.ECALL)
     trace, _, trap_pc = await run_program(dut, prog, max_cycles=3000)
     r = registers(trace)
@@ -341,7 +348,8 @@ async def test_m_instructions(dut):
         assert r[16] == mext.expected(4, 1 << 63, m, 1) and r[17] == mext.expected(5, m, 2, 1)
 
     assert int(dut.perf_instret_o.value) == len(trace)
-    assert int(dut.perf_stalls_o.value) == n_md * (x + 1), "each M instruction waits XLEN + 1 cycles"
+    want_stalls = sum(mext.iterations(*op) + 1 for op in md_ops)
+    assert int(dut.perf_stalls_o.value) == want_stalls, "each M instruction waits its iterations + 1 cycles"
     assert int(dut.perf_cycles_o.value) == len(trace) + int(dut.perf_stalls_o.value)
 
 
@@ -363,8 +371,11 @@ async def test_m_in_a_loop(dut):
     trace, _, _ = await run_program(dut, prog, max_cycles=3000)
     r = registers(trace)
     assert r[1] == 120 and r[5] == 14 and r[6] == 2
+    # all seven M instructions here have small operands: the short path, XLEN / 2 iterations each
+    md_ops = [(0, 1, 5), (0, 5, 4), (0, 20, 3), (0, 60, 2), (0, 120, 1), (4, 100, 7), (6, 100, 7)]
     x = common.xlen()
-    assert int(dut.perf_stalls_o.value) == 7 * (x + 1)
+    assert all(mext.iterations(*op) == x // 2 for op in md_ops)
+    assert int(dut.perf_stalls_o.value) == sum(mext.iterations(*op) + 1 for op in md_ops)
     assert int(dut.perf_flushes_o.value) == 4, "BNE is taken 4 times"
 
 
@@ -399,6 +410,43 @@ async def test_misaligned_load_traps(dut):
     r = registers(trace)
     assert trap_pc == BASE + 8
     assert 2 not in r and 4 not in r and r[3] == 9
+
+
+@cocotb.test()
+async def test_misaligned_jump_traps(dut):
+    """JAL, JALR and a taken branch to a target that is not 4-byte aligned trap on the jump itself, without a link write"""
+    # JAL to pc + 6
+    trace, _, trap_pc = await run_program(dut, [asm.addi(1, 0, 1), asm.jal(2, 6), asm.addi(3, 0, 3)])
+    assert trap_pc == BASE + 4 and registers(trace) == {1: 1}, "JAL must not write the link register"
+    # JALR to pc + 10: bit 1 is set, bit 0 is clear
+    prog = [asm.auipc(5, 0), asm.addi(5, 5, 10), asm.jalr(6, 0, 5), asm.addi(7, 0, 7)]
+    trace, _, trap_pc = await run_program(dut, prog)
+    assert trap_pc == BASE + 8 and 6 not in registers(trace) and 7 not in registers(trace)
+    # taken BEQ to pc + 6
+    trace, _, trap_pc = await run_program(dut, [asm.addi(1, 0, 1), asm.beq(1, 1, 6), asm.addi(2, 0, 2)])
+    assert trap_pc == BASE + 4 and registers(trace) == {1: 1}
+
+
+@cocotb.test()
+async def test_misaligned_jump_target_not_taken_is_fine(dut):
+    """A branch that is not taken never raises the exception, whatever its offset; JALR bit 0 is cleared, not an error"""
+    prog = [
+        asm.addi(1, 0, 1),
+        asm.bne(1, 1, 6),               # not taken: offset is misaligned but unused
+        asm.addi(2, 0, 2),
+        asm.auipc(5, 0),                # pc = BASE + 12
+        asm.addi(5, 5, 21),             # BASE + 33 = BASE + 32 + 1: bit 0 set, bit 1 clear
+        asm.jalr(6, 0, 5),              # target BASE + 32 (index 8) after clearing bit 0
+        asm.addi(3, 0, 3),              # skipped
+        asm.addi(4, 0, 4),              # skipped
+        asm.addi(8, 0, 8),              # index 8
+        asm.ECALL,
+    ]
+    trace, _, trap_pc = await run_program(dut, prog)
+    r = registers(trace)
+    assert r[2] == 2 and 3 not in r and 4 not in r and r[8] == 8
+    assert r[6] == BASE + 4 * 6, "JALR link"
+    assert trap_pc == BASE + 4 * 9, "the trap is the ECALL, not a misaligned fetch"
 
 
 @cocotb.test()

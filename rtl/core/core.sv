@@ -17,7 +17,7 @@ module core #(
 	output logic [riscv_pkg::XLEN/8-1:0]  dmem_wstrb_o,
 	input  logic [riscv_pkg::XLEN-1:0]    dmem_rdata_i,
 
-	// the core stops on an illegal instruction or a misaligned access
+	// the core stops on an illegal instruction, a misaligned access or a misaligned jump target
 	output logic                          trap_o,
 
 	// commit trace: one instruction per cycle while commit_valid_o is 1
@@ -71,6 +71,7 @@ module core #(
 	logic [X-1:0] wb_data;
 	logic         taken;
 	logic         reg_we_eff;
+	logic         fetch_misaligned;
 
 	// M extension: the multiplier/divider takes several cycles, the core waits on the same instruction
 	logic         md_done;
@@ -107,8 +108,13 @@ module core #(
 		.illegal_o (illegal)
 	);
 
+	// a jump or taken branch to an address that is not 4-byte aligned (no C extension) is an
+	// instruction-address-misaligned exception on the jump itself: rd is not written. Bit 0 of the
+	// target is never set (JALR clears it, the branch and jump offsets are even), so bit 1 decides
+	assign fetch_misaligned = (jal | jalr | (branch & taken)) & alu_r[1];
+
 	// a trapping instruction changes nothing: no register write, no store, pc stays
-	assign trap_o     = illegal | (misaligned & (mem_re | mem_we));
+	assign trap_o     = illegal | (misaligned & (mem_re | mem_we)) | fetch_misaligned;
 
 	// a waiting instruction changes nothing either: it is committed in the cycle when the unit is done
 	assign stall      = muldiv & ~md_done;
