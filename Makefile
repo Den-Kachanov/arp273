@@ -22,7 +22,7 @@ help:
 	@echo "make synth           Yosys: cell count of every module"
 	@echo "make sim PROG=fib    build sw/fib.c and run it on the core (commit log and counters)"
 	@echo "make compare PROG=fib  compare the core commit log with Spike"
-	@echo "make regress           compare every program in sw/ with Spike"
+	@echo "make regress           compare every program in sw/ with Spike (CORE=pipe: the pipelined core)"
 	@echo "make fuzz SEEDS='1 2 3'  random programs (scripts/gen_prog.py) against Spike"
 	@echo "make area            area and logic delay of the modules (scripts/area.py)"
 	@echo "make schematics      schematics drawn from the RTL (scripts/schematic.py, needs npm --prefix tools ci)"
@@ -52,11 +52,11 @@ lint:
 # set/reset flip-flops (the project uses synchronous rst_ni), no combinational loops, no signal
 # with several drivers, no undriven wire used. `check -assert` fails on loops and multiple drivers
 struct:
-	@for x in $(XLENS); do \
-	  echo "== struct XLEN=$$x core"; \
-	  yosys -q -p "read_verilog -sv -DXLEN=$$x $(PKG_SRC) $(CORE_SRC); hierarchy -check -top core; proc; flatten; \
+	@for top in core core_pipe; do for x in $(XLENS); do \
+	  echo "== struct XLEN=$$x $$top"; \
+	  yosys -q -p "read_verilog -sv -DXLEN=$$x $(PKG_SRC) $(CORE_SRC); hierarchy -check -top $$top; proc; flatten; \
 	    check -assert; select -assert-none t:\$$dlatch t:\$$adlatch t:\$$sr t:\$$dffsr t:\$$adff t:\$$aldff t:\$$adffe t:\$$dffsre" || exit 1; \
-	done
+	done; done
 	@echo "struct: OK"
 
 unit:
@@ -100,11 +100,29 @@ $(BUILD)/%.elf: $(BUILD)/%.S sw/crt0.S sw/link.ld
 $(BUILD)/%.bin: $(BUILD)/%.elf
 	$(CROSS)objcopy -O binary $< $@
 
+# CORE=single (default): the single-cycle core; CORE=pipe: the pipelined core (ADR 013).
+# For the pipeline, env MEM_STALL (0..1) makes the memory stall at random, MEM_SEED picks the run
+CORE ?= single
+ifeq ($(CORE),pipe)
+SIM_BIN := $(BUILD)/core_pipe_sim
+else
+SIM_BIN := $(BUILD)/core_sim
+endif
+export MEM_STALL MEM_SEED X_SEED
+
+VERILATOR_SIM = verilator --cc --exe --build -j 4 -O2 -Wno-fatal -DXLEN=64 --prefix Vtop \
+  --x-assign unique --x-initial unique
+
 $(BUILD)/core_sim: $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	@mkdir -p $(BUILD)
-	verilator --cc --exe --build -j 4 -O2 -Wno-fatal -DXLEN=64 --top-module core --x-assign unique --x-initial unique \
-	  --Mdir $(BUILD)/obj_core -o core_sim $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+	$(VERILATOR_SIM) --top-module core --Mdir $(BUILD)/obj_core -o core_sim $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	cp $(BUILD)/obj_core/core_sim $@
+
+$(BUILD)/core_pipe_sim: $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+	@mkdir -p $(BUILD)
+	$(VERILATOR_SIM) --top-module core_pipe -CFLAGS -DPIPE --Mdir $(BUILD)/obj_core_pipe -o core_pipe_sim \
+	  $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+	cp $(BUILD)/obj_core_pipe/core_pipe_sim $@
 
 ifneq ($(filter sim compare,$(MAKECMDGOALS)),)
 ifeq ($(PROG),)
@@ -112,27 +130,27 @@ $(error set PROG=<name from sw/>, for example: make compare PROG=fib)
 endif
 endif
 
-sim: $(BUILD)/core_sim $(BUILD)/$(PROG).bin
-	$(BUILD)/core_sim $(BUILD)/$(PROG).bin $(BUILD)/$(PROG).core.log \
+sim: $(SIM_BIN) $(BUILD)/$(PROG).bin
+	$(SIM_BIN) $(BUILD)/$(PROG).bin $(BUILD)/$(PROG).$(CORE).log \
 	  $$($(CROSS)nm $(BUILD)/$(PROG).elf | awk '$$3=="tohost"{print $$1}')
 
 compare: sim
 	-$(SPIKE) --isa=rv64im -m0x80000000:0x100000 --log-commits $(BUILD)/$(PROG).elf 2> $(BUILD)/$(PROG).spike.log
-	$(PYTHON) scripts/compare.py $(BUILD)/$(PROG).core.log $(BUILD)/$(PROG).spike.log
+	$(PYTHON) scripts/compare.py $(BUILD)/$(PROG).$(CORE).log $(BUILD)/$(PROG).spike.log
 
 regress:
 	@for p in $(PROGS); do \
 	  echo "== compare $$p"; \
-	  $(MAKE) --no-print-directory compare PROG=$$p > $(BUILD)/$$p.regress.log 2>&1 || { tail -15 $(BUILD)/$$p.regress.log; exit 1; }; \
-	  tail -1 $(BUILD)/$$p.regress.log; \
+	  $(MAKE) --no-print-directory compare PROG=$$p CORE=$(CORE) > $(BUILD)/$$p.$(CORE).regress.log 2>&1 || { tail -15 $(BUILD)/$$p.$(CORE).regress.log; exit 1; }; \
+	  tail -1 $(BUILD)/$$p.$(CORE).regress.log; \
 	done
 
 SEEDS ?= 1 2 3 4 5 6 7 8
 fuzz:
 	@for n in $(SEEDS); do \
 	  echo "== fuzz seed $$n"; \
-	  $(MAKE) --no-print-directory compare PROG=fuzz_$$n > $(BUILD)/fuzz_$$n.regress.log 2>&1 || { tail -15 $(BUILD)/fuzz_$$n.regress.log; exit 1; }; \
-	  tail -1 $(BUILD)/fuzz_$$n.regress.log; \
+	  $(MAKE) --no-print-directory compare PROG=fuzz_$$n CORE=$(CORE) > $(BUILD)/fuzz_$$n.$(CORE).regress.log 2>&1 || { tail -15 $(BUILD)/fuzz_$$n.$(CORE).regress.log; exit 1; }; \
+	  tail -1 $(BUILD)/fuzz_$$n.$(CORE).regress.log; \
 	done
 
 area:

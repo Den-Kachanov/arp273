@@ -4,7 +4,7 @@
 
 RTL = "rtl/core/core.sv"
 TEST = "tb/unit/test_core.py"
-KEXPR = "64"
+KEXPR = "test_core_runner and 64"
 
 MUTANTS = [
     # next pc, jumps, branches

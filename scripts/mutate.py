@@ -14,7 +14,7 @@ with the reason, anything else that survives makes the script exit with 1
 
 A mutants file defines:
     RTL         RTL file to change, relative to the repo root
-    TEST        test file that must kill the mutants, relative to the repo root
+    TEST        test file (or list of files) that must kill the mutants, relative to the repo root
     KEXPR       optional pytest -k expression (for example "64" to run XLEN = 64 only)
     MUTANTS     list of (name, old text, new text); old text must occur exactly once
     EQUIVALENT  optional dict: mutant name -> why it cannot change behaviour
@@ -56,7 +56,8 @@ def run_one(work, mod, index, name, old, new):
         shutil.copytree(REPO / d, copy / d, ignore=IGNORE)
     target = copy / mod.RTL
     target.write_text(target.read_text().replace(old, new))
-    cmd = [PYTHON, "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider", str(copy / mod.TEST)]
+    tests = [mod.TEST] if isinstance(mod.TEST, str) else list(mod.TEST)
+    cmd = [PYTHON, "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider", *(str(copy / t) for t in tests)]
     if getattr(mod, "KEXPR", None):
         cmd += ["-k", mod.KEXPR]
     res = subprocess.run(cmd, cwd=copy, capture_output=True, text=True)

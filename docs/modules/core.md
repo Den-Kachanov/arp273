@@ -2,7 +2,7 @@
 
 Status: draft, pending author review
 
-A single-cycle RV64IM core (RV32IM for XLEN = 32): one instruction per cycle, except M instructions, which wait for `muldiv` (XLEN/2 + 1 or XLEN + 1 cycles depending on the operands, ADR 011). It consists of `decoder`, `regfile` (`WRITE_THROUGH = 0`), `imm_gen`, `alu`, `branch_unit`, `lsu`, `muldiv`, `perf_counters`, the PC register, the `a_sel`, `b_sel`, `wb_sel` muxes and the next-PC select. Connections: [overview.md](overview.md); memory interface: [ADR 008](../adr/008-single-cycle-memory-interface.md).
+The single-cycle reference core; the pipelined core is [core_pipe.md](core_pipe.md). A single-cycle RV64IM core (RV32IM for XLEN = 32): one instruction per cycle, except M instructions, which wait for `muldiv` (XLEN/2 + 1 or XLEN + 1 cycles depending on the operands, ADR 011). It consists of `decoder`, `regfile` (`WRITE_THROUGH = 0`), `imm_gen`, `alu`, `branch_unit`, `lsu`, `muldiv`, `perf_counters`, the PC register, the `a_sel`, `b_sel`, `wb_sel` muxes and the next-PC select. Connections: [overview.md](overview.md); memory interface: [ADR 008](../adr/008-single-cycle-memory-interface.md).
 
 ## Ports
 
@@ -29,7 +29,7 @@ Parameter `RESET_PC` (default `0x8000_0000`).
 
 ## Testing
 
-`tb/unit/test_core.py`, `make unit T=core`, XLEN = 64 and 32. Programs are assembled by the mini-assembler `tb/unit/asm.py`; the memory is modelled in Python. Fifteen tests: sum 1..10, ALU and LUI/AUIPC, W instructions (RV64), loads/stores of every size, JAL/JALR and branches, counters, x0, illegal instruction, misaligned load and store, misaligned jump target (and a branch that is not taken does not trap), all M instructions, a loop with `MUL` (factorial, division and remainder).
+`tb/unit/test_core.py`, `make unit T=core`, XLEN = 64 and 32. Programs are assembled by the mini-assembler `tb/unit/asm.py`; the memory is modelled in Python. Fourteen tests: sum 1..10, ALU and LUI/AUIPC, W instructions (RV64), loads/stores of every size, JAL/JALR and branches, counters, x0, illegal instruction, misaligned load and store, misaligned jump target (and a branch that is not taken does not trap), all M instructions, a loop with `MUL` (factorial, division and remainder).
 
 The M tests check: the result values; that every instruction commits exactly once (consecutive pcs, no repeats); `rd = x0` and the same register as source and destination; `stalls` equals the sum of `iterations + 1` for every M instruction according to the latency model `mext.iterations` (ADR 011); `cycles = instret + stalls`. `run_program` also checks that there is no register write and no store during a wait.
 

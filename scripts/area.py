@@ -36,6 +36,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+# top-level cores: synthesized flattened, listed after the modules
+TOPS = ("core", "core_pipe")
 STUB = """module muldiv (
 \tinput  logic clk_i, rst_ni, valid_i,
 \tinput  logic [2:0] funct3_i,
@@ -57,7 +59,7 @@ def modules():
     names = []
     for f in sorted((REPO / "rtl" / "core").glob("*.sv")):
         names += re.findall(r"^\s*module\s+(\w+)", f.read_text(), re.M)
-    return [n for n in names if n != "core"] + ["core"]
+    return [n for n in names if n not in TOPS] + [t for t in TOPS if t in names]
 
 
 def synth(files, xlen, top, flatten, lut, workdir):
@@ -113,13 +115,13 @@ def run_xc7(xlens, workdir):
     pkg = sorted((REPO / "rtl" / "pkg").glob("*.sv"))
     core_files = sorted((REPO / "rtl" / "core").glob("*.sv"))
     with ThreadPoolExecutor(8) as pool:
-        jobs = {(m, x): pool.submit(measure_xc7, pkg + core_files, x, m, m == "core", workdir)
+        jobs = {(m, x): pool.submit(measure_xc7, pkg + core_files, x, m, m in TOPS, workdir)
                 for x in xlens for m in modules()}
         return {f"{m}_{x}": f.result() for (m, x), f in jobs.items()}
 
 
 def table_xc7(results, xlens):
-    names = [m for m in modules() if m != "core"] + ["core"]
+    names = modules()
     head = "| Module | " + " | ".join(f"LUT / LUTRAM / CARRY4 / MUXF / ps, XLEN = {x}" for x in xlens) + " |"
     lines = [head, "|---|" + "---|" * len(xlens)]
     for m in names:
@@ -140,18 +142,19 @@ def run_all(xlens, workdir):
     with ThreadPoolExecutor(8) as pool:
         for x in xlens:
             for m in modules():
-                jobs[(m, x)] = pool.submit(measure, pkg + core_files, x, m, m == "core", workdir)
+                jobs[(m, x)] = pool.submit(measure, pkg + core_files, x, m, m in TOPS, workdir)
             jobs[("core_without_muldiv", x)] = pool.submit(measure, nostub_files, x, "core", True, workdir)
         return {f"{m}_{x}": f.result() for (m, x), f in jobs.items()}
 
 
 def table(results, xlens):
-    names = [m for m in modules() if m != "core"]
+    names = [m for m in modules() if m not in TOPS]
     names.sort(key=lambda m: -results[f"{m}_{xlens[0]}"]["lut"])
     head = "| Module | " + " | ".join(f"LUT6 / FF / cells, XLEN = {x}" for x in xlens) + " |"
     lines = [head, "|---|" + "---|" * len(xlens)]
-    for m in names + ["core", "core_without_muldiv"]:
-        label = {"core": "core (flat)", "core_without_muldiv": "core (flat), muldiv stubbed"}.get(m, m)
+    for m in names + [t for t in TOPS if f"{t}_{xlens[0]}" in results] + ["core_without_muldiv"]:
+        label = {"core": "core (flat)", "core_pipe": "core_pipe (flat)",
+                 "core_without_muldiv": "core (flat), muldiv stubbed"}.get(m, m)
         cells = [f"{r['lut']} / {r['ff']} / {r['cells']}" for r in (results[f"{m}_{x}"] for x in xlens)]
         lines.append(f"| `{label}` | " + " | ".join(cells) + " |")
     totals = [sum(results[f"{m}_{x}"]["lut"] for m in names) for x in xlens]
@@ -161,7 +164,7 @@ def table(results, xlens):
 
 def draw_svg(results, date, commit, yosys, out):
     """Bar chart of LUT6 per module for XLEN = 64 and 32 (docs/img/units-area.svg)"""
-    names = [m for m in modules() if m != "core"]
+    names = [m for m in modules() if m not in TOPS]
     names.sort(key=lambda m: -results[f"{m}_64"]["lut"])
     scale = 440 / max(results[f"{m}_64"]["lut"] for m in names)
     row, top = 56, 100

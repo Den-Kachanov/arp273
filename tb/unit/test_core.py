@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
+import random
+
 import asm
 import cocotb
 import common
@@ -32,9 +34,110 @@ class Memory:
                 self.bytes[addr + k] = (data >> (8 * k)) & 0xFF
 
 
+def is_pipe(dut):
+    """The pipelined core has the valid/ready memory ports (ADR 013)"""
+    return hasattr(dut, "imem_req_valid_o")
+
+
 async def run_program(dut, words, max_cycles=MAX_CYCLES):
+    """Run a program on either core: see run_single and run_pipe"""
+    if is_pipe(dut):
+        return await run_pipe(dut, words, max_cycles=max_cycles)
+    return await run_single(dut, words, max_cycles=max_cycles)
+
+
+# probability that a memory port is not ready in a cycle, and the largest extra response latency;
+# the pipelined core runs every test against this slow, irregular memory (test_pipeline.py has BRAM)
+PIPE_STALL = 0.3
+PIPE_EXTRA_LATENCY = 3
+
+
+async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PIPE_EXTRA_LATENCY, seed=1,
+                   istall=None, dstall=None):
     """
-    Reset the core, run the program until trap_o, return (commit trace, memory, trap pc)
+    Reset the pipelined core, run the program until trap_o, return (commit trace, memory, trap pc)
+
+    Memory model of ADR 013 for both ports: ready is random (not ready with probability
+    `stall`, or istall / dstall per port); an accepted request is answered 1 + random(0..extra)
+    cycles later (instruction port: only when istall > 0), in order; a
+    store writes the memory when it is accepted. The model checks the protocol: at most one
+    request outstanding per port (a new one may be accepted in the cycle the previous response
+    is delivered). With stall = 0 and extra = 0 it behaves like a synchronous BRAM
+
+    Dependencies: Memory, common.xlen
+    """
+    nbytes = common.xlen() // 8
+    mem = Memory(words)
+    rng = random.Random(seed)
+    trace = []
+    pend = {"i": None, "d": None}      # (cycle of the response, data)
+
+    cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
+    dut.rst_ni.value = 0
+    for sig in (dut.imem_req_ready_i, dut.imem_rsp_valid_i, dut.imem_rsp_data_i,
+                dut.dmem_req_ready_i, dut.dmem_rsp_valid_i, dut.dmem_rsp_data_i):
+        sig.value = 0
+    await RisingEdge(dut.clk_i)
+    await RisingEdge(dut.clk_i)
+    await FallingEdge(dut.clk_i)
+    dut.rst_ni.value = 1
+
+    istall = stall if istall is None else istall
+    dstall = stall if dstall is None else dstall
+
+    def latency(port_stall):
+        return 1 + (rng.randint(0, extra) if extra and port_stall > 0 else 0)
+
+    for cycle in range(max_cycles):
+        # inputs of this cycle: ready and the responses that are due
+        dut.imem_req_ready_i.value = int(rng.random() >= istall)
+        dut.dmem_req_ready_i.value = int(rng.random() >= dstall)
+        due = {}
+        for port, valid, data in (("i", dut.imem_rsp_valid_i, dut.imem_rsp_data_i),
+                                  ("d", dut.dmem_rsp_valid_i, dut.dmem_rsp_data_i)):
+            p = pend[port]
+            due[port] = p is not None and p[0] == cycle
+            valid.value = int(due[port])
+            data.value = p[1] if due[port] else 0
+        await Timer(1, "ns")
+
+        if int(dut.trap_o.value):
+            assert int(dut.commit_valid_o.value) == 0, "commit during a trap"
+            assert not int(dut.dmem_req_valid_o.value), "data request during a trap"
+            return trace, mem, int(dut.commit_pc_o.value)
+
+        # requests accepted at the coming edge
+        if int(dut.imem_req_valid_o.value):
+            assert int(dut.imem_req_addr_o.value) % 4 == 0, "instruction fetch at a misaligned address"
+        if int(dut.imem_req_valid_o.value) and int(dut.imem_req_ready_i.value):
+            assert pend["i"] is None or due["i"], "instruction port: a second request while one is outstanding"
+            pend["i"] = (cycle + latency(istall), mem.read(int(dut.imem_req_addr_o.value), 4))
+        elif due["i"]:
+            pend["i"] = None
+        if int(dut.dmem_req_valid_o.value) and int(dut.dmem_req_ready_i.value):
+            assert pend["d"] is None or due["d"], "data port: a second request while one is outstanding"
+            addr = int(dut.dmem_req_addr_o.value)
+            assert addr % nbytes == 0, f"data request not aligned: {addr:#x}"
+            if int(dut.dmem_req_we_o.value):
+                mem.write(addr, int(dut.dmem_req_wdata_o.value), int(dut.dmem_req_wstrb_o.value), nbytes)
+                pend["d"] = (cycle + latency(dstall), 0)
+            else:
+                pend["d"] = (cycle + latency(dstall), mem.read(addr, nbytes))
+        elif due["d"]:
+            pend["d"] = None
+
+        if int(dut.commit_valid_o.value):
+            trace.append({"pc": int(dut.commit_pc_o.value), "inst": int(dut.commit_inst_o.value),
+                          "we": int(dut.commit_we_o.value), "rd": int(dut.commit_rd_o.value),
+                          "data": int(dut.commit_data_o.value)})
+        await FallingEdge(dut.clk_i)
+
+    raise AssertionError(f"no trap within {max_cycles} cycles")
+
+
+async def run_single(dut, words, max_cycles=MAX_CYCLES):
+    """
+    Reset the single-cycle core, run the program until trap_o, return (commit trace, memory, trap pc)
 
     The memories are combinational for the core: inputs are answered in the same cycle
     in three short steps, then the clock edge applies the store
@@ -270,7 +373,8 @@ async def test_perf_counters(dut):
     assert len(trace) == 3 + 3 * 3
     assert int(dut.perf_instret_o.value) == len(trace)
     assert int(dut.perf_flushes_o.value) == 2, "BNE is taken twice, falls through once"
-    assert int(dut.perf_stalls_o.value) == 0
+    if not is_pipe(dut):
+        assert int(dut.perf_stalls_o.value) == 0
     assert int(dut.perf_cycles_o.value) >= len(trace)
 
 
@@ -349,9 +453,10 @@ async def test_m_instructions(dut):
         assert r[16] == mext.expected(4, 1 << 63, m, 1) and r[17] == mext.expected(5, m, 2, 1)
 
     assert int(dut.perf_instret_o.value) == len(trace)
-    want_stalls = sum(mext.iterations(*op) + 1 for op in md_ops)
-    assert int(dut.perf_stalls_o.value) == want_stalls, "each M instruction waits its iterations + 1 cycles"
-    assert int(dut.perf_cycles_o.value) == len(trace) + int(dut.perf_stalls_o.value)
+    if not is_pipe(dut):
+        want_stalls = sum(mext.iterations(*op) + 1 for op in md_ops)
+        assert int(dut.perf_stalls_o.value) == want_stalls, "each M instruction waits its iterations + 1 cycles"
+        assert int(dut.perf_cycles_o.value) == len(trace) + int(dut.perf_stalls_o.value)
 
 
 @cocotb.test()
@@ -376,7 +481,8 @@ async def test_m_in_a_loop(dut):
     md_ops = [(0, 1, 5), (0, 5, 4), (0, 20, 3), (0, 60, 2), (0, 120, 1), (4, 100, 7), (6, 100, 7)]
     x = common.xlen()
     assert all(mext.iterations(*op) == x // 2 for op in md_ops)
-    assert int(dut.perf_stalls_o.value) == sum(mext.iterations(*op) + 1 for op in md_ops)
+    if not is_pipe(dut):
+        assert int(dut.perf_stalls_o.value) == sum(mext.iterations(*op) + 1 for op in md_ops)
     assert int(dut.perf_flushes_o.value) == 4, "BNE is taken 4 times"
 
 
@@ -459,8 +565,16 @@ async def test_misaligned_store_traps(dut):
     assert mem.read(BASE + 0x1000, 4) == 0, "nothing may be stored"
 
 
+MODULES = ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters", "muldiv")
+
+
 @pytest.mark.parametrize("xlen", common.XLENS)
 def test_core_runner(xlen):
-    """Build the core with all its modules for this XLEN and run the cocotb tests"""
-    others = [f"rtl/core/{m}.sv" for m in ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters", "muldiv")]
-    common.run("core", __file__, xlen, extra_sources=[str(common.REPO / o) for o in others])
+    """Build the single-cycle core with all its modules for this XLEN and run the cocotb tests"""
+    common.run("core", __file__, xlen, extra_sources=[str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])
+
+
+@pytest.mark.parametrize("xlen", common.XLENS)
+def test_core_pipe_runner(xlen):
+    """The same programs on the pipelined core, with a slow memory that stalls at random"""
+    common.run("core_pipe", __file__, xlen, extra_sources=[str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])

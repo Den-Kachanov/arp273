@@ -4,6 +4,8 @@ Status: draft, pending author review
 
 ## How the modules connect
 
+Two cores use the same modules: the single-cycle reference `core.sv` ([core.md](core.md)) and the five-stage pipeline `core_pipe.sv` ([core_pipe.md](core_pipe.md), [ADR 013](../adr/013-pipeline-and-memory-interface.md)). The diagram below shows the single-cycle core.
+
 The diagram [img/units-overview.svg](../img/units-overview.svg) shows the single-cycle core `core.sv`. A solid frame is a separate module in `rtl/core`: `decoder`, `imm_gen`, `regfile`, `alu`, `branch_unit`, `lsu`, `muldiv` (plus `perf_counters`, which is not drawn). A dashed frame is logic inside `core.sv` (PC, the `a_sel`, `b_sel`, `wb_sel` muxes, the next-PC select) or memory outside the core.
 
 Main connections:
