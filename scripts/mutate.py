@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 """
 Mutation check of the unit tests
@@ -28,6 +29,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+# the tests need cocotb and pytest from the project virtualenv, whatever Python started this script
+VENV_PYTHON = REPO / ".venv" / "bin" / "python"
+PYTHON = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
 IGNORE = shutil.ignore_patterns("sim_build", "__pycache__", "*.pyc")
 
 
@@ -51,7 +55,7 @@ def run_one(work, mod, index, name, old, new):
         shutil.copytree(REPO / d, copy / d, ignore=IGNORE)
     target = copy / mod.RTL
     target.write_text(target.read_text().replace(old, new))
-    cmd = [sys.executable, "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider", str(copy / mod.TEST)]
+    cmd = [PYTHON, "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider", str(copy / mod.TEST)]
     if getattr(mod, "KEXPR", None):
         cmd += ["-k", mod.KEXPR]
     res = subprocess.run(cmd, cwd=copy, capture_output=True, text=True)

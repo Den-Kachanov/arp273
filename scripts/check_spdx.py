@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 """
 Check that every source file starts with the SPDX license line
@@ -14,7 +15,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 ID = "SPDX-License-Identifier: CERN-OHL-S-2.0"
 SUFFIXES = {".sv", ".py", ".S", ".c", ".h", ".cpp", ".sh", ".ld"}
-SKIP = {".venv", "build", "sim_build", "obj_dir", "__pycache__", ".git", "third_party", ".pytest_cache"}
+SKIP = {".venv", "build", "sim_build", "obj_dir", "__pycache__", ".git", "third_party", ".pytest_cache", "node_modules"}
 
 
 def sources():

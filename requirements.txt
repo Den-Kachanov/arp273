@@ -2,3 +2,4 @@
 cocotb==2.1.0
 pytest==9.2.0
 ruff==0.16.10
+igraph==0.11.8

@@ -1,0 +1,9 @@
+{
+  "name": "arp273-tools",
+  "private": true,
+  "description": "Node tools for docs generation (schematics from the RTL netlist)",
+  "license": "CERN-OHL-S-2.0",
+  "dependencies": {
+    "netlistsvg": "1.0.2"
+  }
+}

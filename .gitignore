@@ -62,3 +62,6 @@ fpga/**/out/
 .idea/
 *.swp
 .DS_Store
+
+# Node tools for docs generation (installed with npm --prefix tools ci)
+tools/node_modules/

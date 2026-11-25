@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 """
 Random RV64IM program generator for comparison with Spike
