@@ -12,7 +12,7 @@ MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard rt
 XLENS   := 64 32
 VLINT   := verilator --lint-only -Wall
 
-.PHONY: help lint struct unit synth sim compare regress fuzz area schematics schematics-all floorplan docs-img mutate spdx clean
+.PHONY: help lint struct unit synth sim compare regress fuzz release-check area schematics schematics-all floorplan docs-img mutate spdx clean
 
 help:
 	@echo "make lint            lint every module for XLEN = 64 and 32"
@@ -24,7 +24,8 @@ help:
 	@echo "make compare PROG=fib  compare the core commit log with Spike"
 	@echo "make regress           compare every program in sw/ with Spike (CORE=pipe: the pipelined core)"
 	@echo "make fuzz SEEDS='1 2 3'  random programs (scripts/gen_prog.py) against Spike"
-	@echo "make area            area and logic delay of the modules (scripts/area.py)"
+	@echo "make release-check   the release build of the pipeline (DEBUG = 0) behaves like the debug build"
+	@echo "make area            area and logic delay of the modules (scripts/area.py); RELEASE=1: core_pipe without debug parts"
 	@echo "make schematics      schematics drawn from the RTL (scripts/schematic.py, needs npm --prefix tools ci)"
 	@echo "make schematics-all  every module at every level, in parallel (J=8 to limit the jobs)"
 	@echo "make floorplan       die floorplan estimate: block areas, placement, buses (scripts/floorplan.py)"
@@ -105,10 +106,12 @@ $(BUILD)/%.bin: $(BUILD)/%.elf
 CORE ?= single
 ifeq ($(CORE),pipe)
 SIM_BIN := $(BUILD)/core_pipe_sim
+else ifeq ($(CORE),pipe-release)
+SIM_BIN := $(BUILD)/core_pipe_rel_sim
 else
 SIM_BIN := $(BUILD)/core_sim
 endif
-export MEM_STALL MEM_SEED X_SEED
+export MEM_STALL MEM_SEED X_SEED END_ON_STORE
 
 VERILATOR_SIM = verilator --cc --exe --build -j 4 -O2 -Wno-fatal -DXLEN=64 --prefix Vtop \
   --x-assign unique --x-initial unique
@@ -123,6 +126,26 @@ $(BUILD)/core_pipe_sim: $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	$(VERILATOR_SIM) --top-module core_pipe -CFLAGS -DPIPE --Mdir $(BUILD)/obj_core_pipe -o core_pipe_sim \
 	  $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	cp $(BUILD)/obj_core_pipe/core_pipe_sim $@
+
+# the release build of the pipeline (DEBUG = 0): no commit trace
+$(BUILD)/core_pipe_rel_sim: $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+	@mkdir -p $(BUILD)
+	$(VERILATOR_SIM) --top-module core_pipe -GDEBUG=0 -CFLAGS "-DPIPE -DRELEASE" --Mdir $(BUILD)/obj_core_pipe_rel \
+	  -o core_pipe_rel_sim $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+	cp $(BUILD)/obj_core_pipe_rel/core_pipe_rel_sim $@
+
+# the release build must behave like the debug build: same exit code, cycles and instret at the
+# store to tohost, for every program and fuzz seed (also with MEM_STALL); the stall and flush
+# counters exist only in the debug build and are not compared
+release-check: $(BUILD)/core_pipe_sim $(BUILD)/core_pipe_rel_sim
+	@for p in $(PROGS) $(addprefix fuzz_,$(SEEDS)); do \
+	  $(MAKE) --no-print-directory -s $(BUILD)/$$p.bin >/dev/null || exit 1; \
+	  th=$$($(CROSS)nm $(BUILD)/$$p.elf | awk '$$3=="tohost"{print $$1}'); \
+	  d=$$(END_ON_STORE=1 $(BUILD)/core_pipe_sim $(BUILD)/$$p.bin /dev/null $$th 2>&1 | grep -E "^(exit code|cycles)" | sed -E 's/ stalls.*//'); \
+	  r=$$($(BUILD)/core_pipe_rel_sim $(BUILD)/$$p.bin /dev/null $$th 2>&1 | grep -E "^(exit code|cycles)" | sed -E 's/ stalls.*//'); \
+	  if [ "$$d" = "$$r" ]; then echo "  same  $$p: $$(echo $$d | tr '\n' ' ')"; \
+	  else echo "  DIFFERENT $$p"; echo "    debug:   $$d"; echo "    release: $$r"; exit 1; fi; \
+	done; echo "release-check: OK"
 
 ifneq ($(filter sim compare,$(MAKECMDGOALS)),)
 ifeq ($(PROG),)
@@ -155,7 +178,7 @@ fuzz:
 
 area:
 	@mkdir -p $(BUILD)
-	$(PYTHON) scripts/area.py --xc7 $(if $(COMMIT),--commit $(COMMIT)) --json $(BUILD)/area.json
+	$(PYTHON) scripts/area.py --xc7 $(if $(RELEASE),--release) $(if $(COMMIT),--commit $(COMMIT)) --json $(BUILD)/area.json
 
 schematics:
 	$(PYTHON) scripts/schematic.py $(if $(M),$(M) --level $(or $(LEVEL),rtl)) $(if $(XLEN),--xlen $(XLEN))

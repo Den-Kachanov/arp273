@@ -10,6 +10,10 @@
 //            The memory is a synchronous BRAM (always ready, one cycle) unless env MEM_STALL sets
 //            the probability that a port is not ready in a cycle; then the response also comes
 //            0..3 cycles later at random (env MEM_SEED, default 1)
+//   -DPIPE -DRELEASE  the pipelined core built with DEBUG = 0: no commit trace, so the program ends
+//            when the data port accepts the store to tohost, and no commit log is written.
+//            The debug pipeline build ends at the same point when env END_ON_STORE=1: then both
+//            builds read the counters in the same cycle (make release-check compares them)
 
 #include <cstdint>
 #include <cstdio>
@@ -132,6 +136,11 @@ int main(int argc, char **argv)
 	double stall = getenv("MEM_STALL") ? atof(getenv("MEM_STALL")) : 0.0;
 	rng_state = getenv("MEM_SEED") ? strtoull(getenv("MEM_SEED"), nullptr, 10) | 1 : 1;
 	pending_t pi, pd;
+#ifdef RELEASE
+	bool end_on_store = true;
+#else
+	bool end_on_store = getenv("END_ON_STORE") && atoi(getenv("END_ON_STORE"));
+#endif
 	top->imem_req_ready_i = 0;
 	top->imem_rsp_valid_i = 0;
 	top->dmem_req_ready_i = 0;
@@ -206,6 +215,11 @@ int main(int argc, char **argv)
 			if (top->dmem_req_we_o) {
 				write_strb(addr, top->dmem_req_wdata_o, top->dmem_req_wstrb_o);
 				pd = {true, cycle + latency(), 0};
+				if (end_on_store && addr == (tohost & ~7ull)) {
+					exit_code = read_le(tohost, 8) >> 1;
+					status = 0;
+					break;
+				}
 			} else {
 				pd = {true, cycle + latency(), read_le(addr, 8)};
 			}

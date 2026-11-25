@@ -127,6 +127,33 @@ EX logic (here the operand negation of the multiplier/divider).
   `MEM_STALL=0.3` and `0.5`.
 - `make lint` and `make struct` (both cores, XLEN = 64 and 32) are clean.
 
+## Release build (`DEBUG = 0`)
+
+The parameter `DEBUG` (default 1) separates what exists only to check the core. `DEBUG = 0` removes the
+commit trace (the instruction carried through ID/EX, EX/MEM and MEM/WB, the copies of store data and strobes
+in WB; all `commit_*` outputs read 0) and the stall and flush counters. The cycle and instret counters stay:
+they become architectural CSRs. The program counter stays in every stage: the exception entry will need it
+(`mepc`).
+
+Measured 2026-11-25, no commit hash (estimate), `make area RELEASE=1`, XLEN = 64:
+
+| | debug | release | change |
+|---|---|---|---|
+| flip-flops | 3621 | 3232 | −389 (−10.7 %) |
+| LUT6 | 5131 | 4962 | −3.3 % |
+| xc7 CARRY4 | 216 | 184 | −32 (two 64-bit counters) |
+| xc7 logic delay | 6958 ps | 5445 ps | −22 % |
+
+The debug build's longest path ran into the stall counter: its input "ID waits" depends on the whole
+chain of stage handshakes and then goes through the counter's 64-bit adder. The instrumentation was the
+critical path. (The two debug numbers, 6958 and 7067 ps above, come from different runs of ABC on almost
+the same netlist; only numbers from one run are compared.)
+
+The release build must behave exactly like the debug build on its functional outputs (memory ports,
+`trap_o`, cycle and instret counters). `make release-check` (also in CI) runs every program and fuzz seed
+on both builds: the exit code, cycles and instret at the store to tohost are identical, also with
+`MEM_STALL=0.3`.
+
 ## Consequences
 
 - ADR 008 now only describes the single-cycle reference core.

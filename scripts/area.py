@@ -38,6 +38,16 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 # top-level cores: synthesized flattened, listed after the modules
 TOPS = ("core", "core_pipe")
+# --release: the pipelined core without its verification-only parts (parameter DEBUG = 0)
+RELEASE = {"on": False}
+
+
+def read_cmd(files, xlen, top):
+    """read_verilog, and for a release build the DEBUG parameter of core_pipe set to 0"""
+    cmd = f"read_verilog -sv -DXLEN={xlen} {' '.join(str(f) for f in files)}; "
+    if RELEASE["on"] and top == "core_pipe":
+        cmd += "hierarchy -top core_pipe -chparam DEBUG 0; "
+    return cmd
 STUB = """module muldiv (
 \tinput  logic clk_i, rst_ni, valid_i,
 \tinput  logic [2:0] funct3_i,
@@ -68,7 +78,7 @@ def synth(files, xlen, top, flatten, lut, workdir):
     # (the core with and without the muldiv stub); abc also writes abc.history into the current directory
     run_dir = Path(tempfile.mkdtemp(dir=workdir))
     out = run_dir / "stat.txt"
-    script = (f"read_verilog -sv -DXLEN={xlen} {' '.join(str(f) for f in files)}; "
+    script = (read_cmd(files, xlen, top) +
               f"synth {'-flatten' if flatten else ''} -top {top}; "
               f"{'abc -lut 6; ' if lut else ''}tee -o {out} stat")
     subprocess.run(["yosys", "-q", "-p", script], check=True, capture_output=True, cwd=run_dir)
@@ -92,7 +102,7 @@ def measure(files, xlen, top, flatten, workdir):
 def measure_xc7(files, xlen, top, flatten, workdir):
     """Xilinx 7 series: LUT, CARRY4, MUXF and the logic-only arrival time in ps"""
     run_dir = Path(tempfile.mkdtemp(dir=workdir))
-    script = (f"read_verilog -sv -DXLEN={xlen} {' '.join(str(f) for f in files)}; "
+    script = (read_cmd(files, xlen, top) +
               f"synth_xilinx -family xc7 -abc9 {'-flatten' if flatten else ''} -top {top}; "
               f"tee -o {run_dir / 'stat.txt'} stat; "
               f"read_verilog -lib -specify +/xilinx/cells_sim.v; tee -o {run_dir / 'sta.txt'} sta")
@@ -211,10 +221,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--xlen", type=int, nargs="+", default=[64, 32])
     ap.add_argument("--xc7", action="store_true", help="also synthesize for Xilinx 7 series with sta")
+    ap.add_argument("--release", action="store_true",
+                    help="core_pipe as a release build: DEBUG = 0 (no commit trace, no stall/flush counters)")
     ap.add_argument("--commit", default="", help="commit hash to print with the result")
     ap.add_argument("--json", help="write the raw numbers to this file")
     ap.add_argument("--svg", help="write the bar chart (needs --xlen 64 32)")
     args = ap.parse_args()
+    RELEASE["on"] = args.release
     if args.svg and sorted(args.xlen) != [32, 64]:
         sys.exit("area: --svg needs both XLEN = 64 and XLEN = 32")
 

@@ -121,3 +121,6 @@ jobs:
           make regress CORE=pipe CROSS=riscv64-unknown-elf-
           make fuzz CORE=pipe CROSS=riscv64-unknown-elf- SEEDS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
           MEM_STALL=0.3 make fuzz CORE=pipe CROSS=riscv64-unknown-elf- SEEDS="1 2 3 4 5 6 7 8"
+
+      - name: The release build of the pipeline behaves like the debug build
+        run: make release-check CROSS=riscv64-unknown-elf- SEEDS="1 2 3 4 5 6 7 8"

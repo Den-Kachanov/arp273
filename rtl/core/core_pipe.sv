@@ -21,7 +21,13 @@
 //   a trap reaches WB and freezes the pipeline: younger instructions write nothing
 
 module core_pipe #(
-	parameter logic [riscv_pkg::XLEN-1:0] RESET_PC = riscv_pkg::XLEN'(64'h8000_0000)
+	parameter logic [riscv_pkg::XLEN-1:0] RESET_PC = riscv_pkg::XLEN'(64'h8000_0000),
+	// 1: verification build. 0: release build: everything that exists only to check the core is
+	// removed: the commit trace (the instruction carried through ID/EX, EX/MEM and MEM/WB, the copies
+	// of store data and strobes in WB, all commit_* outputs read 0) and the stall and flush
+	// counters (stalls_o and flushes_o read 0). The cycle and instret counters stay: they become
+	// architectural CSRs. The behaviour on the memory ports does not depend on DEBUG
+	parameter bit DEBUG = 1'b1
 ) (
 	input  logic                          clk_i,
 	input  logic                          rst_ni,
@@ -448,7 +454,7 @@ module core_pipe #(
 			if (id_advance) begin
 				ex_valid_q    <= 1'b1;
 				ex_pc_q       <= id_pc;
-				ex_inst_q     <= id_inst;
+				ex_inst_q     <= DEBUG ? id_inst : '0;
 				ex_alu_op_q   <= id_alu_op;
 				ex_word_q     <= id_word;
 				ex_a_sel_q    <= id_a_sel;
@@ -495,7 +501,7 @@ module core_pipe #(
 			if (ex_advance) begin
 				mem_valid_q   <= 1'b1;
 				mem_pc_q      <= ex_pc_q;
-				mem_inst_q    <= ex_inst_q;
+				mem_inst_q    <= DEBUG ? ex_inst_q : '0;
 				mem_reg_we_q  <= ex_reg_we_q & ~ex_trap;
 				mem_mem_re_q  <= ex_mem_re_q;
 				mem_mem_we_q  <= ex_mem_we_q;
@@ -512,7 +518,7 @@ module core_pipe #(
 			if (mem_advance) begin
 				wb_valid_q  <= 1'b1;
 				wb_pc_q     <= mem_pc_q;
-				wb_inst_q   <= mem_inst_q;
+				wb_inst_q   <= DEBUG ? mem_inst_q : '0;
 				wb_reg_we_q <= mem_reg_we_q & ~mem_trap;
 				wb_mem_re_q <= mem_mem_re_q & ~mem_trap;
 				wb_mem_we_q <= mem_mem_we_q & ~mem_trap;
@@ -520,8 +526,8 @@ module core_pipe #(
 				wb_funct3_q <= mem_funct3_q;
 				wb_rd_q     <= mem_rd_q;
 				wb_result_q <= mem_result_q;
-				wb_wdata_q  <= mem_wdata;
-				wb_wstrb_q  <= mem_mem_we_q ? mem_wstrb : '0;
+				wb_wdata_q  <= DEBUG ? mem_wdata : '0;
+				wb_wstrb_q  <= (DEBUG && mem_mem_we_q) ? mem_wstrb : '0;
 			end else if (wb_advance) begin
 				wb_valid_q <= 1'b0;
 			end
@@ -534,24 +540,25 @@ module core_pipe #(
 	// ------------------------------------------------------------------ outputs
 	assign trap_o = wb_valid_q & wb_trap_q;
 
-	assign commit_valid_o     = wb_advance;
-	assign commit_pc_o        = wb_pc_q;
+	// the commit trace exists for verification only (DEBUG = 0: all zero)
+	assign commit_valid_o     = DEBUG & wb_advance;
+	assign commit_pc_o        = DEBUG ? wb_pc_q : '0;
 	assign commit_inst_o      = wb_inst_q;
-	assign commit_we_o        = wb_we & (wb_rd_q != 5'd0);
-	assign commit_rd_o        = wb_rd_q;
-	assign commit_data_o      = wb_data;
-	assign commit_mem_re_o    = wb_mem_re_q;
-	assign commit_mem_we_o    = wb_mem_we_q;
-	assign commit_mem_addr_o  = wb_result_q;
+	assign commit_we_o        = DEBUG & wb_we & (wb_rd_q != 5'd0);
+	assign commit_rd_o        = DEBUG ? wb_rd_q : '0;
+	assign commit_data_o      = DEBUG ? wb_data : '0;
+	assign commit_mem_re_o    = DEBUG & wb_mem_re_q;
+	assign commit_mem_we_o    = DEBUG & wb_mem_we_q;
+	assign commit_mem_addr_o  = DEBUG ? wb_result_q : '0;
 	assign commit_mem_wdata_o = wb_wdata_q;
 	assign commit_mem_wstrb_o = wb_wstrb_q;
 
 	perf_counters u_perf_counters (
 		.clk_i     (clk_i),
 		.rst_ni    (rst_ni),
-		.commit_i  (commit_valid_o),
-		.stall_i   (id_valid & ~id_advance & ~redirect),
-		.flush_i   (redirect),
+		.commit_i  (wb_advance),
+		.stall_i   (DEBUG & id_valid & ~id_advance & ~redirect),
+		.flush_i   (DEBUG & redirect),
 		.cycles_o  (perf_cycles_o),
 		.instret_o (perf_instret_o),
 		.stalls_o  (perf_stalls_o),

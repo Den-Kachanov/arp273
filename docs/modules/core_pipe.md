@@ -21,7 +21,7 @@ the same units as the single-cycle reference core ([core.md](core.md)).
 | `commit_mem_re_o`, `commit_mem_we_o`, `commit_mem_addr_o`, `commit_mem_wdata_o`, `commit_mem_wstrb_o` | output | | The memory access of the committed instruction, for the commit log |
 | `perf_cycles_o`, `perf_instret_o`, `perf_stalls_o`, `perf_flushes_o` | output | 64 | Cycles, retired instructions, cycles with a valid instruction held in ID, taken branches and jumps |
 
-Parameter `RESET_PC` (default `0x8000_0000`).
+Parameters: `RESET_PC` (default `0x8000_0000`); `DEBUG` (default 1). `DEBUG = 0` is the release build: no commit trace (the `commit_*` outputs read 0) and no stall and flush counters; the behaviour on the memory ports is the same (`make release-check`, ADR 013).
 
 ## Memory protocol (ADR 013)
 
