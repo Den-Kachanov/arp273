@@ -29,7 +29,7 @@ help:
 	@echo "make area            area and logic delay of the modules (scripts/area.py); RELEASE=1: core_pipe without debug parts"
 	@echo "make schematics      schematics drawn from the RTL (scripts/schematic.py, needs npm --prefix tools ci)"
 	@echo "make schematics-all  every module at every level, in parallel (J=8 to limit the jobs)"
-	@echo "make floorplan       die floorplan estimate: block areas, placement, buses (scripts/floorplan.py)"
+	@echo "make floorplan       die floorplan estimate of core_pipe (TOP=core for the reference): block areas, placement, buses"
 	@echo "make docs-img        regenerate docs/img/generated/ (committed, shown on GitHub by docs/diagrams.md)"
 	@echo "make mutate M=alu    mutation check of a module's tests (scripts/mutate.py)"
 	@echo "make spdx            check the SPDX headers"
@@ -198,7 +198,7 @@ schematics-all:
 	$(PYTHON) scripts/schematic.py --all $(if $(J),-j $(J)) $(if $(XLEN),--xlen $(XLEN))
 
 floorplan:
-	$(PYTHON) scripts/floorplan.py $(if $(J),-j $(J)) $(if $(XLEN),--xlen $(XLEN))
+	$(PYTHON) scripts/floorplan.py --top $(or $(TOP),core_pipe) $(if $(J),-j $(J)) $(if $(XLEN),--xlen $(XLEN))
 
 # Three simple generated diagrams that are committed and shown on GitHub (docs/diagrams.md); the dense
 # ones (block diagrams, gate-level, netlist graphs) stay local: make schematics-all.

@@ -181,7 +181,7 @@ def draw_svg(results, date, commit, yosys, out):
     height = top + row * len(names) + 130
     s64 = sum(results[f"{m}_64"]["lut"] for m in names)
     s32 = sum(results[f"{m}_32"]["lut"] for m in names)
-    c64, c32 = results["core_64"], results["core_32"]
+    c64, c32 = results["core_pipe_64"], results["core_pipe_32"]
     where = f"commit {commit}" if commit else "no commit hash, an estimate"
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 {height}" width="940" height="{height}" '
          f'font-family="DejaVu Sans, sans-serif" font-size="13">',
@@ -205,8 +205,8 @@ def draw_svg(results, date, commit, yosys, out):
                      f'<text x="{206 + w}" y="{y + k * 22 + 13}" fill="#222" font-size="11">{label}</text>')
     y = top + len(names) * row + 10
     notes = [
-        f"Sum of the modules' LUT6: XLEN = 64: {s64}, XLEN = 32: {s32} (without the PC, memories and muxes).",
-        f"Whole core (core.sv, one flat synthesis): XLEN = 64: {c64['lut']} LUT6 + {c64['ff']} flip-flops; "
+        f"Sum of the modules' LUT6: XLEN = 64: {s64}, XLEN = 32: {s32} (without the pipeline registers, forwarding and fetch queue).",
+        f"Whole pipelined core (core_pipe.sv, one flat synthesis): XLEN = 64: {c64['lut']} LUT6 + {c64['ff']} flip-flops; "
         f"XLEN = 32: {c32['lut']} LUT6 + {c32['ff']} flip-flops.",
         "regfile: generic synthesis keeps 31 × XLEN flip-flops; on xc7 it maps to LUT RAM (ADR 005). muldiv: XLEN/2 + 1 or XLEN + 1 cycles (ADR 011).",
         "This is an area estimate in LUTs, not Fmax and not power: there is no timing and no place-and-route here.",

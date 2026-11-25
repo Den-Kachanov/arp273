@@ -1,35 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 678" width="940" height="678" font-family="DejaVu Sans, sans-serif" font-size="13">
-<rect width="940" height="678" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 734" width="940" height="734" font-family="DejaVu Sans, sans-serif" font-size="13">
+<rect width="940" height="734" fill="#ffffff"/>
 <text x="470" y="26" text-anchor="middle" fill="#222" font-size="16" font-weight="bold">Area of the individual modules: LUT6 (Yosys, abc -lut 6)</text>
-<text x="470" y="44" text-anchor="middle" fill="#555" font-size="11">2026-11-25, Yosys 0.66, each module on its own, one run; no commit hash, an estimate</text>
+<text x="470" y="44" text-anchor="middle" fill="#555" font-size="11">2026-11-26, Yosys 0.66, each module on its own, one run; no commit hash, an estimate</text>
 <rect x="200" y="64" width="14" height="10" fill="#33597f"/><text x="220" y="73" fill="#555" font-size="11">XLEN = 64</text>
 <rect x="310" y="64" width="14" height="10" fill="#8aa9c9"/><text x="330" y="73" fill="#555" font-size="11">XLEN = 32</text>
 <text x="190" y="114" text-anchor="end" fill="#222" font-size="13">regfile</text>
 <rect x="200" y="100" width="440" height="18" fill="#33597f"/><text x="646" y="113" fill="#222" font-size="11">1644  (+ 1984 flip-flops)</text>
 <rect x="200" y="122" width="225" height="18" fill="#8aa9c9"/><text x="431" y="135" fill="#222" font-size="11">839  (+ 992 flip-flops)</text>
 <text x="190" y="170" text-anchor="end" fill="#222" font-size="13">muldiv</text>
-<rect x="200" y="156" width="255" height="18" fill="#33597f"/><text x="461" y="169" fill="#222" font-size="11">954  (+ 211 flip-flops)</text>
-<rect x="200" y="178" width="120" height="18" fill="#8aa9c9"/><text x="326" y="191" fill="#222" font-size="11">447  (+ 113 flip-flops)</text>
-<text x="190" y="226" text-anchor="end" fill="#222" font-size="13">alu</text>
-<rect x="200" y="212" width="187" height="18" fill="#33597f"/><text x="393" y="225" fill="#222" font-size="11">700</text>
-<rect x="200" y="234" width="77" height="18" fill="#8aa9c9"/><text x="283" y="247" fill="#222" font-size="11">288</text>
-<text x="190" y="282" text-anchor="end" fill="#222" font-size="13">perf_counters</text>
-<rect x="200" y="268" width="82" height="18" fill="#33597f"/><text x="288" y="281" fill="#222" font-size="11">308  (+ 256 flip-flops)</text>
-<rect x="200" y="290" width="82" height="18" fill="#8aa9c9"/><text x="288" y="303" fill="#222" font-size="11">308  (+ 256 flip-flops)</text>
-<text x="190" y="338" text-anchor="end" fill="#222" font-size="13">lsu</text>
-<rect x="200" y="324" width="82" height="18" fill="#33597f"/><text x="288" y="337" fill="#222" font-size="11">305</text>
-<rect x="200" y="346" width="25" height="18" fill="#8aa9c9"/><text x="231" y="359" fill="#222" font-size="11">93</text>
-<text x="190" y="394" text-anchor="end" fill="#222" font-size="13">branch_unit</text>
-<rect x="200" y="380" width="23" height="18" fill="#33597f"/><text x="229" y="393" fill="#222" font-size="11">87</text>
-<rect x="200" y="402" width="11" height="18" fill="#8aa9c9"/><text x="217" y="415" fill="#222" font-size="11">41</text>
-<text x="190" y="450" text-anchor="end" fill="#222" font-size="13">decoder</text>
-<rect x="200" y="436" width="13" height="18" fill="#33597f"/><text x="219" y="449" fill="#222" font-size="11">47</text>
-<rect x="200" y="458" width="12" height="18" fill="#8aa9c9"/><text x="218" y="471" fill="#222" font-size="11">46</text>
-<text x="190" y="506" text-anchor="end" fill="#222" font-size="13">imm_gen</text>
-<rect x="200" y="492" width="9" height="18" fill="#33597f"/><text x="215" y="505" fill="#222" font-size="11">32</text>
-<rect x="200" y="514" width="9" height="18" fill="#8aa9c9"/><text x="215" y="527" fill="#222" font-size="11">32</text>
-<text x="20" y="558" fill="#333" font-size="11">Sum of the modules' LUT6: XLEN = 64: 4077, XLEN = 32: 2094 (without the PC, memories and muxes).</text>
-<text x="20" y="576" fill="#333" font-size="11">Whole core (core.sv, one flat synthesis): XLEN = 64: 4546 LUT6 + 2515 flip-flops; XLEN = 32: 2317 LUT6 + 1393 flip-flops.</text>
-<text x="20" y="594" fill="#333" font-size="11">regfile: generic synthesis keeps 31 × XLEN flip-flops; on xc7 it maps to LUT RAM (ADR 005). muldiv: XLEN/2 + 1 or XLEN + 1 cycles (ADR 011).</text>
-<text x="20" y="612" fill="#333" font-size="11">This is an area estimate in LUTs, not Fmax and not power: there is no timing and no place-and-route here.</text>
+<rect x="200" y="156" width="253" height="18" fill="#33597f"/><text x="459" y="169" fill="#222" font-size="11">947  (+ 211 flip-flops)</text>
+<rect x="200" y="178" width="119" height="18" fill="#8aa9c9"/><text x="325" y="191" fill="#222" font-size="11">445  (+ 113 flip-flops)</text>
+<text x="190" y="226" text-anchor="end" fill="#222" font-size="13">csr</text>
+<rect x="200" y="212" width="200" height="18" fill="#33597f"/><text x="406" y="225" fill="#222" font-size="11">746  (+ 323 flip-flops)</text>
+<rect x="200" y="234" width="111" height="18" fill="#8aa9c9"/><text x="317" y="247" fill="#222" font-size="11">415  (+ 163 flip-flops)</text>
+<text x="190" y="282" text-anchor="end" fill="#222" font-size="13">alu</text>
+<rect x="200" y="268" width="188" height="18" fill="#33597f"/><text x="394" y="281" fill="#222" font-size="11">703</text>
+<rect x="200" y="290" width="77" height="18" fill="#8aa9c9"/><text x="283" y="303" fill="#222" font-size="11">288</text>
+<text x="190" y="338" text-anchor="end" fill="#222" font-size="13">perf_counters</text>
+<rect x="200" y="324" width="82" height="18" fill="#33597f"/><text x="288" y="337" fill="#222" font-size="11">308  (+ 256 flip-flops)</text>
+<rect x="200" y="346" width="82" height="18" fill="#8aa9c9"/><text x="288" y="359" fill="#222" font-size="11">308  (+ 256 flip-flops)</text>
+<text x="190" y="394" text-anchor="end" fill="#222" font-size="13">lsu</text>
+<rect x="200" y="380" width="82" height="18" fill="#33597f"/><text x="288" y="393" fill="#222" font-size="11">305</text>
+<rect x="200" y="402" width="25" height="18" fill="#8aa9c9"/><text x="231" y="415" fill="#222" font-size="11">93</text>
+<text x="190" y="450" text-anchor="end" fill="#222" font-size="13">branch_unit</text>
+<rect x="200" y="436" width="23" height="18" fill="#33597f"/><text x="229" y="449" fill="#222" font-size="11">87</text>
+<rect x="200" y="458" width="11" height="18" fill="#8aa9c9"/><text x="217" y="471" fill="#222" font-size="11">41</text>
+<text x="190" y="506" text-anchor="end" fill="#222" font-size="13">decoder</text>
+<rect x="200" y="492" width="20" height="18" fill="#33597f"/><text x="226" y="505" fill="#222" font-size="11">74</text>
+<rect x="200" y="514" width="17" height="18" fill="#8aa9c9"/><text x="223" y="527" fill="#222" font-size="11">63</text>
+<text x="190" y="562" text-anchor="end" fill="#222" font-size="13">imm_gen</text>
+<rect x="200" y="548" width="9" height="18" fill="#33597f"/><text x="215" y="561" fill="#222" font-size="11">32</text>
+<rect x="200" y="570" width="9" height="18" fill="#8aa9c9"/><text x="215" y="583" fill="#222" font-size="11">32</text>
+<text x="20" y="614" fill="#333" font-size="11">Sum of the modules' LUT6: XLEN = 64: 4846, XLEN = 32: 2524 (without the pipeline registers, forwarding and fetch queue).</text>
+<text x="20" y="632" fill="#333" font-size="11">Whole pipelined core (core_pipe.sv, one flat synthesis): XLEN = 64: 5920 LUT6 + 4000 flip-flops; XLEN = 32: 3400 LUT6 + 2296 flip-flops.</text>
+<text x="20" y="650" fill="#333" font-size="11">regfile: generic synthesis keeps 31 × XLEN flip-flops; on xc7 it maps to LUT RAM (ADR 005). muldiv: XLEN/2 + 1 or XLEN + 1 cycles (ADR 011).</text>
+<text x="20" y="668" fill="#333" font-size="11">This is an area estimate in LUTs, not Fmax and not power: there is no timing and no place-and-route here.</text>
 </svg>
