@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """
 Area estimate of every module in rtl/core with Yosys (the numbers quoted in docs/)
 

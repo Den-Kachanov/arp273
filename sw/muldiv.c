@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 // All 13 instructions of the M extension (RV64) on edge values and random values.
 // Inline assembly forces the exact instruction, so the compiler cannot replace one by another;
 // the results are not checked here: the commit log is compared with Spike

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 
 module regfile #(
 	// 1: a read of the register being written returns wdata_i (pipeline, ADR 004)

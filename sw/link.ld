@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: CERN-OHL-S-2.0 */
+/* SPDX-FileCopyrightText: 2026 Denys Kachanov */
 /* RAM starts at 0x8000_0000, as in Spike: one ELF runs on Spike and on the core */
 
 OUTPUT_ARCH(riscv)

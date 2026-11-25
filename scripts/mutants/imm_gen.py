@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """Mutants of rtl/core/imm_gen.sv for tb/unit/test_imm_gen.py (see scripts/mutate.py)
 
 Only changes that keep the result width are used: a mutant that does not build proves nothing

@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """Mutants of rtl/core/muldiv.sv for tb/unit/test_muldiv.py (see scripts/mutate.py)"""
 
 RTL = "rtl/core/muldiv.sv"

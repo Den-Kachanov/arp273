@@ -30,7 +30,7 @@ Splitting licenses by directory (RTL under CERN-OHL-S, the rest under Apache-2.0
 
 1. **CERN-OHL-S-2.0** for the whole repository. The text is taken from the official SPDX list.
 2. The repository is **public from the first commit**.
-3. `LICENSE`, and the copyright line `Copyright (c) 2026 Denys Kachanov` in `NOTICE`; the SPDX header `CERN-OHL-S-2.0` in every source file; a check in CI.
+3. `LICENSE` holds the licence text verbatim (CERN-OHL-S may only be used unmodified), so the copyright holder is not named there. The holder is named in `NOTICE` (`Copyright (c) 2026 Denys Kachanov`) and in every source file, REUSE style, as two lines: `SPDX-License-Identifier: CERN-OHL-S-2.0` and `SPDX-FileCopyrightText: 2026 Denys Kachanov`. `scripts/check_spdx.py` checks both, also in CI.
 4. The author remains the sole copyright holder: external pull requests are accepted only after an agreement to assign rights (CLA), to keep a commercial license possible.
 5. Third-party material (`riscv-tests` as a submodule, data, models) is listed in `THIRD_PARTY.md` with its license; compatibility with the copyleft is checked before anything is added.
 6. Secret hygiene: `.gitignore` from the first commit, `gitleaks` in pre-commit and CI, a noreply address in git, secret scanning and push protection on GitHub.
@@ -41,7 +41,7 @@ Splitting licenses by directory (RTL under CERN-OHL-S, the rest under Apache-2.0
 - The first commits were made under Apache-2.0 (before the change) and remain available under those terms to those who received them. New versions are under CERN-OHL-S-2.0.
 - The license is irrevocable for those who have already received the code. Patents, if wanted, must be filed before the corresponding idea is published.
 - The commit history is public immediately and permanently. A secret in a commit is considered leaked even if it is removed later; the remedy is to revoke the secret and, if needed, create a new repository.
-- The project is not assessed as part of the author's studies, so a claim on the rights by the university (UCU) is unlikely. Before the first public commit, confirm this with UCU or the lecturer in one email and keep the reply.
+- The project is the author's personal project, separate from the author's studies (the author's statement), so a claim on the rights by the university (UCU) does not arise and no letter to UCU is needed.
 - The terms of future employers are unknown. The repository is created before any contract; when signing an internship, list it as prior work and read the IP clauses.
 - The name "RISC-V" is not part of the repository name; the documentation says "implements RV64I".
 - Any real commercialisation, especially chip manufacturing, needs legal advice first. This draft is not legal advice.

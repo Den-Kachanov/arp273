@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 
 // Multiplier and divider of the M extension (ADR 009, ADR 011): one iterative unit, one bit per cycle
 //

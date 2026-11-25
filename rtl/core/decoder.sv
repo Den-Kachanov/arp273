@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 
 module decoder (
 	input  logic [31:0]         inst_i,

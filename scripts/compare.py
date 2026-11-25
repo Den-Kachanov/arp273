@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """
 Compare a core commit log with a `spike --log-commits` log
 

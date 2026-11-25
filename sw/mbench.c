@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 // M extension on ordinary numbers (not the worst case of muldiv.c): an int matrix product (MULW),
 // 64-bit hashing with a large constant (MUL with a full 64-bit multiplier), decimal conversion and
 // Euclid's algorithm (DIVU, REMU on moderate values), signed division of small ints (DIVW, REMW).

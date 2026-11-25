@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """Mutants of rtl/core/alu.sv for tb/unit/test_alu.py (see scripts/mutate.py)"""
 
 RTL = "rtl/core/alu.sv"

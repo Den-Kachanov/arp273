@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """Mutants of rtl/core/core.sv for tb/unit/test_core.py (see scripts/mutate.py); XLEN = 64 only, to save time"""
 
 RTL = "rtl/core/core.sv"

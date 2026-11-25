@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 
 module alu (
 	input  logic [riscv_pkg::XLEN-1:0] a_i,

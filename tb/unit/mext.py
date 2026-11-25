@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """
 Reference model of the M extension for tests, written from the RISC-V specification
 on Python integers (not from the structure of the RTL)

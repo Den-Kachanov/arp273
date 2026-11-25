@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 // Verilator harness for the single-cycle core (XLEN = 64): loads a flat binary at 0x8000_0000,
 // runs until the program writes to tohost or the core traps, prints a commit log in the style of
 // `spike --log-commits` and the performance counters

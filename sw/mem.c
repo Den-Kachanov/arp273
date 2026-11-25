@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 // Loads and stores of every size and signedness: byte lanes, strobes, sign and zero extension
 
 static volatile signed char    sb_arr[16];

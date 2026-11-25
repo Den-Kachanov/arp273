@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 // Arithmetic, logic, shifts and comparisons on 64-bit and 32-bit values, with branches on the results
 
 static volatile unsigned long out_u[8];

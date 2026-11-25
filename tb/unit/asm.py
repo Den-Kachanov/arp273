@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """
 Tiny assembler for tests: instruction encoders (formats from the RISC-V specification)
 and mnemonic helpers that return a 32-bit instruction word

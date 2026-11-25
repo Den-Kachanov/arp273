@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: CERN-OHL-S-2.0
+# SPDX-FileCopyrightText: 2026 Denys Kachanov
 """
 Schematics generated from the RTL: Yosys builds the netlist, netlistsvg or Graphviz draws it
 

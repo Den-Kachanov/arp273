@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+// SPDX-FileCopyrightText: 2026 Denys Kachanov
 // Fibonacci numbers in memory: loads, stores, adds and a loop branch
 
 #define N 20
