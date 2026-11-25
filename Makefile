@@ -166,23 +166,22 @@ schematics-all:
 floorplan:
 	$(PYTHON) scripts/floorplan.py $(if $(J),-j $(J)) $(if $(XLEN),--xlen $(XLEN))
 
-# A small, readable set of generated diagrams that is committed and shown on GitHub (docs/diagrams.md).
+# Three simple generated diagrams that are committed and shown on GitHub (docs/diagrams.md); the dense
+# ones (block diagrams, gate-level, netlist graphs) stay local: make schematics-all.
 # Every file is deterministic (fixed seeds, no dates), so it only changes when the RTL changes.
 # The numbers depend on the Yosys version: regenerate with the same tools before comparing
 DOCS_GEN := docs/img/generated
 DOCS_TMP := $(BUILD)/docs-img
 docs-img:
 	@rm -rf $(DOCS_TMP)
-	$(PYTHON) scripts/schematic.py --out $(DOCS_TMP)
-	$(PYTHON) scripts/schematic.py core --level graph --out $(DOCS_TMP)
-	$(PYTHON) scripts/floorplan.py --out $(DOCS_TMP)/floorplan
+	$(PYTHON) scripts/schematic.py core_pipe --level map --out $(DOCS_TMP)
+	$(PYTHON) scripts/schematic.py branch_unit --level rtl --out $(DOCS_TMP)
+	$(PYTHON) scripts/floorplan.py --top core_pipe --out $(DOCS_TMP)/floorplan
+	@rm -rf $(DOCS_GEN)
 	@mkdir -p $(DOCS_GEN)
-	cp $(DOCS_TMP)/blocks/core_xlen64.svg       $(DOCS_GEN)/core_blocks.svg
-	cp $(DOCS_TMP)/gates/decoder_xlen64.svg     $(DOCS_GEN)/decoder_gates.svg
-	cp $(DOCS_TMP)/rtl/branch_unit_xlen64.svg   $(DOCS_GEN)/branch_unit_rtl.svg
-	cp $(DOCS_TMP)/map/core_xlen64.svg          $(DOCS_GEN)/core_gate_map.svg
-	cp $(DOCS_TMP)/graph/core_xlen64.svg        $(DOCS_GEN)/core_netlist_graph.svg
-	cp $(DOCS_TMP)/floorplan/core_xlen64.svg    $(DOCS_GEN)/core_floorplan.svg
+	cp $(DOCS_TMP)/floorplan/core_pipe_xlen64.svg     $(DOCS_GEN)/core_pipe_floorplan.svg
+	cp $(DOCS_TMP)/map/core_pipe_xlen64.svg           $(DOCS_GEN)/core_pipe_gate_map.svg
+	cp $(DOCS_TMP)/rtl/branch_unit_xlen64.svg         $(DOCS_GEN)/branch_unit_rtl.svg
 	@ls -l $(DOCS_GEN)
 
 mutate:

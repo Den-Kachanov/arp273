@@ -167,9 +167,14 @@ def gate_counts(module, xlen, tmp):
         return counts
 
     groups, glue = [], {}
-    for cell in mods[module]["cells"].values():
+    types = [c["type"] for c in mods[module]["cells"].values() if c["type"] in mods]
+    for inst, cell in mods[module]["cells"].items():
         if cell["type"] in mods:
             label = cell["type"].split("\\")[1] if cell["type"].startswith("$paramod\\") else cell["type"]
+            if types.count(cell["type"]) > 1:
+                # a module used twice (the pipeline has two lsu): name the block after the instance
+                label = inst.lstrip("\\")
+                label = label[2:] if label.startswith("u_") else label
             groups.append((label, total(cell["type"])))
         else:
             k = kind(cell["type"])

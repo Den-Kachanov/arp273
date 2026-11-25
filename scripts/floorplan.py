@@ -90,9 +90,16 @@ def blocks_and_buses(mods, top):
         if isinstance(bit, int):
             endpoints.setdefault(bit, set()).add(who)
 
+    # a block is named after its module; a module used twice (the pipeline has two lsu) is named
+    # after the instance instead: u_lsu_mem -> lsu_mem
+    types = [c["type"] for c in topm["cells"].values() if c["type"] in mods]
+
     for inst, cell in topm["cells"].items():
         if cell["type"] in mods:
             name = clean(cell["type"])
+            if types.count(cell["type"]) > 1:
+                name = inst.lstrip("\\")
+                name = name[2:] if name.startswith("u_") else name
             blocks[name] = {"t": module_transistors(mods, cell["type"]), "inst": inst}
             for bits in cell["connections"].values():
                 for b in bits:
