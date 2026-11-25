@@ -11,7 +11,7 @@ MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard rt
 XLENS   := 64 32
 VLINT   := verilator --lint-only -Wall
 
-.PHONY: help lint struct unit synth sim compare regress fuzz area mutate spdx clean
+.PHONY: help lint struct unit synth sim compare regress fuzz area schematics schematics-all floorplan docs-img mutate spdx clean
 
 help:
 	@echo "make lint            lint every module for XLEN = 64 and 32"
@@ -24,6 +24,10 @@ help:
 	@echo "make regress           compare every program in sw/ with Spike"
 	@echo "make fuzz SEEDS='1 2 3'  random programs (scripts/gen_prog.py) against Spike"
 	@echo "make area            area and logic delay of the modules (scripts/area.py)"
+	@echo "make schematics      schematics drawn from the RTL (scripts/schematic.py, needs npm --prefix tools ci)"
+	@echo "make schematics-all  every module at every level, in parallel (J=8 to limit the jobs)"
+	@echo "make floorplan       die floorplan estimate: block areas, placement, buses (scripts/floorplan.py)"
+	@echo "make docs-img        regenerate docs/img/generated/ (committed, shown on GitHub by docs/diagrams.md)"
 	@echo "make mutate M=alu    mutation check of a module's tests (scripts/mutate.py)"
 	@echo "make spdx            check the SPDX headers"
 	@echo "make clean           remove build artefacts"
@@ -133,6 +137,34 @@ fuzz:
 area:
 	@mkdir -p $(BUILD)
 	$(PYTHON) scripts/area.py --xc7 $(if $(COMMIT),--commit $(COMMIT)) --json $(BUILD)/area.json
+
+schematics:
+	$(PYTHON) scripts/schematic.py $(if $(M),$(M) --level $(or $(LEVEL),rtl)) $(if $(XLEN),--xlen $(XLEN))
+
+schematics-all:
+	$(PYTHON) scripts/schematic.py --all $(if $(J),-j $(J)) $(if $(XLEN),--xlen $(XLEN))
+
+floorplan:
+	$(PYTHON) scripts/floorplan.py $(if $(J),-j $(J)) $(if $(XLEN),--xlen $(XLEN))
+
+# A small, readable set of generated diagrams that is committed and shown on GitHub (docs/diagrams.md).
+# Every file is deterministic (fixed seeds, no dates), so it only changes when the RTL changes.
+# The numbers depend on the Yosys version: regenerate with the same tools before comparing
+DOCS_GEN := docs/img/generated
+DOCS_TMP := $(BUILD)/docs-img
+docs-img:
+	@rm -rf $(DOCS_TMP)
+	$(PYTHON) scripts/schematic.py --out $(DOCS_TMP)
+	$(PYTHON) scripts/schematic.py core --level graph --out $(DOCS_TMP)
+	$(PYTHON) scripts/floorplan.py --out $(DOCS_TMP)/floorplan
+	@mkdir -p $(DOCS_GEN)
+	cp $(DOCS_TMP)/blocks/core_xlen64.svg       $(DOCS_GEN)/core_blocks.svg
+	cp $(DOCS_TMP)/gates/decoder_xlen64.svg     $(DOCS_GEN)/decoder_gates.svg
+	cp $(DOCS_TMP)/rtl/branch_unit_xlen64.svg   $(DOCS_GEN)/branch_unit_rtl.svg
+	cp $(DOCS_TMP)/map/core_xlen64.svg          $(DOCS_GEN)/core_gate_map.svg
+	cp $(DOCS_TMP)/graph/core_xlen64.svg        $(DOCS_GEN)/core_netlist_graph.svg
+	cp $(DOCS_TMP)/floorplan/core_xlen64.svg    $(DOCS_GEN)/core_floorplan.svg
+	@ls -l $(DOCS_GEN)
 
 mutate:
 	@test -n "$(M)" || { echo "mutate: set M=<name from scripts/mutants>"; exit 1; }

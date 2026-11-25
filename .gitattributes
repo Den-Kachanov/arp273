@@ -1,0 +1,2 @@
+# Generated diagrams (make docs-img): collapsed in diffs on GitHub, not counted as source
+docs/img/generated/*.svg linguist-generated=true -diff

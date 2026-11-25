@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="990" viewBox="0 0 1260 990">
+<rect width="1260" height="990" fill="#ffffff"/>
+<defs>
+<pattern id="k0" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#c0392b"/></pattern>
+<pattern id="k1" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#2e86c1"/></pattern>
+<pattern id="k2" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#d4ac0d"/></pattern>
+<pattern id="k3" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#5d6d7e"/></pattern>
+</defs>
+<text x="30" y="38" font-family="sans-serif" font-size="22" font-weight="bold" fill="#222">Gate map of core (XLEN = 64): 17921 gates and flip-flops, one square each</text>
+<text x="30" y="62" font-family="sans-serif" font-size="13" fill="#555">Yosys synth + abc -g AND,NAND,OR,NOR,XOR,XNOR,MUX, hierarchy kept; generic gates, not a real cell library or layout</text>
+<text x="30" y="108" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">regfile</text>
+<text x="30" y="128" font-family="sans-serif" font-size="13" fill="#444">10354 (57.8%), 1984 flip-flops</text>
+<rect x="30" y="140" width="660" height="75" fill="url(#k0)"/>
+<rect x="30" y="215" width="20" height="5" fill="url(#k0)"/>
+<rect x="50" y="215" width="640" height="5" fill="url(#k1)"/>
+<rect x="30" y="220" width="660" height="25" fill="url(#k1)"/>
+<rect x="30" y="245" width="290" height="5" fill="url(#k1)"/>
+<rect x="320" y="245" width="370" height="5" fill="url(#k3)"/>
+<rect x="30" y="250" width="660" height="280" fill="url(#k3)"/>
+<rect x="30" y="530" width="290" height="5" fill="url(#k3)"/>
+<text x="720" y="108" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">muldiv</text>
+<text x="720" y="128" font-family="sans-serif" font-size="13" fill="#444">2729 (15.2%), 211 flip-flops</text>
+<rect x="720" y="140" width="340" height="15" fill="url(#k0)"/>
+<rect x="720" y="155" width="35" height="5" fill="url(#k0)"/>
+<rect x="755" y="155" width="305" height="5" fill="url(#k1)"/>
+<rect x="720" y="160" width="340" height="20" fill="url(#k1)"/>
+<rect x="720" y="180" width="165" height="5" fill="url(#k1)"/>
+<rect x="885" y="180" width="175" height="5" fill="url(#k2)"/>
+<rect x="720" y="185" width="340" height="20" fill="url(#k2)"/>
+<rect x="720" y="205" width="250" height="5" fill="url(#k2)"/>
+<rect x="970" y="205" width="90" height="5" fill="url(#k3)"/>
+<rect x="720" y="210" width="340" height="130" fill="url(#k3)"/>
+<rect x="720" y="340" width="45" height="5" fill="url(#k3)"/>
+<text x="30" y="583" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">alu</text>
+<text x="30" y="603" font-family="sans-serif" font-size="13" fill="#444">1902 (10.6%)</text>
+<rect x="30" y="615" width="285" height="40" fill="url(#k1)"/>
+<rect x="30" y="655" width="250" height="5" fill="url(#k1)"/>
+<rect x="280" y="655" width="35" height="5" fill="url(#k2)"/>
+<rect x="30" y="660" width="285" height="10" fill="url(#k2)"/>
+<rect x="30" y="670" width="165" height="5" fill="url(#k2)"/>
+<rect x="195" y="670" width="120" height="5" fill="url(#k3)"/>
+<rect x="30" y="675" width="285" height="105" fill="url(#k3)"/>
+<rect x="30" y="780" width="105" height="5" fill="url(#k3)"/>
+<text x="345" y="583" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">core.sv glue logic</text>
+<text x="345" y="603" font-family="sans-serif" font-size="13" fill="#444">996 (5.6%), 64 flip-flops</text>
+<rect x="345" y="615" width="205" height="5" fill="url(#k0)"/>
+<rect x="345" y="620" width="115" height="5" fill="url(#k0)"/>
+<rect x="460" y="620" width="90" height="5" fill="url(#k1)"/>
+<rect x="345" y="625" width="205" height="10" fill="url(#k1)"/>
+<rect x="345" y="635" width="130" height="5" fill="url(#k1)"/>
+<rect x="475" y="635" width="75" height="5" fill="url(#k2)"/>
+<rect x="345" y="640" width="205" height="5" fill="url(#k2)"/>
+<rect x="345" y="645" width="30" height="5" fill="url(#k2)"/>
+<rect x="375" y="645" width="175" height="5" fill="url(#k3)"/>
+<rect x="345" y="650" width="205" height="85" fill="url(#k3)"/>
+<rect x="345" y="735" width="60" height="5" fill="url(#k3)"/>
+<text x="585" y="583" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">perf_counters</text>
+<text x="585" y="603" font-family="sans-serif" font-size="13" fill="#444">763 (4.3%), 256 flip-flops</text>
+<rect x="585" y="615" width="180" height="35" fill="url(#k0)"/>
+<rect x="585" y="650" width="20" height="5" fill="url(#k0)"/>
+<rect x="605" y="650" width="160" height="5" fill="url(#k2)"/>
+<rect x="585" y="655" width="180" height="30" fill="url(#k2)"/>
+<rect x="585" y="685" width="35" height="5" fill="url(#k2)"/>
+<rect x="620" y="685" width="145" height="5" fill="url(#k3)"/>
+<rect x="585" y="690" width="180" height="30" fill="url(#k3)"/>
+<rect x="585" y="720" width="35" height="5" fill="url(#k3)"/>
+<text x="830" y="583" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">lsu</text>
+<text x="830" y="603" font-family="sans-serif" font-size="13" fill="#444">550 (3.1%)</text>
+<rect x="830" y="615" width="150" height="40" fill="url(#k1)"/>
+<rect x="830" y="655" width="15" height="5" fill="url(#k1)"/>
+<rect x="845" y="655" width="135" height="5" fill="url(#k3)"/>
+<rect x="830" y="660" width="150" height="45" fill="url(#k3)"/>
+<rect x="830" y="705" width="50" height="5" fill="url(#k3)"/>
+<text x="1010" y="583" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">branch_unit</text>
+<text x="1010" y="603" font-family="sans-serif" font-size="13" fill="#444">414 (2.3%)</text>
+<rect x="1010" y="615" width="15" height="5" fill="url(#k2)"/>
+<rect x="1025" y="615" width="115" height="5" fill="url(#k3)"/>
+<rect x="1010" y="620" width="130" height="70" fill="url(#k3)"/>
+<rect x="1010" y="690" width="120" height="5" fill="url(#k3)"/>
+<text x="30" y="833" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">decoder</text>
+<text x="30" y="853" font-family="sans-serif" font-size="13" fill="#444">129 (0.7%)</text>
+<rect x="30" y="865" width="75" height="40" fill="url(#k3)"/>
+<rect x="30" y="905" width="45" height="5" fill="url(#k3)"/>
+<text x="150" y="833" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1d3b5c">imm_gen</text>
+<text x="150" y="853" font-family="sans-serif" font-size="13" fill="#444">84 (0.5%)</text>
+<rect x="150" y="865" width="60" height="35" fill="url(#k3)"/>
+<rect x="30" y="945" width="12" height="12" fill="#c0392b"/><text x="48" y="956" font-family="sans-serif" font-size="14" fill="#222">flip-flop</text>
+<rect x="180" y="945" width="12" height="12" fill="#2e86c1"/><text x="198" y="956" font-family="sans-serif" font-size="14" fill="#222">mux</text>
+<rect x="330" y="945" width="12" height="12" fill="#d4ac0d"/><text x="348" y="956" font-family="sans-serif" font-size="14" fill="#222">xor/xnor</text>
+<rect x="480" y="945" width="12" height="12" fill="#5d6d7e"/><text x="498" y="956" font-family="sans-serif" font-size="14" fill="#222">other logic</text>
+</svg>
