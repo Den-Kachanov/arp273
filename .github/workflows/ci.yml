@@ -96,6 +96,8 @@ jobs:
           git init -q "$RUNNER_TEMP/spike-src"
           git -C "$RUNNER_TEMP/spike-src" fetch -q --depth 1 https://github.com/riscv-software-src/riscv-isa-sim.git "$SPIKE_REF"
           git -C "$RUNNER_TEMP/spike-src" checkout -q FETCH_HEAD
+          # berkeley-softfloat-3 is a git submodule of riscv-isa-sim
+          git -C "$RUNNER_TEMP/spike-src" submodule update -q --init --depth 1
           mkdir "$RUNNER_TEMP/spike-src/build"
           cd "$RUNNER_TEMP/spike-src/build"
           ../configure --prefix="$HOME/spike"
@@ -112,3 +114,10 @@ jobs:
           export PATH="$HOME/spike/bin:$PATH"
           make regress CROSS=riscv64-unknown-elf-
           make fuzz CROSS=riscv64-unknown-elf- SEEDS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
+
+      - name: Compare the pipelined core with Spike (BRAM, then a memory that stalls at random)
+        run: |
+          export PATH="$HOME/spike/bin:$PATH"
+          make regress CORE=pipe CROSS=riscv64-unknown-elf-
+          make fuzz CORE=pipe CROSS=riscv64-unknown-elf- SEEDS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
+          MEM_STALL=0.3 make fuzz CORE=pipe CROSS=riscv64-unknown-elf- SEEDS="1 2 3 4 5 6 7 8"
