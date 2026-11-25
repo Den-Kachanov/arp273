@@ -1,4 +1,3 @@
-# Чернетка: перевірте версії перед використанням (pre-commit autoupdate).
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.0

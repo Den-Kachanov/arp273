@@ -1,0 +1,6 @@
+line-length = 120
+
+[lint]
+select = ["E", "F", "W", "B", "I"]
+# long lines in tests are tables of expected values; lambdas are short local helpers
+ignore = ["E501", "E731"]

@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 590" width="1140" height="590" font-family="DejaVu Sans, sans-serif" font-size="13">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
+<rect width="1140" height="590" fill="#ffffff"/>
+<text x="570" y="24" text-anchor="middle" fill="#222" font-size="16" font-weight="bold">How the modules connect in the single-cycle core</text>
+<text x="570" y="42" text-anchor="middle" fill="#555" font-size="11">solid frame: a separate module in rtl/core; dashed: logic inside core.sv (PC, muxes) or memory outside the core</text>
+<rect x="20" y="230" width="80" height="50" rx="6" fill="#f5f5f5" stroke="#777777" stroke-dasharray="6,4"/>
+<text x="60.0" y="248" text-anchor="middle" font-weight="bold" fill="#333333">PC</text>
+<text x="60.0" y="266" text-anchor="middle" fill="#555" font-size="11">register</text>
+<rect x="130" y="230" width="130" height="50" rx="6" fill="#f5f5f5" stroke="#777777" stroke-dasharray="6,4"/>
+<text x="195.0" y="248" text-anchor="middle" font-weight="bold" fill="#333333">instr. memory</text>
+<text x="195.0" y="266" text-anchor="middle" fill="#555" font-size="11">comb. read</text>
+<rect x="310" y="70" width="200" height="76" rx="6" fill="#f3f7ee" stroke="#4b6b2f"/>
+<text x="410.0" y="88" text-anchor="middle" font-weight="bold" fill="#2f4a1b">decoder</text>
+<text x="410.0" y="106" text-anchor="middle" fill="#555" font-size="11">control: alu_op, word, imm_sel,</text>
+<text x="410.0" y="121" text-anchor="middle" fill="#555" font-size="11">a_sel, b_sel, wb_sel, we, mem, branch</text>
+<rect x="310" y="170" width="200" height="56" rx="6" fill="#eef4fb" stroke="#33597f"/>
+<text x="410.0" y="188" text-anchor="middle" font-weight="bold" fill="#1d3b5c">imm_gen</text>
+<text x="410.0" y="206" text-anchor="middle" fill="#555" font-size="11">imm_o (XLEN)</text>
+<rect x="310" y="250" width="200" height="90" rx="6" fill="#f5f5f5" stroke="#777777"/>
+<text x="410.0" y="268" text-anchor="middle" font-weight="bold" fill="#333333">regfile</text>
+<text x="410.0" y="286" text-anchor="middle" fill="#555" font-size="11">rs1: inst[19:15], rs2: inst[24:20]</text>
+<text x="410.0" y="301" text-anchor="middle" fill="#555" font-size="11">rd: inst[11:7]</text>
+<rect x="570" y="230" width="56" height="40" rx="6" fill="#f5f5f5" stroke="#777777" stroke-dasharray="6,4"/>
+<text x="598.0" y="248" text-anchor="middle" font-weight="bold" fill="#333333">a_sel</text>
+<rect x="570" y="300" width="56" height="40" rx="6" fill="#f5f5f5" stroke="#777777" stroke-dasharray="6,4"/>
+<text x="598.0" y="318" text-anchor="middle" font-weight="bold" fill="#333333">b_sel</text>
+<rect x="670" y="240" width="140" height="100" rx="6" fill="#eef4fb" stroke="#33597f"/>
+<text x="740.0" y="258" text-anchor="middle" font-weight="bold" fill="#1d3b5c">alu</text>
+<text x="740.0" y="276" text-anchor="middle" fill="#555" font-size="11">a_i, b_i, op_i, word_i</text>
+<text x="740.0" y="291" text-anchor="middle" fill="#555" font-size="11">r_o: result,</text>
+<text x="740.0" y="306" text-anchor="middle" fill="#555" font-size="11">address, jump target</text>
+<rect x="670" y="390" width="140" height="70" rx="6" fill="#fbf1ea" stroke="#8a4a23"/>
+<text x="740.0" y="408" text-anchor="middle" font-weight="bold" fill="#5e2f12">branch_unit</text>
+<text x="740.0" y="426" text-anchor="middle" fill="#555" font-size="11">a = rs1, b = rs2</text>
+<text x="740.0" y="441" text-anchor="middle" fill="#555" font-size="11">taken_o</text>
+<rect x="870" y="240" width="120" height="100" rx="6" fill="#f4eefb" stroke="#5d3f86"/>
+<text x="930.0" y="258" text-anchor="middle" font-weight="bold" fill="#3d2766">lsu</text>
+<text x="930.0" y="276" text-anchor="middle" fill="#555" font-size="11">wdata, wstrb</text>
+<text x="930.0" y="291" text-anchor="middle" fill="#555" font-size="11">load_data</text>
+<text x="930.0" y="306" text-anchor="middle" fill="#555" font-size="11">misaligned</text>
+<rect x="1050" y="240" width="80" height="100" rx="6" fill="#f5f5f5" stroke="#777777" stroke-dasharray="6,4"/>
+<text x="1090.0" y="258" text-anchor="middle" font-weight="bold" fill="#333333">data</text>
+<text x="1090.0" y="276" text-anchor="middle" fill="#555" font-size="11">memory</text>
+<rect x="870" y="390" width="120" height="56" rx="6" fill="#f5f5f5" stroke="#777777" stroke-dasharray="6,4"/>
+<text x="930.0" y="408" text-anchor="middle" font-weight="bold" fill="#333333">wb_sel</text>
+<text x="930.0" y="426" text-anchor="middle" fill="#555" font-size="11">ALU/MEM/PC+4/MD</text>
+<rect x="20" y="400" width="200" height="60" rx="6" fill="#f5f5f5" stroke="#777777" stroke-dasharray="6,4"/>
+<text x="120.0" y="418" text-anchor="middle" font-weight="bold" fill="#333333">next-PC select</text>
+<text x="120.0" y="436" text-anchor="middle" fill="#555" font-size="11">pc+4 | target (alu r_o) | taken</text>
+<polyline points="100,255 130,255" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="115" y="247" text-anchor="middle" fill="#555" font-size="11">pc</text>
+<polyline points="260,255 285,255 285,108 310,108" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="268" y="246" text-anchor="start" fill="#555" font-size="11">inst</text>
+<polyline points="285,198 310,198" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="285,295 310,295" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="410,146 410,170" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="450" y="162" text-anchor="middle" fill="#555" font-size="11">imm_sel</text>
+<polyline points="510,198 540,198 540,310 570,310" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="546" y="190" text-anchor="start" fill="#555" font-size="11">imm</text>
+<polyline points="510,270 570,250" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="530" y="252" text-anchor="middle" fill="#555" font-size="11">rs1</text>
+<polyline points="510,330 570,330" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="524" y="346" text-anchor="middle" fill="#555" font-size="11">rs2</text>
+<polyline points="598,200 598,230" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="606" y="216" text-anchor="start" fill="#555" font-size="11">pc</text>
+<polyline points="626,255 670,262" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="626,320 670,320" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="810,270 870,270" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="840" y="262" text-anchor="middle" fill="#555" font-size="11">addr</text>
+<polyline points="810,320 840,320 840,418 870,418" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="846" y="412" text-anchor="start" fill="#555" font-size="11">r_o</text>
+<polyline points="535,330 535,372 855,372 855,310 870,310" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="700" y="366" text-anchor="middle" fill="#555" font-size="11">rs2 (store)</text>
+<polyline points="990,270 1050,270" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="1020" y="262" text-anchor="middle" fill="#555" font-size="11">wdata, wstrb</text>
+<polyline points="1050,320 990,320" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="1020" y="336" text-anchor="middle" fill="#555" font-size="11">rdata</text>
+<polyline points="930,340 930,390" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="936" y="372" text-anchor="start" fill="#555" font-size="11">load_data</text>
+<polyline points="535,372 535,425 670,425" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="600" y="441" text-anchor="middle" fill="#555" font-size="11">rs1, rs2</text>
+<polyline points="510,90 645,90 645,445 670,445" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr)"/>
+<text x="580" y="82" text-anchor="middle" fill="#555" font-size="11">funct3</text>
+<polyline points="990,420 1100,420 1100,505 410,505 410,340" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="760" y="498" text-anchor="middle" fill="#555" font-size="11">wdata_i (write to rd)</text>
+<polyline points="810,440 830,440 830,480 120,480 120,460" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr)"/>
+<text x="480" y="474" text-anchor="middle" fill="#555" font-size="11">taken</text>
+<polyline points="120,400 120,340 60,340 60,280" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="150" y="372" text-anchor="middle" fill="#555" font-size="11">next pc</text>
+<rect x="700" y="90" width="200" height="76" rx="6" fill="#fbeef2" stroke="#8a2342"/>
+<text x="800.0" y="108" text-anchor="middle" font-weight="bold" fill="#5e1229">muldiv</text>
+<text x="800.0" y="126" text-anchor="middle" fill="#555" font-size="11">a = rs1, b = rs2, funct3, word</text>
+<text x="800.0" y="141" text-anchor="middle" fill="#555" font-size="11">done_o, result_o (N + 1 cycles)</text>
+<polyline points="556,256 556,128 700,128" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="600" y="120" text-anchor="middle" fill="#555" font-size="11">rs1, rs2</text>
+<text x="20" y="540" text-anchor="start" fill="#555" font-size="11">decoder control wires are not drawn to every block: imm_sel -&gt; imm_gen, a_sel, b_sel -&gt; muxes, alu_op, word -&gt; alu,</text>
+<text x="20" y="555" text-anchor="start" fill="#555" font-size="11">funct3 -&gt; branch_unit, lsu and muldiv, reg_we -&gt; regfile, wb_sel -&gt; write-back mux, mem_re, mem_we -&gt; memory.</text>
+<text x="20" y="570" text-anchor="start" fill="#555" font-size="11">muldiv: result_o goes to the write-back mux (wb_sel = WB_MD); stall = muldiv &amp; ~done_o holds the PC, the register write and the commit (wiring not drawn).</text>
+</svg>

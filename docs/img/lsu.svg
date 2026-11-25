@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830 244" width="830" height="244" font-family="DejaVu Sans, sans-serif" font-size="13">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
+<rect width="830" height="244" fill="#ffffff"/>
+<text x="415.0" y="24" text-anchor="middle" fill="#222" font-size="16" font-weight="bold">lsu</text>
+<text x="415.0" y="42" text-anchor="middle" fill="#555" font-size="11">combinational; load/store alignment for an XLEN-wide memory</text>
+<rect x="230" y="60" width="300" height="174" rx="6" fill="#f4eefb" stroke="#5d3f86"/>
+<text x="380.0" y="78" text-anchor="middle" font-weight="bold" fill="#3d2766"></text>
+<text x="380.0" y="84" text-anchor="middle" fill="#333" font-size="11">offset = addr_lo_i[OFF-1:0]; size = funct3[1:0]</text>
+<text x="380.0" y="100" text-anchor="middle" fill="#333" font-size="11">store:</text>
+<text x="380.0" y="116" text-anchor="middle" fill="#333" font-size="11">  wdata = store_data &lt;&lt; (offset * 8)</text>
+<text x="380.0" y="132" text-anchor="middle" fill="#333" font-size="11">  wstrb = size_mask &lt;&lt; offset</text>
+<text x="380.0" y="148" text-anchor="middle" fill="#333" font-size="11">load:</text>
+<text x="380.0" y="164" text-anchor="middle" fill="#333" font-size="11">  shift rdata &gt;&gt; (offset * 8),</text>
+<text x="380.0" y="180" text-anchor="middle" fill="#333" font-size="11">  sign extension (LB, LH, LW)</text>
+<text x="380.0" y="196" text-anchor="middle" fill="#333" font-size="11">  or zero extension (LBU, LHU, LWU)</text>
+<text x="380.0" y="212" text-anchor="middle" fill="#333" font-size="11">misaligned: offset not a multiple of the size</text>
+<polyline points="130,86 230,86" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="126" y="80" text-anchor="end" fill="#222" font-size="12">funct3_i</text>
+<text x="224" y="80" text-anchor="end" fill="#777" font-size="10">3</text>
+<polyline points="130,116 230,116" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="126" y="110" text-anchor="end" fill="#222" font-size="12">addr_lo_i</text>
+<text x="224" y="110" text-anchor="end" fill="#777" font-size="10">3</text>
+<polyline points="130,146 230,146" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="126" y="140" text-anchor="end" fill="#222" font-size="12">store_data_i</text>
+<text x="224" y="140" text-anchor="end" fill="#777" font-size="10">XLEN</text>
+<polyline points="130,176 230,176" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="126" y="170" text-anchor="end" fill="#222" font-size="12">rdata_i</text>
+<text x="224" y="170" text-anchor="end" fill="#777" font-size="10">XLEN</text>
+<polyline points="530,86 590,86" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="598" y="90" text-anchor="start" fill="#222" font-size="12">wdata_o</text>
+<text x="536" y="80" text-anchor="start" fill="#777" font-size="10">XLEN</text>
+<polyline points="530,116 590,116" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="598" y="120" text-anchor="start" fill="#222" font-size="12">wstrb_o</text>
+<text x="536" y="110" text-anchor="start" fill="#777" font-size="10">XLEN/8</text>
+<polyline points="530,146 590,146" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="598" y="150" text-anchor="start" fill="#222" font-size="12">load_data_o</text>
+<text x="536" y="140" text-anchor="start" fill="#777" font-size="10">XLEN</text>
+<polyline points="530,176 590,176" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="598" y="180" text-anchor="start" fill="#222" font-size="12">misaligned_o</text>
+<text x="536" y="170" text-anchor="start" fill="#777" font-size="10">1</text>
+</svg>

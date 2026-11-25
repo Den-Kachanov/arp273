@@ -1,0 +1,4 @@
+# Python tools for tests and scripts (python -m venv .venv && .venv/bin/pip install -r requirements.txt)
+cocotb==2.1.0
+pytest==9.2.0
+ruff==0.16.10
