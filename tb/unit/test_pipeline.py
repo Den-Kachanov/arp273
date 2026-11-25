@@ -23,13 +23,22 @@ SLOW = {"stall": 0.4, "extra": 3}
 SLOW_DATA = {"stall": 0.0, "istall": 0.0, "dstall": 0.6, "extra": 3}
 
 
-async def both(dut, prog, max_cycles=4000):
+async def both(dut, prog, max_cycles=4000, **kw):
     """Run on BRAM and on the slow memory; the commit traces must be identical. Return the BRAM run"""
-    bram = await run_pipe(dut, prog, max_cycles=max_cycles, **BRAM)
+    bram = await run_pipe(dut, prog, max_cycles=max_cycles, **BRAM, **kw)
     counters = {k: int(getattr(dut, f"perf_{k}_o").value) for k in ("cycles", "instret", "stalls", "flushes")}
     for seed, mode in ((1, SLOW), (2, SLOW), (3, SLOW_DATA), (4, SLOW_DATA)):
-        slow = await run_pipe(dut, prog, max_cycles=max_cycles * 8, seed=seed, **mode)
-        assert slow[0] == bram[0], f"the commit trace depends on the memory timing (seed {seed})"
+        slow = await run_pipe(dut, prog, max_cycles=max_cycles * 8, seed=seed, **mode, **kw)
+        # commit_data_o means nothing without a register write (e.g. CSRW with rd = x0 shows the old CSR)
+        for t in (slow[0], bram[0]):
+            for c in t:
+                if not c["we"]:
+                    c["data"] = None
+        if slow[0] != bram[0]:
+            k = next((i for i, (x, y) in enumerate(zip(slow[0], bram[0], strict=False)) if x != y), min(len(slow[0]), len(bram[0])))
+            raise AssertionError(f"the commit trace depends on the memory timing (seed {seed}), entry {k}: "
+                                 f"BRAM {bram[0][k] if k < len(bram[0]) else None}, "
+                                 f"slow {slow[0][k] if k < len(slow[0]) else None}")
         assert slow[2] == bram[2], "the trap pc depends on the memory timing"
     return bram, counters
 

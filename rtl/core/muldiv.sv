@@ -31,6 +31,8 @@ module muldiv (
 	input  logic                       rst_ni,
 
 	input  logic                       valid_i,
+	// abandon the operation (the pipeline flushed the instruction): back to idle in the next cycle
+	input  logic                       abort_i,
 	input  logic [2:0]                 funct3_i,
 	input  logic                       word_i,
 	input  logic [riscv_pkg::XLEN-1:0] a_i,
@@ -172,7 +174,7 @@ module muldiv (
 	assign div_lo = {lo_q[X-2:0], ge};
 
 	always_ff @(posedge clk_i) begin
-		if (!rst_ni) begin
+		if (!rst_ni || abort_i) begin
 			state_q <= S_IDLE;
 		end else begin
 			case (state_q)

@@ -3,16 +3,16 @@
 """Mutants of rtl/core/core_pipe.sv for the pipeline tests (see scripts/mutate.py); XLEN = 64 only, to save time"""
 
 RTL = "rtl/core/core_pipe.sv"
-TEST = ["tb/unit/test_pipeline.py", "tb/unit/test_core.py"]
-KEXPR = "pipe and 64"
+TEST = ["tb/unit/test_pipeline.py", "tb/unit/test_core.py", "tb/unit/test_csr.py"]
+KEXPR = "(pipe or csr) and 64"
 
 MUTANTS = [
     # forwarding
-    ("no forwarding from MEM", "assign mem_fwd_ok      = mem_valid_q & mem_reg_we_q & ~mem_mem_re_q & (mem_rd_q != 5'd0);",
+    ("no forwarding from MEM", "assign mem_fwd_ok      = mem_valid_q & mem_reg_we_q & ~mem_late & (mem_rd_q != 5'd0);",
      "assign mem_fwd_ok      = 1'b0;"),
     ("no forwarding from WB", "assign wb_fwd_ok       = wb_valid_q & wb_reg_we_q & (wb_rd_q != 5'd0);", "assign wb_fwd_ok       = 1'b0;"),
-    ("x0 forwarded from MEM", "assign mem_fwd_ok      = mem_valid_q & mem_reg_we_q & ~mem_mem_re_q & (mem_rd_q != 5'd0);",
-     "assign mem_fwd_ok      = mem_valid_q & mem_reg_we_q & ~mem_mem_re_q;"),
+    ("x0 forwarded from MEM", "assign mem_fwd_ok      = mem_valid_q & mem_reg_we_q & ~mem_late & (mem_rd_q != 5'd0);",
+     "assign mem_fwd_ok      = mem_valid_q & mem_reg_we_q & ~mem_late;"),
     ("x0 forwarded from WB", "assign wb_fwd_ok       = wb_valid_q & wb_reg_we_q & (wb_rd_q != 5'd0);",
      "assign wb_fwd_ok       = wb_valid_q & wb_reg_we_q;"),
     ("WB before MEM (older value wins)", "if (mem_fwd_ok && mem_rd_q == ex_rs1_q)                       ex_rs1 = mem_result_q;",
@@ -38,9 +38,10 @@ MUTANTS = [
     ("JALR keeps bit 0", "assign redirect_pc = ex_jalr_q ? {alu_r[X-1:1], 1'b0} : alu_r;", "assign redirect_pc = alu_r;"),
     ("target + 4 is the target", "assign redirect_pc4 = ex_jalr_q ? {tgt4[X-1:1], 1'b0} : tgt4;", "assign redirect_pc4 = redirect_pc;"),
     ("JALR target + 4 from pc", "assign tgt4         = (ex_jalr_q ? ex_rs1 : ex_pc_q) + ex_imm4_q;", "assign tgt4         = ex_pc_q + ex_imm4_q;"),
-    ("link is pc", "if (ex_jal_q || ex_jalr_q) ex_result = ex_pc_q + X'(4);", "if (ex_jal_q || ex_jalr_q) ex_result = ex_pc_q;"),
-    ("two requests outstanding", "assign fetch_issue  = rst_ni & (~out_q | imem_rsp_valid_i) & (fq_occ_next <= 2'd1);",
-     "assign fetch_issue  = rst_ni & (fq_occ_next <= 2'd1);"),
+    ("link is pc", "else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc_q + X'(4);",
+     "else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc_q;"),
+    ("two requests outstanding", "assign fetch_issue  = rst_ni & ~wb_redirect & (~out_q | imem_rsp_valid_i) & (fq_occ_next <= 2'd1);",
+     "assign fetch_issue  = rst_ni & ~wb_redirect & (fq_occ_next <= 2'd1);"),
     ("queue overfills", "(fq_occ_next <= 2'd1);", "(fq_occ_next <= 2'd2);"),
     ("push into the wrong entry", "if (fq_cnt_q - {1'b0, fq_pop} == 2'd0) begin", "if (fq_cnt_q == 2'd0) begin"),
     # multiplier/divider
@@ -48,16 +49,50 @@ MUTANTS = [
     ("M operands not checked", "assign md_valid = ex_valid_q & ex_muldiv_q & ~md_have_q & (md_busy_q | ex_ops_ready);",
      "assign md_valid = ex_valid_q & ex_muldiv_q & ~md_have_q;"),
     # memory port and WB
-    ("data request without room in WB", "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept;",
-     "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap;"),
-    ("misaligned access goes out", "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept;",
-     "assign dmem_req_valid_o = mem_valid_q & mem_access & wb_can_accept;"),
+    ("data request without room in WB", "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept & ~flush;",
+     "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & ~flush;"),
+    ("misaligned access goes out", "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept & ~flush;",
+     "assign dmem_req_valid_o = mem_valid_q & mem_access & wb_can_accept & ~flush;"),
+    ("store sent while WB redirects", "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept & ~flush;",
+     "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept;"),
     ("stores do not wait for their response", "assign wb_wait       = (wb_mem_re_q | wb_mem_we_q) & ~wb_trap_q & ~dmem_rsp_valid_i;",
      "assign wb_wait       = wb_mem_re_q & ~wb_trap_q & ~dmem_rsp_valid_i;"),
-    ("trap does not freeze WB", "assign wb_advance    = wb_valid_q & ~wb_wait & ~wb_trap_q;", "assign wb_advance    = wb_valid_q & ~wb_wait;"),
-    ("trapping jump redirects", "assign redirect    = ex_advance & ex_ctrl_taken & ~ex_trap;", "assign redirect    = ex_advance & ex_ctrl_taken;"),
-    ("load data not used", "assign wb_data = wb_mem_re_q ? wb_load_data : wb_result_q;", "assign wb_data = wb_result_q;"),
-    ("flushes not counted", ".flush_i   (redirect),", ".flush_i   (1'b0),"),
+    ("exception commits", "assign wb_advance    = wb_valid_q & ~wb_wait & ~wb_exc;", "assign wb_advance    = wb_valid_q & ~wb_wait;"),
+    ("trapping jump redirects", "assign ex_redirect = ex_advance & ex_ctrl_taken & ~ex_trap;", "assign ex_redirect = ex_advance & ex_ctrl_taken;"),
+    ("load data not used", "assign wb_data = wb_mem_re_q ? wb_load_data : (wb_csr_q ? csr_rdata : wb_result_q);",
+     "assign wb_data = wb_csr_q ? csr_rdata : wb_result_q;"),
+    # CSRs and exceptions (ADR 014)
+    ("CSR result forwarded from MEM", "assign mem_late        = mem_mem_re_q | mem_csr_q;", "assign mem_late        = mem_mem_re_q;"),
+    ("CSR read not written to rd", "assign wb_data = wb_mem_re_q ? wb_load_data : (wb_csr_q ? csr_rdata : wb_result_q);",
+     "assign wb_data = wb_mem_re_q ? wb_load_data : wb_result_q;"),
+    ("CSRRS x0 writes", "assign id_csr_write = (id_funct3[1:0] == 2'b01) | (id_inst[19:15] != 5'd0);", "assign id_csr_write = 1'b1;"),
+    ("CSR immediate from rs1", "ex_result = ex_funct3_q[2] ? X'(ex_imm_q[19:15]) : ex_rs1;", "ex_result = ex_rs1;"),
+    ("illegal CSR access commits", "assign wb_exc   = wb_valid_q & (wb_trap_q | (wb_csr_q & csr_illegal));",
+     "assign wb_exc   = wb_valid_q & wb_trap_q;"),
+    ("ECALL does not trap", "assign ex_trap             = ex_illegal_q | ex_fetch_misaligned | ex_ecall_q | ex_ebreak_q;",
+     "assign ex_trap             = ex_illegal_q | ex_fetch_misaligned | ex_ebreak_q;"),
+    ("wrong cause for EBREAK", "else if (ex_ebreak_q) ex_cause = 4'd3;", "else if (ex_ebreak_q) ex_cause = 4'd11;"),
+    ("store misaligned reported as load", "(mem_mem_re_q ? 4'd4 : 4'd6)", "(4'd4)"),
+    ("mtval of illegal instruction is 0", "if (ex_illegal_q)                           ex_result = ex_imm_q;",
+     "if (ex_illegal_q)                           ex_result = '0;"),
+    ("mtval of misaligned jump is pc", "else if (ex_fetch_misaligned)               ex_result = redirect_pc;",
+     "else if (ex_fetch_misaligned)               ex_result = ex_pc_q;"),
+    ("illegal CSR mtval without rd", "X'({wb_sys_q, wb_funct3_q, wb_rd_q, 7'b1110011})", "X'({wb_sys_q, wb_funct3_q, 5'd0, 7'b1110011})"),
+    ("instruction bits not carried", "ex_imm_q      <= (id_illegal | id_csr) ? X'(id_inst) : id_imm;", "ex_imm_q      <= id_illegal ? X'(id_inst) : id_imm;"),
+    ("MRET does not redirect", "assign wb_redirect   = wb_exc | (wb_advance & (wb_mret_q | wb_fence_i_q));",
+     "assign wb_redirect   = wb_exc | (wb_advance & wb_fence_i_q);"),
+    ("FENCE.I does not refetch", "assign wb_redirect   = wb_exc | (wb_advance & (wb_mret_q | wb_fence_i_q));",
+     "assign wb_redirect   = wb_exc | (wb_advance & wb_mret_q);"),
+    ("MRET goes to mtvec", "assign wb_target     = wb_exc ? mtvec : (wb_mret_q ? mepc : wb_result_q);",
+     "assign wb_target     = wb_exc ? mtvec : (wb_mret_q ? mtvec : wb_result_q);"),
+    ("younger instruction not flushed from MEM",
+     "it leaves the core in this cycle\n\t\t\tex_valid_q  <= 1'b0;\n\t\t\tmem_valid_q <= 1'b0;",
+     "it leaves the core in this cycle\n\t\t\tex_valid_q  <= 1'b0;"),
+    ("flush does not win over the handshakes", "end else if (flush) begin", "end else if (1'b0) begin"),
+    ("divider not aborted", ".abort_i  (flush),", ".abort_i  (1'b0),"),
+    ("fetch on WB redirect from the old pc", "if (wb_redirect)      pc_f_q <= wb_target;", "if (1'b0)      pc_f_q <= wb_target;"),
+    ("ECALL trap skipped in WB (MEM drops trap flag)", "wb_trap_q   <= mem_trap;", "wb_trap_q   <= mem_trap_in_q;"),
+    ("flushes not counted", ".flush_i   (DEBUG & redirect),", ".flush_i   (1'b0),"),
 ]
 
 EQUIVALENT = {

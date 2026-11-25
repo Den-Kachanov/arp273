@@ -30,6 +30,7 @@ class Unit:
         cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
         dut.rst_ni.value = 0
         dut.valid_i.value = 0
+        dut.abort_i.value = 0
         dut.funct3_i.value = 0
         dut.word_i.value = 0
         dut.a_i.value = 0
@@ -360,6 +361,32 @@ async def test_random_magnitudes(dut):
         if x == 64:
             for funct3 in mext.WORD_FUNCT3:
                 await check(unit, funct3, a, b, word=1)
+
+
+@cocotb.test()
+async def test_abort(dut):
+    """abort_i in the middle of an operation returns the unit to idle; the next operation is correct"""
+    unit = Unit(dut)
+    await unit.reset()
+    x = common.xlen()
+    m = common.mask()
+    for cycles in (1, 2, x // 3, x - 1):
+        unit.drive(4, m, 3)                      # a long division
+        for _ in range(cycles):
+            await RisingEdge(dut.clk_i)
+            await FallingEdge(dut.clk_i)
+        dut.valid_i.value = 0
+        dut.abort_i.value = 1
+        await RisingEdge(dut.clk_i)
+        await FallingEdge(dut.clk_i)
+        dut.abort_i.value = 0
+        for _ in range(2 * x):
+            await RisingEdge(dut.clk_i)
+            await FallingEdge(dut.clk_i)
+            assert int(dut.done_o.value) == 0, f"done_o after an abort ({cycles} cycles in)"
+        unit.idle = True
+        assert await unit.op(0, 6, 7) == 42, "the operation after an abort"
+        await unit.release()
 
 
 @pytest.mark.parametrize("xlen", common.XLENS)

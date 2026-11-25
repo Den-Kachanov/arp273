@@ -49,7 +49,7 @@ def read_cmd(files, xlen, top):
         cmd += "hierarchy -top core_pipe -chparam DEBUG 0; "
     return cmd
 STUB = """module muldiv (
-\tinput  logic clk_i, rst_ni, valid_i,
+\tinput  logic clk_i, rst_ni, valid_i, abort_i,
 \tinput  logic [2:0] funct3_i,
 \tinput  logic word_i,
 \tinput  logic [riscv_pkg::XLEN-1:0] a_i, b_i,
@@ -59,7 +59,7 @@ STUB = """module muldiv (
 \tassign done_o = 1'b1;
 \tassign result_o = '0;
 \tlogic unused;
-\tassign unused = &{1'b0, clk_i, rst_ni, valid_i, funct3_i, word_i, a_i, b_i};
+\tassign unused = &{1'b0, clk_i, rst_ni, valid_i, abort_i, funct3_i, word_i, a_i, b_i};
 endmodule
 """
 

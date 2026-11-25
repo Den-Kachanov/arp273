@@ -86,7 +86,10 @@ module core_pipe #(
 	logic [X-1:0] fq_pc_q   [2];
 	logic [31:0]  fq_inst_q [2];
 
-	logic         redirect;          // from EX
+	logic         redirect;          // the front end is flushed: a taken branch or jump in EX, or WB
+	logic         ex_redirect;       // a taken branch or jump in EX
+	logic         wb_redirect;       // WB takes an exception, or retires MRET or FENCE.I (ADR 014)
+	logic [X-1:0] wb_target;         // mtvec, mepc, or pc + 4 after FENCE.I
 	logic [X-1:0] redirect_pc;
 	logic [X-1:0] redirect_pc4;      // redirect_pc + 4, computed in parallel (see EX)
 	logic         fq_push;
@@ -99,10 +102,13 @@ module core_pipe #(
 	assign fq_push      = imem_rsp_valid_i & out_q & ~drop_q & ~redirect;
 	assign fq_occ_next  = redirect ? 2'd0 : (fq_cnt_q + {1'b0, fq_push} - {1'b0, fq_pop});
 	// one outstanding request; a new one may start in the cycle the previous response arrives,
-	// and only if the queue will have room for its response. On a redirect the target is fetched
-	// in the same cycle when the port allows it: a taken branch then costs two cycles, not three
-	assign fetch_addr   = redirect ? redirect_pc : pc_f_q;
-	assign fetch_issue  = rst_ni & (~out_q | imem_rsp_valid_i) & (fq_occ_next <= 2'd1);
+	// and only if the queue will have room for its response. On a redirect from EX the target is
+	// fetched in the same cycle when the port allows it: a taken branch then costs two cycles, not
+	// three. A redirect from WB (rare: exceptions, MRET, FENCE.I) fetches one cycle later, so that
+	// no mux and adder follow the WB decision in the same cycle
+	assign redirect     = ex_redirect | wb_redirect;
+	assign fetch_addr   = ex_redirect ? redirect_pc : pc_f_q;
+	assign fetch_issue  = rst_ni & ~wb_redirect & (~out_q | imem_rsp_valid_i) & (fq_occ_next <= 2'd1);
 	assign fetch_accept = fetch_issue & imem_req_ready_i;
 
 	assign imem_req_valid_o = fetch_issue;
@@ -117,8 +123,9 @@ module core_pipe #(
 		end else begin
 			// no adder after the redirect decision: the target + 4 comes ready from EX, so the
 			// branch compare is not followed by another carry chain in the same cycle
-			if (fetch_accept)  pc_f_q <= redirect ? redirect_pc4 : pc_f_q + X'(4);
-			else if (redirect) pc_f_q <= redirect_pc;
+			if (wb_redirect)      pc_f_q <= wb_target;
+			else if (fetch_accept) pc_f_q <= ex_redirect ? redirect_pc4 : pc_f_q + X'(4);
+			else if (ex_redirect)  pc_f_q <= redirect_pc;
 
 			out_q    <= fetch_accept | (out_q & ~imem_rsp_valid_i);
 			// a response still on the way when the path changes is dropped when it arrives (a request
@@ -155,6 +162,8 @@ module core_pipe #(
 	riscv_pkg::b_sel_t   id_b_sel;
 	riscv_pkg::wb_sel_t  id_wb_sel;
 	logic                id_reg_we, id_mem_re, id_mem_we, id_branch, id_jal, id_jalr, id_muldiv, id_illegal;
+	logic                id_csr, id_ecall, id_ebreak, id_mret, id_fence_i;
+	logic                id_csr_write;
 	logic [2:0]          id_funct3;
 	logic [X-1:0]        id_rs1_data, id_rs2_data, id_imm;
 	logic [X-1:0]        id_imm4;
@@ -180,6 +189,11 @@ module core_pipe #(
 		.jal_o     (id_jal),
 		.jalr_o    (id_jalr),
 		.muldiv_o  (id_muldiv),
+		.csr_o     (id_csr),
+		.ecall_o   (id_ecall),
+		.ebreak_o  (id_ebreak),
+		.mret_o    (id_mret),
+		.fence_i_o (id_fence_i),
 		.funct3_o  (id_funct3),
 		.illegal_o (id_illegal)
 	);
@@ -192,6 +206,10 @@ module core_pipe #(
 
 	// imm + 4 for the "target + 4" adder in EX, added here where there is time
 	assign id_imm4 = id_imm + X'(4);
+
+	// CSRRW always writes the CSR; CSRRS, CSRRC and the immediate forms only with a nonzero rs1
+	// field (rs1 = x0 or uimm = 0 only reads, so a read-only CSR can be read)
+	assign id_csr_write = (id_funct3[1:0] == 2'b01) | (id_inst[19:15] != 5'd0);
 
 	// WB writes and ID reads in the same cycle: the read returns the new value (ADR 004)
 	logic         wb_we;
@@ -224,6 +242,7 @@ module core_pipe #(
 	riscv_pkg::wb_sel_t  ex_wb_sel_q;
 	logic                ex_reg_we_q, ex_mem_re_q, ex_mem_we_q, ex_branch_q, ex_jal_q, ex_jalr_q, ex_muldiv_q;
 	logic                ex_illegal_q;
+	logic                ex_csr_q, ex_csr_write_q, ex_ecall_q, ex_ebreak_q, ex_mret_q, ex_fence_i_q;
 	logic [2:0]          ex_funct3_q;
 	logic [4:0]          ex_rd_q, ex_rs1_q, ex_rs2_q;
 	logic                ex_use_rs1_q, ex_use_rs2_q;
@@ -236,13 +255,20 @@ module core_pipe #(
 	logic                mem_reg_we_q, mem_mem_re_q, mem_mem_we_q, mem_trap_in_q;
 	logic [2:0]          mem_funct3_q;
 	logic [4:0]          mem_rd_q;
-	logic [X-1:0]        mem_result_q;     // ALU result, link address or M result; the address for loads and stores
+	logic [X-1:0]        mem_result_q;     // ALU result, link address or M result; the address for loads and stores;
+	                                       // the CSR write value; mtval of a trap
 	logic [X-1:0]        mem_store_q;
+	logic                mem_csr_q, mem_csr_write_q, mem_mret_q, mem_fence_i_q;
+	logic [3:0]          mem_cause_q;      // exception cause of a trap from ID or EX
+	logic [16:0]         mem_sys_q;        // CSR address and rs1 field (instruction bits 31:15)
 
 	logic                wb_valid_q;
 	logic [X-1:0]        wb_pc_q;
 	logic [31:0]         wb_inst_q;
 	logic                wb_reg_we_q, wb_mem_re_q, wb_mem_we_q, wb_trap_q;
+	logic                wb_csr_q, wb_csr_write_q, wb_mret_q, wb_fence_i_q;
+	logic [3:0]          wb_cause_q;
+	logic [16:0]         wb_sys_q;
 	logic [2:0]          wb_funct3_q;
 	logic [4:0]          wb_rd_q;
 	logic [X-1:0]        wb_result_q;
@@ -260,14 +286,18 @@ module core_pipe #(
 	logic         ex_ctrl_taken;
 	logic         ex_fetch_misaligned;
 	logic         ex_trap;
+	logic [3:0]   ex_cause;
 	logic [X-1:0] ex_result;
+	logic         flush;             // WB redirects: every younger instruction is dropped
 	logic         ex_ops_ready;
 	logic         ex_done;
 	logic         ex_advance;
 	logic         mem_can_accept;
 
-	// sources: MEM (not a load: its data is not there yet), then WB, then the ID/EX register
-	assign mem_fwd_ok      = mem_valid_q & mem_reg_we_q & ~mem_mem_re_q & (mem_rd_q != 5'd0);
+	// sources: MEM (not a load or a CSR read: their data comes in WB), then WB, then the ID/EX register
+	logic mem_late;
+	assign mem_late        = mem_mem_re_q | mem_csr_q;
+	assign mem_fwd_ok      = mem_valid_q & mem_reg_we_q & ~mem_late & (mem_rd_q != 5'd0);
 	assign wb_fwd_ok       = wb_valid_q & wb_reg_we_q & (wb_rd_q != 5'd0);
 	assign wb_load_pending = wb_valid_q & wb_mem_re_q & ~dmem_rsp_valid_i;
 
@@ -278,7 +308,7 @@ module core_pipe #(
 		ex_rs2_wait = 1'b0;
 
 		if (mem_fwd_ok && mem_rd_q == ex_rs1_q)                       ex_rs1 = mem_result_q;
-		else if (mem_valid_q && mem_mem_re_q && mem_reg_we_q && mem_rd_q != 5'd0 && mem_rd_q == ex_rs1_q)
+		else if (mem_valid_q && mem_late && mem_reg_we_q && mem_rd_q != 5'd0 && mem_rd_q == ex_rs1_q)
 		                                                              ex_rs1_wait = 1'b1;
 		else if (wb_fwd_ok && wb_rd_q == ex_rs1_q) begin
 			ex_rs1      = wb_data;
@@ -286,7 +316,7 @@ module core_pipe #(
 		end
 
 		if (mem_fwd_ok && mem_rd_q == ex_rs2_q)                       ex_rs2 = mem_result_q;
-		else if (mem_valid_q && mem_mem_re_q && mem_reg_we_q && mem_rd_q != 5'd0 && mem_rd_q == ex_rs2_q)
+		else if (mem_valid_q && mem_late && mem_reg_we_q && mem_rd_q != 5'd0 && mem_rd_q == ex_rs2_q)
 		                                                              ex_rs2_wait = 1'b1;
 		else if (wb_fwd_ok && wb_rd_q == ex_rs2_q) begin
 			ex_rs2      = wb_data;
@@ -328,7 +358,15 @@ module core_pipe #(
 	// on the jump itself (no C extension); it does not redirect
 	assign ex_ctrl_taken       = ex_jal_q | ex_jalr_q | (ex_branch_q & taken);
 	assign ex_fetch_misaligned = ex_ctrl_taken & alu_r[1];
-	assign ex_trap             = ex_illegal_q | ex_fetch_misaligned;
+	assign ex_trap             = ex_illegal_q | ex_fetch_misaligned | ex_ecall_q | ex_ebreak_q;
+
+	// exception causes (privileged specification): the decoder flags at most one of these
+	always_comb begin
+		ex_cause = 4'd0;                              // instruction address misaligned
+		if (ex_illegal_q)     ex_cause = 4'd2;
+		else if (ex_ebreak_q) ex_cause = 4'd3;
+		else if (ex_ecall_q)  ex_cause = 4'd11;       // ECALL from M-mode
+	end
 
 	// multiplier/divider: valid is held from the start until done; the result is kept in md_res_q
 	// when MEM cannot take it in the done cycle
@@ -341,6 +379,7 @@ module core_pipe #(
 		.clk_i    (clk_i),
 		.rst_ni   (rst_ni),
 		.valid_i  (md_valid),
+		.abort_i  (flush),
 		.funct3_i (ex_funct3_q),
 		.word_i   (ex_word_q),
 		.a_i      (ex_rs1),
@@ -349,16 +388,24 @@ module core_pipe #(
 		.result_o (md_result)
 	);
 
+	// the value EX passes on. For a trap it is mtval: the instruction bits of an illegal instruction
+	// (ID put them in ex_imm_q), the target of a misaligned jump, the pc of EBREAK, 0 for ECALL.
+	// For a CSR instruction it is the write value: rs1, or the zero-extended 5-bit immediate
 	always_comb begin
 		ex_result = alu_r;
-		if (ex_jal_q || ex_jalr_q) ex_result = ex_pc_q + X'(4);
-		else if (ex_muldiv_q)      ex_result = md_have_q ? md_res_q : md_result;
+		if (ex_illegal_q)                           ex_result = ex_imm_q;
+		else if (ex_fetch_misaligned)               ex_result = redirect_pc;
+		else if (ex_ebreak_q)                       ex_result = ex_pc_q;
+		else if (ex_ecall_q)                        ex_result = '0;
+		else if (ex_csr_q)                          ex_result = ex_funct3_q[2] ? X'(ex_imm_q[19:15]) : ex_rs1;
+		else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc_q + X'(4);
+		else if (ex_muldiv_q)                       ex_result = md_have_q ? md_res_q : md_result;
 	end
 
 	assign ex_done    = ex_ops_ready & (~ex_muldiv_q | md_have_q | md_done);
 	assign ex_advance = ex_valid_q & ex_done & mem_can_accept;
 
-	assign redirect    = ex_advance & ex_ctrl_taken & ~ex_trap;
+	assign ex_redirect = ex_advance & ex_ctrl_taken & ~ex_trap;
 	assign redirect_pc = ex_jalr_q ? {alu_r[X-1:1], 1'b0} : alu_r;
 
 	// target + 4 = base + (imm + 4), in parallel with the ALU; for JALR bit 0 is cleared after the
@@ -398,9 +445,13 @@ module core_pipe #(
 	assign mem_access  = mem_mem_re_q | mem_mem_we_q;
 	assign mem_trap    = mem_trap_in_q | (mem_access & mem_misaligned);
 
+	// a misaligned access is a load (4) or store (6) address misaligned exception; mtval is the address
+	logic [3:0] mem_cause;
+	assign mem_cause = mem_trap_in_q ? mem_cause_q : (mem_mem_re_q ? 4'd4 : 4'd6);
+
 	// the request goes out only when WB can take the instruction in the same cycle, so that the
 	// response (one cycle or more later) meets it in WB; a trapping access does not go out
-	assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept;
+	assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept & ~flush;
 	assign dmem_req_addr_o  = {mem_result_q[X-1:$clog2(S)], {$clog2(S){1'b0}}};
 	assign dmem_req_we_o    = mem_mem_we_q;
 	assign dmem_req_wstrb_o = mem_mem_we_q ? mem_wstrb : '0;
@@ -430,12 +481,53 @@ module core_pipe #(
 	logic unused_lsu;
 	assign unused_lsu = &{1'b0, mem_load_unused, wb_wdata_unused, wb_wstrb_unused, wb_misaligned_unused};
 
-	// loads and stores wait for their response; a trap freezes WB (and so the whole pipeline)
-	assign wb_wait       = (wb_mem_re_q | wb_mem_we_q) & ~wb_trap_q & ~dmem_rsp_valid_i;
-	assign wb_advance    = wb_valid_q & ~wb_wait & ~wb_trap_q;
-	assign wb_can_accept = ~wb_valid_q | wb_advance;
+	// CSRs (ADR 014): read and written here, in order, by the committing instruction. A CSR that
+	// does not exist, or a write to a read-only one, is an illegal instruction found only here
+	logic [X-1:0] csr_rdata;
+	logic         csr_illegal;
+	logic [X-1:0] mtvec, mepc;
+	logic         wb_exc;            // WB takes an exception in this cycle
+	logic [3:0]   wb_cause;
+	logic [X-1:0] wb_tval;
 
-	assign wb_data = wb_mem_re_q ? wb_load_data : wb_result_q;
+	csr u_csr (
+		.clk_i     (clk_i),
+		.rst_ni    (rst_ni),
+		.access_i  (wb_valid_q & wb_csr_q),
+		.addr_i    (wb_sys_q[16:5]),
+		.op_i      (wb_funct3_q[1:0]),
+		.write_i   (wb_csr_write_q),
+		.wdata_i   (wb_result_q),
+		.rdata_o   (csr_rdata),
+		.illegal_o (csr_illegal),
+		.trap_i    (wb_exc),
+		.cause_i   (X'(wb_cause)),
+		.epc_i     (wb_pc_q),
+		.tval_i    (wb_tval),
+		.mret_i    (wb_advance & wb_mret_q),
+		.mtvec_o   (mtvec),
+		.mepc_o    (mepc),
+		.cycle_i   (perf_cycles_o),
+		.instret_i (perf_instret_o)
+	);
+
+	assign wb_exc   = wb_valid_q & (wb_trap_q | (wb_csr_q & csr_illegal));
+	assign wb_cause = wb_trap_q ? wb_cause_q : 4'd2;
+	// mtval of an illegal CSR access: the instruction, rebuilt from the fields WB has
+	assign wb_tval  = wb_trap_q ? wb_result_q : X'({wb_sys_q, wb_funct3_q, wb_rd_q, 7'b1110011});
+
+	// loads and stores wait for their response. An exception does not commit: it flushes every
+	// younger instruction and fetches from mtvec. MRET and FENCE.I commit and flush, then fetch
+	// from mepc, or from pc + 4 (FENCE.I: the instructions after it are fetched again, after the
+	// stores before it)
+	assign wb_wait       = (wb_mem_re_q | wb_mem_we_q) & ~wb_trap_q & ~dmem_rsp_valid_i;
+	assign wb_advance    = wb_valid_q & ~wb_wait & ~wb_exc;
+	assign wb_can_accept = ~wb_valid_q | wb_advance;
+	assign wb_redirect   = wb_exc | (wb_advance & (wb_mret_q | wb_fence_i_q));
+	assign wb_target     = wb_exc ? mtvec : (wb_mret_q ? mepc : wb_result_q);
+	assign flush         = wb_redirect;
+
+	assign wb_data = wb_mem_re_q ? wb_load_data : (wb_csr_q ? csr_rdata : wb_result_q);
 	assign wb_we   = wb_advance & wb_reg_we_q;
 	assign wb_rd   = wb_rd_q;
 
@@ -443,6 +535,16 @@ module core_pipe #(
 	// datapath fields need no reset: a stage is only read while its valid bit is set
 	always_ff @(posedge clk_i) begin
 		if (!rst_ni) begin
+			ex_valid_q  <= 1'b0;
+			mem_valid_q <= 1'b0;
+			wb_valid_q  <= 1'b0;
+			md_busy_q   <= 1'b0;
+			md_have_q   <= 1'b0;
+		end else if (flush) begin
+			// WB redirects: every younger instruction is dropped (the fetch side is in IF). This branch
+			// wins over the stage handshakes, so ex_advance and mem_advance need no flush term: an EX
+			// redirect in the same cycle is overridden in IF (mutation check, ADR 014). Only the data
+			// request must be held back explicitly: it leaves the core in this cycle
 			ex_valid_q  <= 1'b0;
 			mem_valid_q <= 1'b0;
 			wb_valid_q  <= 1'b0;
@@ -468,6 +570,12 @@ module core_pipe #(
 				ex_jalr_q     <= id_jalr;
 				ex_muldiv_q   <= id_muldiv;
 				ex_illegal_q  <= id_illegal;
+				ex_csr_q      <= id_csr;
+				ex_csr_write_q <= id_csr_write;
+				ex_ecall_q    <= id_ecall;
+				ex_ebreak_q   <= id_ebreak;
+				ex_mret_q     <= id_mret;
+				ex_fence_i_q  <= id_fence_i;
 				ex_funct3_q   <= id_funct3;
 				ex_rd_q       <= id_inst[11:7];
 				ex_rs1_q      <= id_inst[19:15];
@@ -476,7 +584,9 @@ module core_pipe #(
 				ex_use_rs2_q  <= id_use_rs2;
 				ex_rs1_data_q <= id_rs1_data;
 				ex_rs2_data_q <= id_rs2_data;
-				ex_imm_q      <= id_imm;
+				// an illegal or CSR instruction carries its own bits instead of the immediate: mtval,
+				// the CSR address and the 5-bit immediate come from them
+				ex_imm_q      <= (id_illegal | id_csr) ? X'(id_inst) : id_imm;
 				ex_imm4_q     <= id_imm4;
 			end else begin
 				if (ex_advance) ex_valid_q <= 1'b0;
@@ -506,6 +616,12 @@ module core_pipe #(
 				mem_mem_re_q  <= ex_mem_re_q;
 				mem_mem_we_q  <= ex_mem_we_q;
 				mem_trap_in_q <= ex_trap;
+				mem_cause_q   <= ex_cause;
+				mem_csr_q     <= ex_csr_q & ~ex_trap;
+				mem_csr_write_q <= ex_csr_write_q;
+				mem_mret_q    <= ex_mret_q & ~ex_trap;
+				mem_fence_i_q <= ex_fence_i_q & ~ex_trap;
+				mem_sys_q     <= ex_imm_q[31:15];
 				mem_funct3_q  <= ex_funct3_q;
 				mem_rd_q      <= ex_rd_q;
 				mem_result_q  <= ex_result;
@@ -523,6 +639,12 @@ module core_pipe #(
 				wb_mem_re_q <= mem_mem_re_q & ~mem_trap;
 				wb_mem_we_q <= mem_mem_we_q & ~mem_trap;
 				wb_trap_q   <= mem_trap;
+				wb_cause_q  <= mem_cause;
+				wb_csr_q    <= mem_csr_q & ~mem_trap;
+				wb_csr_write_q <= mem_csr_write_q;
+				wb_mret_q   <= mem_mret_q & ~mem_trap;
+				wb_fence_i_q <= mem_fence_i_q & ~mem_trap;
+				wb_sys_q    <= mem_sys_q;
 				wb_funct3_q <= mem_funct3_q;
 				wb_rd_q     <= mem_rd_q;
 				wb_result_q <= mem_result_q;
@@ -538,7 +660,8 @@ module core_pipe #(
 	assign unused_ex = &{1'b0, ex_wb_sel_q};
 
 	// ------------------------------------------------------------------ outputs
-	assign trap_o = wb_valid_q & wb_trap_q;
+	// an exception is taken in this cycle (commit_pc_o shows the trapping instruction)
+	assign trap_o = wb_exc;
 
 	// the commit trace exists for verification only (DEBUG = 0: all zero)
 	assign commit_valid_o     = DEBUG & wb_advance;

@@ -58,6 +58,7 @@ module core #(
 	logic                jal;
 	logic                jalr;
 	logic                muldiv;
+	logic                sys_csr, sys_ecall, sys_ebreak, sys_mret, sys_fence_i;
 	logic [2:0]          funct3;
 	logic                illegal;
 
@@ -105,6 +106,11 @@ module core #(
 		.jal_o     (jal),
 		.jalr_o    (jalr),
 		.muldiv_o  (muldiv),
+		.csr_o     (sys_csr),
+		.ecall_o   (sys_ecall),
+		.ebreak_o  (sys_ebreak),
+		.mret_o    (sys_mret),
+		.fence_i_o (sys_fence_i),
 		.funct3_o  (funct3),
 		.illegal_o (illegal)
 	);
@@ -114,8 +120,11 @@ module core #(
 	// target is never set (JALR clears it, the branch and jump offsets are even), so bit 1 decides
 	assign fetch_misaligned = (jal | jalr | (branch & taken)) & alu_r[1];
 
-	// a trapping instruction changes nothing: no register write, no store, pc stays
-	assign trap_o     = illegal | (misaligned & (mem_re | mem_we)) | fetch_misaligned;
+	// a trapping instruction changes nothing: no register write, no store, pc stays. The reference
+	// core has no CSRs and no exception entry (the pipelined core has, ADR 014): CSR instructions,
+	// ECALL, EBREAK, MRET and FENCE.I stop it like an illegal instruction
+	assign trap_o     = illegal | (misaligned & (mem_re | mem_we)) | fetch_misaligned |
+	                    sys_csr | sys_ecall | sys_ebreak | sys_mret | sys_fence_i;
 
 	// a waiting instruction changes nothing either: it is committed in the cycle when the unit is done
 	assign stall      = muldiv & ~md_done;
@@ -171,6 +180,7 @@ module core #(
 		.clk_i    (clk_i),
 		.rst_ni   (rst_ni),
 		.valid_i  (muldiv),
+		.abort_i  (1'b0),
 		.funct3_i (funct3),
 		.word_i   (word),
 		.a_i      (rs1_data),

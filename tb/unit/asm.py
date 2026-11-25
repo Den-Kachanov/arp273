@@ -111,3 +111,30 @@ def jalr(rd, imm, rs1):
 
 
 ECALL = 0x00000073
+EBREAK = 0x00100073
+MRET = 0x30200073
+WFI = 0x10500073
+FENCE_I = 0x0000100F
+NOP = 0x00000013
+
+# CSR numbers used by the tests (privileged specification)
+CSR = {"mstatus": 0x300, "misa": 0x301, "mie": 0x304, "mtvec": 0x305, "mscratch": 0x340, "mepc": 0x341,
+       "mcause": 0x342, "mtval": 0x343, "mip": 0x344, "mcycle": 0xB00, "minstret": 0xB02,
+       "cycle": 0xC00, "instret": 0xC02, "mvendorid": 0xF11, "mhartid": 0xF14, "satp": 0x180}
+
+
+def _csr(f3):
+    """CSR instruction: the register forms take rs1, the immediate forms a 5-bit uimm in its place"""
+    return lambda rd, csr, rs1_or_uimm: i_type(CSR.get(csr, csr) if isinstance(csr, str) else csr,
+                                              rs1_or_uimm, f3, rd, OPC["SYSTEM"])
+
+
+csrrw, csrrs, csrrc, csrrwi, csrrsi, csrrci = _csr(1), _csr(2), _csr(3), _csr(5), _csr(6), _csr(7)
+
+
+def csrr(rd, csr):
+    return csrrs(rd, csr, 0)
+
+
+def csrw(csr, rs1):
+    return csrrw(0, csr, rs1)

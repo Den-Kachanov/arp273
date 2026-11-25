@@ -18,7 +18,9 @@ A_RS1, A_PC, A_ZERO = 0b00, 0b01, 0b10
 B_RS2, B_IMM = 0, 1
 WB_ALU, WB_MEM, WB_PC4, WB_MD = 0b00, 0b01, 0b10, 0b11
 
-SIDE_EFFECTS = ("reg_we", "mem_re", "mem_we", "branch", "jal", "jalr", "muldiv")
+SIDE_EFFECTS = ("reg_we", "mem_re", "mem_we", "branch", "jal", "jalr", "muldiv",
+                "csr", "ecall", "ebreak", "mret", "fence_i")
+SYSTEM_KEYS = ("csr", "ecall", "ebreak", "mret", "fence_i")
 
 
 # Expected outputs. Only the listed signals are checked: a missing key means "don't care"
@@ -125,9 +127,27 @@ def build_instructions(r, xlen):
     out.append(("JALR", lambda: i_type(imm12(), reg(), 0, reg(), OPC["JALR"]),
                 dict(jmp, a_sel=A_RS1, imm_sel=IMM["I"], jal=0, jalr=1), False))
 
-    # FENCE: legal, does nothing
-    out.append(("FENCE", lambda: i_type(r.getrandbits(12), reg(), 0, reg(), OPC["MISC_MEM"]),
-                {"reg_we": 0, "mem_re": 0, "mem_we": 0, "branch": 0, "jal": 0, "jalr": 0, "illegal": 0}, False))
+    # FENCE: legal, does nothing; FENCE.I: its fields are reserved and ignored
+    none = {"reg_we": 0, "mem_re": 0, "mem_we": 0, "branch": 0, "jal": 0, "jalr": 0, "illegal": 0}
+    out.append(("FENCE", lambda: i_type(r.getrandbits(12), reg(), 0, reg(), OPC["MISC_MEM"]), dict(none), False))
+    out.append(("FENCE.I", lambda: i_type(r.getrandbits(12), reg(), 1, reg(), OPC["MISC_MEM"]),
+                dict(none, fence_i=1), False))
+
+    # SYSTEM with fixed encodings (ADR 014); WFI is a no-op
+    for name, word, key in (("ECALL", 0x00000073, "ecall"), ("EBREAK", 0x00100073, "ebreak"),
+                            ("MRET", 0x30200073, "mret"), ("WFI", 0x10500073, None)):
+        exp = dict(none)
+        if key:
+            exp[key] = 1
+        out.append((name, lambda word=word: word, exp, False))
+
+    # CSR instructions: rd gets the old value; register forms read rs1, immediate forms do not
+    csr_ops = {"CSRRW": 1, "CSRRS": 2, "CSRRC": 3, "CSRRWI": 5, "CSRRSI": 6, "CSRRCI": 7}
+    for name, f3 in csr_ops.items():
+        out.append((name, lambda f3=f3: i_type(r.getrandbits(12), reg(), f3, reg(), OPC["SYSTEM"]),
+                    {"csr": 1, "reg_we": 1, "mem_re": 0, "mem_we": 0, "branch": 0, "jal": 0, "jalr": 0,
+                     "b_sel": B_IMM, "a_sel": A_ZERO if f3 >= 5 else A_RS1, "funct3": f3, "illegal": 0,
+                     "ecall": 0, "ebreak": 0, "mret": 0}, False))
     return out
 
 
@@ -142,7 +162,8 @@ async def apply(dut, inst):
         "reg_we": int(dut.reg_we_o.value), "mem_re": int(dut.mem_re_o.value),
         "mem_we": int(dut.mem_we_o.value), "branch": int(dut.branch_o.value),
         "jal": int(dut.jal_o.value), "jalr": int(dut.jalr_o.value),
-        "muldiv": int(dut.muldiv_o.value),
+        "muldiv": int(dut.muldiv_o.value), "csr": int(dut.csr_o.value), "ecall": int(dut.ecall_o.value),
+        "ebreak": int(dut.ebreak_o.value), "mret": int(dut.mret_o.value), "fence_i": int(dut.fence_i_o.value),
         "funct3": int(dut.funct3_o.value), "illegal": int(dut.illegal_o.value),
     }
 
@@ -167,6 +188,8 @@ async def test_all_instructions(dut):
                 check_illegal(name, inst, got)
                 continue
             expected.setdefault("muldiv", 0)
+            for key in SYSTEM_KEYS:
+                expected.setdefault(key, 0)
             for key, value in expected.items():
                 assert got[key] == value, f"{name} {inst:#010x}: {key} expected {value:#x}, got {got[key]:#x}"
 
@@ -205,10 +228,14 @@ async def test_illegal_encodings(dut):
         "BRANCH funct3 = 2": b_type(8, 3, 2, 2, OPC["BRANCH"]),
         "BRANCH funct3 = 3": b_type(8, 3, 2, 3, OPC["BRANCH"]),
         "JALR funct3 = 1": i_type(0, 2, 1, 1, OPC["JALR"]),
-        "FENCE.I": i_type(0, 0, 1, 0, OPC["MISC_MEM"]),
-        "ECALL (not yet supported)": 0x00000073,
-        "EBREAK (not yet supported)": 0x00100073,
-        "CSRRW (not yet supported)": i_type(0x300, 2, 1, 1, OPC["SYSTEM"]),
+        "MISC-MEM funct3 = 2": i_type(0, 0, 2, 0, OPC["MISC_MEM"]),
+        "SYSTEM funct3 = 4": i_type(0x300, 2, 4, 1, OPC["SYSTEM"]),
+        "ECALL with rd != 0": 0x000000F3,
+        "EBREAK with rs1 != 0": 0x00108073,
+        "URET (no user-mode traps)": 0x00200073,
+        "SRET (no supervisor mode)": 0x10200073,
+        "MRET with rd != 0": 0x302000F3,
+        "SFENCE.VMA (no virtual memory)": 0x12000073,
         "SLLI with shamt[5] = 1 is RV64 only" if xlen == 32 else "SLTW does not exist":
             i_type((1 << 5) | 1, 2, 1, 1, OPC["OP_IMM"]) if xlen == 32
             else r_type(0, 3, 2, 2, 1, OPC["OP_32"]),
@@ -232,8 +259,13 @@ async def test_random_words_invariants(dut):
             continue
         if got["word"]:
             assert got["alu_op"] in word_ops, f"{inst:#010x}: word with alu_op {got['alu_op']:#06b}"
-        assert got["mem_re"] + got["mem_we"] + got["branch"] + got["jal"] + got["jalr"] <= 1, \
-            f"{inst:#010x}: several actions at once"
+        actions = ("mem_re", "mem_we", "branch", "jal", "jalr", "muldiv") + SYSTEM_KEYS
+        assert sum(got[k] for k in actions) <= 1, f"{inst:#010x}: several actions at once"
+        if got["csr"]:
+            assert got["reg_we"] == 1 and got["b_sel"] == B_IMM and (inst & 0x7F) == OPC["SYSTEM"], \
+                f"{inst:#010x}: bad CSR instruction"
+        if got["ecall"] or got["ebreak"] or got["mret"] or got["fence_i"]:
+            assert got["reg_we"] == 0, f"{inst:#010x}: a system instruction must not write rd"
         if got["mem_re"]:
             assert got["reg_we"] == 1 and got["wb_sel"] == WB_MEM, f"{inst:#010x}: bad load"
         # the multiplier/divider is selected by muldiv and by nothing else

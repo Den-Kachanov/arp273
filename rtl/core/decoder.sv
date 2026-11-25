@@ -16,6 +16,12 @@ module decoder (
 	output logic                jal_o,
 	output logic                jalr_o,
 	output logic                muldiv_o,
+	// SYSTEM and MISC-MEM (ADR 014): CSRRW/S/C and the immediate forms, ECALL, EBREAK, MRET, FENCE.I
+	output logic                csr_o,
+	output logic                ecall_o,
+	output logic                ebreak_o,
+	output logic                mret_o,
+	output logic                fence_i_o,
 	output logic [2:0]          funct3_o,
 	output logic                illegal_o
 );
@@ -53,6 +59,11 @@ module decoder (
 		jal_o     = 1'b0;
 		jalr_o    = 1'b0;
 		muldiv_o  = 1'b0;
+		csr_o     = 1'b0;
+		ecall_o   = 1'b0;
+		ebreak_o  = 1'b0;
+		mret_o    = 1'b0;
+		fence_i_o = 1'b0;
 		illegal_o = 1'b1;
 
 		case (inst_i[6:0])
@@ -201,12 +212,46 @@ module decoder (
 				illegal_o = (funct3 != 3'b000);
 			end
 
-			// FENCE is a no-op in a single-hart core without caches; FENCE.I is not supported
+			// FENCE is a no-op in a single-hart core without caches. FENCE.I makes stores visible to
+			// instruction fetch: the core flushes what it has fetched ahead; its imm, rs1 and rd fields
+			// are reserved and ignored, as the specification asks
 			riscv_pkg::OPC_MISC_MEM: begin
-				illegal_o = (funct3 != 3'b000);
+				case (funct3)
+					3'b000:  illegal_o = 1'b0;
+					3'b001: begin
+						fence_i_o = 1'b1;
+						illegal_o = 1'b0;
+					end
+					default: illegal_o = 1'b1;
+				endcase
 			end
 
-			// ECALL, EBREAK and CSR instructions come with the CSR unit in week 2
+			// SYSTEM. funct3 = 0: ECALL, EBREAK, MRET, WFI (a no-op without interrupts), all with fixed
+			// encodings. Otherwise a CSR instruction: rd gets the old value; the register forms read
+			// rs1, the immediate forms (funct3[2] = 1) take rs1 as a 5-bit zero-extended immediate.
+			// Whether the CSR exists and may be written is decided by the CSR unit
+			riscv_pkg::OPC_SYSTEM: begin
+				b_sel_o = riscv_pkg::B_IMM;
+				case (funct3)
+					3'b000: begin
+						case (inst_i)
+							32'h0000_0073: begin ecall_o  = 1'b1; illegal_o = 1'b0; end
+							32'h0010_0073: begin ebreak_o = 1'b1; illegal_o = 1'b0; end
+							32'h3020_0073: begin mret_o   = 1'b1; illegal_o = 1'b0; end
+							32'h1050_0073: illegal_o = 1'b0;
+							default:       illegal_o = 1'b1;
+						endcase
+					end
+					3'b100:  illegal_o = 1'b1;
+					default: begin
+						csr_o     = 1'b1;
+						reg_we_o  = 1'b1;
+						a_sel_o   = funct3[2] ? riscv_pkg::A_ZERO : riscv_pkg::A_RS1;
+						illegal_o = 1'b0;
+					end
+				endcase
+			end
+
 			default: illegal_o = 1'b1;
 		endcase // inst_i[6:0]
 
@@ -219,6 +264,7 @@ module decoder (
 			jal_o    = 1'b0;
 			jalr_o   = 1'b0;
 			muldiv_o = 1'b0;
+			csr_o    = 1'b0;
 		end
 	end
 

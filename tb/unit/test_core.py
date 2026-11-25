@@ -53,9 +53,12 @@ PIPE_EXTRA_LATENCY = 3
 
 
 async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PIPE_EXTRA_LATENCY, seed=1,
-                   istall=None, dstall=None):
+                   istall=None, dstall=None, skip_traps=0):
     """
     Reset the pipelined core, run the program until trap_o, return (commit trace, memory, trap pc)
+
+    The first `skip_traps` exceptions are taken (the core enters the handler at mtvec, ADR 014)
+    and appear in the trace as entries with "trap": pc; the next one ends the run
 
     Memory model of ADR 013 for both ports: ready is random (not ready with probability
     `stall`, or istall / dstall per port); an accepted request is answered 1 + random(0..extra)
@@ -104,7 +107,10 @@ async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PI
         if int(dut.trap_o.value):
             assert int(dut.commit_valid_o.value) == 0, "commit during a trap"
             assert not int(dut.dmem_req_valid_o.value), "data request during a trap"
-            return trace, mem, int(dut.commit_pc_o.value)
+            if skip_traps == 0:
+                return trace, mem, int(dut.commit_pc_o.value)
+            skip_traps -= 1
+            trace.append({"pc": int(dut.commit_pc_o.value), "inst": 0, "we": 0, "rd": 0, "data": 0, "trap": 1})
 
         # requests accepted at the coming edge
         if int(dut.imem_req_valid_o.value):
@@ -565,7 +571,7 @@ async def test_misaligned_store_traps(dut):
     assert mem.read(BASE + 0x1000, 4) == 0, "nothing may be stored"
 
 
-MODULES = ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters", "muldiv")
+MODULES = ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters", "muldiv", "csr")
 
 
 @pytest.mark.parametrize("xlen", common.XLENS)
