@@ -68,6 +68,10 @@ int main(int argc, char **argv)
 	uint64_t tohost = strtoull(argv[3], nullptr, 16);
 	uint64_t max_cycles = argc > 4 ? strtoull(argv[4], nullptr, 10) : 1000000;
 
+	// registers without reset start with random values, as on a chip (the model is built with
+	// --x-initial unique); the seed is fixed so that a run repeats; env X_SEED changes it
+	Verilated::randReset(2);
+	Verilated::randSeed(getenv("X_SEED") ? atoi(getenv("X_SEED")) : 1);
 	Verilated::commandArgs(argc, argv);
 	Vcore *top = new Vcore;
 

@@ -83,6 +83,10 @@ def run(top: str, test_file: str, xlen_value: int, extra_sources: list[str] | No
     Waves (dump.vcd in the build directory) are enabled with WAVES=1.
     A failed cocotb test becomes a pytest failure.
 
+    Registers start with random values, not with zeros (Verilator --x-initial unique,
+    +verilator+rand+reset+2): a chip or an FPGA does not clear flip-flops that have no reset, so a
+    design must not depend on it. The seed is fixed (env X_SEED, default 1), so a failure repeats
+
     Dependencies: _find_source, REPO
     """
     from cocotb_tools.check_results import get_results
@@ -101,7 +105,7 @@ def run(top: str, test_file: str, xlen_value: int, extra_sources: list[str] | No
         sources=sources,
         hdl_toplevel=top,
         defines={"XLEN": xlen_value},
-        build_args=list(build_args or []),
+        build_args=["--x-assign", "unique", "--x-initial", "unique"] + list(build_args or []),
         build_dir=build_dir,
         always=True,
         waves=waves,
@@ -112,6 +116,7 @@ def run(top: str, test_file: str, xlen_value: int, extra_sources: list[str] | No
         test_dir=build_dir,
         build_dir=build_dir,
         extra_env={"XLEN": str(xlen_value), "PYTHONPATH": str(test_path.parent)},
+        plusargs=["+verilator+rand+reset+2", f"+verilator+seed+{os.environ.get('X_SEED', '1')}"],
         waves=waves,
     )
     total, failed = get_results(results)

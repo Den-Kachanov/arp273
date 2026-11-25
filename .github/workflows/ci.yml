@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: CERN-OHL-S-2.0
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # Verilator and Yosys from apt are older than the ones the project is written against
+      - uses: YosysHQ/setup-oss-cad-suite@aefa8397bbf8fc6670a0a62af9805a89738f3cde # v3
+
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Python tools
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
+      - name: SPDX headers
+        run: python3 scripts/check_spdx.py
+
+      - name: Python lint
+        run: .venv/bin/ruff check scripts tb
+
+      - name: SystemVerilog lint (XLEN 64 and 32)
+        run: make lint
+
+      - name: Structural rules for a chip flow (no latches, async resets, loops)
+        run: make struct
+
+      - name: Unit tests
+        run: make unit
+
+      - name: Synthesis smoke test
+        run: make synth
+
+  spike-regress:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 90
+    env:
+      SPIKE_REF: v1.1.0
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: YosysHQ/setup-oss-cad-suite@aefa8397bbf8fc6670a0a62af9805a89738f3cde # v3
+
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: RISC-V compiler and Spike build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-unknown-elf device-tree-compiler libboost-regex-dev libboost-system-dev
+
+      # Spike is built from source and cached; change SPIKE_REF to change the version
+      - name: Spike cache
+        id: spike-cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/spike
+          key: spike-${{ runner.os }}-${{ env.SPIKE_REF }}
+
+      - name: Build Spike
+        if: steps.spike-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$SPIKE_REF" https://github.com/riscv-software-src/riscv-isa-sim.git "$RUNNER_TEMP/spike-src"
+          mkdir "$RUNNER_TEMP/spike-src/build"
+          cd "$RUNNER_TEMP/spike-src/build"
+          ../configure --prefix="$HOME/spike"
+          make -j"$(nproc)"
+          make install
+
+      - name: Python tools
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Compare the core with Spike
+        run: |
+          export PATH="$HOME/spike/bin:$PATH"
+          make regress CROSS=riscv64-unknown-elf-
+          make fuzz CROSS=riscv64-unknown-elf- SEEDS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"

@@ -1,0 +1,65 @@
+# Modules: connections and area
+
+Status: draft, pending author review
+
+## How the modules connect
+
+The diagram [img/units-overview.svg](../img/units-overview.svg) shows the single-cycle core `core.sv`. A solid frame is a separate module in `rtl/core`: `decoder`, `imm_gen`, `regfile`, `alu`, `branch_unit`, `lsu`, `muldiv` (plus `perf_counters`, which is not drawn). A dashed frame is logic inside `core.sv` (PC, the `a_sel`, `b_sel`, `wb_sel` muxes, the next-PC select) or memory outside the core.
+
+Main connections:
+- `decoder` reads `inst` and controls every other block (`imm_sel`, `a_sel`, `b_sel`, `alu_op`, `word`, `wb_sel`, `reg_we`, `mem_re`, `mem_we`, `branch`, `jal`, `jalr`, `muldiv`, `funct3`).
+- `imm_gen` takes `inst` and `imm_sel` and feeds the immediate to the `b_sel` mux.
+- `regfile` outputs rs1 and rs2; rs1 goes to `a_sel`, rs2 to `b_sel`, `branch_unit` and `lsu` (store data).
+- `alu` computes the result, the memory address and the jump target (`pc + imm` or `rs1 + imm`).
+- `branch_unit` compares rs1 and rs2 according to `funct3`; its `taken` output together with `branch_o` controls the next-PC select.
+- `lsu` sits between `alu` (address) and data memory: for a store it shifts the data and produces byte strobes, for a load it shifts and extends.
+- `muldiv` takes rs1, rs2, `funct3`, `word`; after XLEN/2 + 1 or XLEN + 1 cycles (ADR 011) it raises `done` with the result. While `done = 0` the core stalls (PC, register write, commit); the result goes to rd through `wb_sel = WB_MD`.
+- `wb_sel` selects what is written to rd: the ALU result, load data, `pc + 4` or the `muldiv` result.
+
+Diagrams of the individual modules: [decoder](../img/decoder.svg), [imm_gen](../img/imm_gen.svg), [regfile](../img/regfile.svg), [branch_unit](../img/branch_unit.svg), [lsu](../img/lsu.svg), [alu](../img/alu.svg), [muldiv](../img/muldiv.svg).
+
+## Area
+
+Chart: [img/units-area.svg](../img/units-area.svg). Measured 2026-11-25 with Yosys 0.66 (after ADR 010 and ADR 011), `make area` (`scripts/area.py --xc7`), one run for all numbers, no commit hash (an estimate). This is area, not Fmax and not power.
+
+**Generic synthesis:** `synth -top <module>` and `abc -lut 6`, each module on its own.
+
+| Module | LUT6, XLEN = 64 | LUT6, XLEN = 32 | Gates, XLEN = 64 | Gates, XLEN = 32 |
+|---|---|---|---|---|
+| `regfile` | 1644 (+ 1984 flip-flops) | 839 (+ 992 flip-flops) | 7356 | 3722 |
+| `muldiv` | 954 (+ 211 flip-flops) | 447 (+ 113 flip-flops) | 2690 | 1267 |
+| `alu` | 700 | 288 | 1853 | 838 |
+| `perf_counters` | 308 (+ 256 flip-flops) | 308 (+ 256 flip-flops) | 763 | 763 |
+| `lsu` | 305 | 93 | 542 | 188 |
+| `branch_unit` | 87 | 41 | 361 | 182 |
+| `decoder` | 47 | 46 | 125 | 102 |
+| `imm_gen` | 32 | 32 | 69 | 69 |
+| Sum of LUT6 | 4077 | 2094 | | |
+| **Whole core** (flat synthesis of `core`) | **4546** (+ 2515 flip-flops) | **2317** (+ 1393 flip-flops) | 16399 | 8508 |
+| Core with a stub instead of `muldiv` | 3491 (+ 2240 flip-flops) | 1807 (+ 1216 flip-flops) | | |
+
+**Xilinx 7** (`synth_xilinx -family xc7 -abc9`, the Arty A7 candidate). LUTRAM is LUTs used as distributed RAM. The delay is the latest arrival time from `sta` with cell delays only, **without routing**. It is a comparative figure, not Fmax.
+
+| Module | XLEN = 64: LUT / LUTRAM / CARRY4 / ps | XLEN = 32: LUT / LUTRAM / CARRY4 / ps |
+|---|---|---|
+| `alu` | 603 / 0 / 17 / 3539 | 276 / 0 / 9 / 2481 |
+| `muldiv` | 762 / 0 / 67 / 3885 | 342 / 0 / 35 / 2973 |
+| `lsu` | 338 / 0 / 0 / 1276 | 96 / 0 / 0 / 1038 |
+| `regfile` | 141 / 88 / 0 / 1038 | 77 / 48 / 0 / 1038 |
+| `decoder` | 60 / 0 / 0 / 1389 | 47 / 0 / 0 / 1400 |
+| `branch_unit` | 57 / 0 / 12 / 2272 | 33 / 0 / 6 / 2004 |
+| `imm_gen` | 32 / 0 / 0 / 642 | 32 / 0 / 0 / 642 |
+| `perf_counters` | 3 / 0 / 64 / 2964 | 3 / 0 / 64 / 2964 |
+| **Whole core** | **2371 / 88 / 176 / 7069** | **1065 / 48 / 122 / 6082** |
+
+How to read this:
+- **The sum of the modules** (4077) differs from the whole core (4546): the core adds the PC and muxes, and `regfile` inside the core has `WRITE_THROUGH = 0`, while on its own it was synthesized with the default 1. The difference was not broken down further. The flip-flops of the XLEN = 64 core add up: 1984 + 64 (PC) + 256 + 211 = 2515.
+- **Only numbers from the same run can be compared.** ABC is heuristic: `branch_unit` gave 79 LUT6 in an earlier run and 87 in this one without any change to the module; `lsu` and `regfile` moved in the same way between earlier runs.
+- **`regfile` on xc7 is about 7 times smaller** (141 + 88 = 229 LUTs against 1644 LUT6) than in generic synthesis: there it maps to distributed RAM (22 × RAM32M = 88 LUTs) instead of 31 × XLEN flip-flops (ADR 005). Generic synthesis greatly overstates its area.
+- **Carry chains on xc7.** The counters (`perf_counters`) and the adders go almost entirely into CARRY4, so they need almost no LUTs.
+- **`muldiv`** is second in size in generic synthesis: three `XLEN`-bit registers, an adder, three sign conversions and (ADR 011) the short-path logic. A combinational 64 × 64 `a * b` took 9117 LUT6 in generic synthesis without DSPs ([ADR 009](../adr/009-muldiv-iterative.md)). On xc7 it has the longest path of all modules (3885 ps after ADR 011, previously 4311 ps; register to register).
+- **The ALU** was optimised in [ADR 010](../adr/010-alu-flat-select-shared-compare.md): on its own −8% LUT6 and −19% LUTs on xc7; inside the core −54 LUTs on xc7 (XLEN = 64), the rest within noise.
+- **The core delay** (7069 ps) includes the combinational memory ports of the single-cycle core (ADR 008), so it is not a path of the future pipeline. For XLEN = 32 the longest path is `imem` → decoder → ALU adder → jump-target alignment → `trap` → `instret` counter (ADR 011); for XLEN = 64 it was not analysed.
+- `perf_counters` does not depend on XLEN: the counters are always 64 bits.
+- `imm_gen` does not depend on XLEN, because the upper bits only copy the sign.
+- Gates: Yosys generic logic cells before LUT mapping; the LUT6 count is closer to a real FPGA.
