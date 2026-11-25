@@ -163,6 +163,7 @@ compare: sim
 	$(PYTHON) scripts/compare.py $(BUILD)/$(PROG).$(CORE).log $(BUILD)/$(PROG).spike.log
 
 regress:
+	@mkdir -p $(BUILD)
 	@for p in $(PROGS); do \
 	  echo "== compare $$p"; \
 	  $(MAKE) --no-print-directory compare PROG=$$p CORE=$(CORE) > $(BUILD)/$$p.$(CORE).regress.log 2>&1 || { tail -15 $(BUILD)/$$p.$(CORE).regress.log; exit 1; }; \
@@ -171,6 +172,7 @@ regress:
 
 SEEDS ?= 1 2 3 4 5 6 7 8
 fuzz:
+	@mkdir -p $(BUILD)
 	@for n in $(SEEDS); do \
 	  echo "== fuzz seed $$n"; \
 	  $(MAKE) --no-print-directory compare PROG=fuzz_$$n CORE=$(CORE) > $(BUILD)/fuzz_$$n.$(CORE).regress.log 2>&1 || { tail -15 $(BUILD)/fuzz_$$n.$(CORE).regress.log; exit 1; }; \
