@@ -1,7 +1,5 @@
 # ADR 004: The register file returns the new value when one register is written and read in the same cycle (write-through)
 
-Status: draft, pending author review
-
 ## Context
 
 In the pipeline (stage 1, week 2) the instruction in WB writes a register, and the instruction in ID may read it in the same cycle. We need to decide what the read sees: the old value or the new one. This decides whether a separate forwarding path from WB is needed.

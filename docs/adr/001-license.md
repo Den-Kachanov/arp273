@@ -1,6 +1,5 @@
 # ADR 001: CERN-OHL-S-2.0 license and a public repository from the first commit
 
-Status: draft, pending author review
 Changed: the initial choice of Apache-2.0 was replaced with CERN-OHL-S-2.0
 
 ## Context

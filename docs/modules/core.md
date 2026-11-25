@@ -1,7 +1,5 @@
 # Single-cycle core (`rtl/core/core.sv`)
 
-Status: draft, pending author review
-
 The single-cycle reference core; the pipelined core is [core_pipe.md](core_pipe.md). A single-cycle RV64IM core (RV32IM for XLEN = 32): one instruction per cycle, except M instructions, which wait for `muldiv` (XLEN/2 + 1 or XLEN + 1 cycles depending on the operands, ADR 011). It consists of `decoder`, `regfile` (`WRITE_THROUGH = 0`), `imm_gen`, `alu`, `branch_unit`, `lsu`, `muldiv`, `perf_counters`, the PC register, the `a_sel`, `b_sel`, `wb_sel` muxes and the next-PC select. Connections: [overview.md](overview.md); memory interface: [ADR 008](../adr/008-single-cycle-memory-interface.md).
 
 ## Ports
@@ -61,4 +59,6 @@ Sensitivity check: broken RTL copies (write strobe not shifted, halfword sign ta
 
 Area of the whole core (measured 2026-11-25, Yosys 0.66, `make area`, no commit hash, estimate): XLEN = 64: 4546 LUT6 + 2515 flip-flops, on xc7 2371 LUTs + 88 LUTs as RAM; XLEN = 32: 2317 LUT6 + 1393 flip-flops.
 
-Not done yet: `riscv-tests` (`rv64ui-p`, `rv64um-p`), CSRs and ECALL (currently a trap), counters readable as CSRs, the pipeline.
+This core is the reference for user-level code. It has no CSRs and no exception entry: CSR instructions,
+ECALL, EBREAK, MRET and FENCE.I stop it like an illegal instruction. CSRs, exceptions and `riscv-tests` are
+in the pipelined core ([core_pipe.md](core_pipe.md), [ADR 014](../adr/014-csr-and-exceptions.md)).

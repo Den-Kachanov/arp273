@@ -1,7 +1,5 @@
 # ADR 013: Five-stage pipeline and a valid/ready memory interface
 
-Status: draft, pending author review
-
 ## Context
 
 Stage 1 of the plan replaces the single-cycle core with a classic five-stage pipeline (IF, ID, EX, MEM,
@@ -162,5 +160,5 @@ on both builds: the exit code, cycles and instret at the store to tohost are ide
 - The non-sticky request is simpler for the core; a bridge to AXI or OBI must hold the request.
 - One outstanding request per port halves the throughput of a memory with two cycles of latency; more
   outstanding requests need a deeper fetch queue and tagging, which a cache will need anyway.
-- Next steps of stage 1: CSRs (`mstatus`, `mtvec`, `mepc`, `mcause`) and ECALL as a real exception
-  (today every trap stops the core), then `riscv-tests` (`rv64ui-p`, `rv64um-p`).
+- CSRs and exceptions taken in WB: [ADR 014](014-csr-and-exceptions.md). Since then a trap no longer
+  freezes WB; the measurements above are from before that change.

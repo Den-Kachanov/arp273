@@ -1,7 +1,5 @@
 # Modules: connections and area
 
-Status: draft, pending author review
-
 ## How the modules connect
 
 Two cores use the same modules: the single-cycle reference `core.sv` ([core.md](core.md)) and the five-stage pipeline `core_pipe.sv` ([core_pipe.md](core_pipe.md), [ADR 013](../adr/013-pipeline-and-memory-interface.md)). The diagram below shows the single-cycle core.

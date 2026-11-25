@@ -1,6 +1,6 @@
 # ADR 007: ALU with one adder and one right shifter
 
-Status: draft, pending author review. The comparison, the decoding and the result mux were changed in [ADR 010](010-alu-flat-select-shared-compare.md); the shared adder and shifter remain
+Update: The comparison, the decoding and the result mux were changed in [ADR 010](010-alu-flat-select-shared-compare.md); the shared adder and shifter remain
 
 ## Context
 

@@ -1,7 +1,5 @@
 # ADR 010: ALU — comparison on an extended adder, direct decoding, flat result mux
 
-Status: draft, pending author review
-
 ## Context
 
 The author asked for an assessment of the ALU and an optimisation of area and speed. The version from ADR 007 already shares one adder and one right shifter between operations. The questions: what else can be removed without losing speed, and what does a speed-up cost.

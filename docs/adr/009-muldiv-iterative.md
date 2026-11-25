@@ -1,6 +1,6 @@
 # ADR 009: M extension: one iterative multiply/divide unit
 
-Status: draft, pending author review. The latency was changed in [ADR 011](011-muldiv-short-path.md): a short path of XLEN/2 iterations and the `last_q` register
+Update: The latency was changed in [ADR 011](011-muldiv-short-path.md): a short path of XLEN/2 iterations and the `last_q` register
 
 ## Context
 

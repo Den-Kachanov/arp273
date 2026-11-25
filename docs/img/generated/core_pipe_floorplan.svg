@@ -1,109 +1,125 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1651" height="1260" viewBox="0 0 1651 1260" font-family="sans-serif">
-<rect width="1651" height="1260" fill="#ffffff"/>
-<text x="150" y="38" font-size="22" font-weight="bold" fill="#222">Floorplan estimate of core_pipe (XLEN = 64): 545 x 556 um, 0.303 mm2</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1608" height="1260" viewBox="0 0 1608 1260" font-family="sans-serif">
+<rect width="1608" height="1260" fill="#ffffff"/>
+<text x="150" y="38" font-size="22" font-weight="bold" fill="#222">Floorplan estimate of core_pipe (XLEN = 64): 561 x 602 um, 0.338 mm2</text>
 <text x="150" y="60" font-size="13" fill="#555">Area from transistor counts (Yosys, abc -g cmos2) x 3.75 um2 per NAND2 (sky130 hd) / 70% utilisation; slicing floorplan by simulated annealing; an estimate, not a layout</text>
-<rect x="150.0" y="190.0" width="881.2" height="900.0" fill="#20262e" stroke="#c9a227" stroke-width="3"/>
-<rect x="152.0" y="670.0" width="839.9" height="418.0" fill="#4e79a7" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="408.7" y="192.0" width="620.5" height="308.3" fill="#f28e2b" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="152.0" y="320.3" width="240.8" height="345.7" fill="#59a14f" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="721.2" y="518.1" width="299.8" height="147.9" fill="#e15759" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="152.0" y="192.0" width="252.7" height="124.3" fill="#76b7b2" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="558.9" y="518.3" width="102.2" height="147.7" fill="#edc948" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="408.7" y="562.7" width="146.2" height="103.3" fill="#b07aa1" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="408.7" y="504.3" width="113.0" height="54.5" fill="#ff9da7" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="665.1" y="607.9" width="27.0" height="58.1" fill="#9c755f" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<rect x="696.1" y="619.8" width="21.1" height="46.2" fill="#bab0ac" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
-<line x1="741.1" y1="190.0" x2="278.3" y2="254.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
-<text x="509.7" y="226.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">1</text>
-<line x1="718.9" y1="346.1" x2="1031.2" y2="346.1" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
-<text x="875.0" y="350.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">1</text>
-<line x1="871.1" y1="592.1" x2="272.4" y2="493.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
-<text x="571.8" y="546.6" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">1</text>
-<line x1="718.9" y1="346.1" x2="278.3" y2="254.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3.6" stroke-linecap="round"/>
-<text x="498.6" y="304.2" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">3</text>
-<line x1="741.1" y1="190.0" x2="481.8" y2="614.4" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3.6" stroke-linecap="round"/>
-<text x="611.4" y="406.2" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">3</text>
-<line x1="678.6" y1="637.0" x2="572.0" y2="879.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="5.6" stroke-linecap="round"/>
-<text x="625.3" y="762.0" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">10</text>
-<line x1="706.7" y1="642.9" x2="572.0" y2="879.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="5.6" stroke-linecap="round"/>
-<text x="639.3" y="765.0" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">10</text>
-<line x1="678.6" y1="637.0" x2="706.7" y2="642.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="8.0" stroke-linecap="round"/>
-<text x="692.6" y="643.9" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">35</text>
-<line x1="678.6" y1="637.0" x2="718.9" y2="346.1" stroke="#ffffff" stroke-opacity="0.55" stroke-width="8.8" stroke-linecap="round"/>
-<text x="698.7" y="495.6" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">51</text>
-<line x1="635.3" y1="190.0" x2="610.0" y2="592.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.2" stroke-linecap="round"/>
-<text x="622.6" y="395.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">64</text>
-<line x1="635.3" y1="190.0" x2="481.8" y2="614.4" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.2" stroke-linecap="round"/>
-<text x="558.5" y="406.2" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">64</text>
-<line x1="741.1" y1="190.0" x2="572.0" y2="879.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.4" stroke-linecap="round"/>
-<text x="656.5" y="538.5" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">69</text>
-<line x1="718.9" y1="346.1" x2="481.8" y2="614.4" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.4" stroke-linecap="round"/>
-<text x="600.3" y="484.3" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">70</text>
-<line x1="718.9" y1="346.1" x2="706.7" y2="642.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.0" stroke-linecap="round"/>
-<text x="712.8" y="498.5" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">96</text>
-<line x1="718.9" y1="346.1" x2="846.8" y2="190.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.1" stroke-linecap="round"/>
-<text x="782.9" y="272.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">99</text>
-<line x1="465.2" y1="531.5" x2="272.4" y2="493.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.7" stroke-linecap="round"/>
-<text x="368.8" y="516.3" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">131</text>
-<line x1="465.2" y1="531.5" x2="718.9" y2="346.1" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.7" stroke-linecap="round"/>
-<text x="592.0" y="442.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">132</text>
-<line x1="718.9" y1="346.1" x2="635.3" y2="190.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.8" stroke-linecap="round"/>
-<text x="677.1" y="272.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">137</text>
-<line x1="718.9" y1="346.1" x2="610.0" y2="592.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.8" stroke-linecap="round"/>
-<text x="664.4" y="473.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">143</text>
-<line x1="871.1" y1="592.1" x2="718.9" y2="346.1" stroke="#ffffff" stroke-opacity="0.55" stroke-width="11.5" stroke-linecap="round"/>
-<text x="795.0" y="473.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">197</text>
-<line x1="718.9" y1="346.1" x2="272.4" y2="493.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="11.5" stroke-linecap="round"/>
-<text x="495.7" y="423.7" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">198</text>
-<line x1="718.9" y1="346.1" x2="572.0" y2="879.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="11.6" stroke-linecap="round"/>
-<text x="645.4" y="616.6" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">208</text>
-<line x1="278.3" y1="190.0" x2="278.3" y2="254.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="12.0" stroke-linecap="round"/>
-<text x="278.3" y="226.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">256</text>
-<line x1="718.9" y1="346.1" x2="741.1" y2="190.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="12.3" stroke-linecap="round"/>
-<text x="730.0" y="272.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">300</text>
-<text x="572.0" y="877.0" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">regfile</text>
-<text x="572.0" y="897.0" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">136.1k um2</text>
-<text x="718.9" y="344.1" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">glue</text>
-<text x="718.9" y="364.1" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">74.5k um2</text>
-<text x="272.4" y="491.2" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">muldiv</text>
-<text x="272.4" y="511.2" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">32.7k um2</text>
-<text x="871.1" y="590.1" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">alu</text>
-<text x="871.1" y="610.1" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">17.6k um2</text>
-<text x="278.3" y="252.2" font-size="18" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">perf_counters</text>
-<text x="278.3" y="270.2" font-size="13" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">12.6k um2</text>
-<text x="610.0" y="590.2" font-size="15" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">lsu_mem</text>
-<text x="610.0" y="605.2" font-size="10" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">6.2k um2</text>
-<text x="481.8" y="612.4" font-size="15" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">lsu_wb</text>
-<text x="481.8" y="627.4" font-size="10" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">6.2k um2</text>
-<text x="465.2" y="535.5" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="2.5" paint-order="stroke">bra</text>
-<text x="678.6" y="641.0" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="2.5" paint-order="stroke">dec</text>
-<text x="706.7" y="646.9" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="2.5" paint-order="stroke">imm</text>
-<rect x="732.1" y="181.0" width="18" height="18" fill="#c9a227" stroke="#111"/>
-<text x="741.1" y="176.0" font-size="12" text-anchor="middle" fill="#222">commit (305 bits)</text>
-<rect x="626.3" y="181.0" width="18" height="18" fill="#c9a227" stroke="#111"/>
-<text x="635.3" y="176.0" font-size="12" text-anchor="middle" fill="#222">dmem (204 bits)</text>
-<rect x="837.8" y="181.0" width="18" height="18" fill="#c9a227" stroke="#111"/>
-<text x="846.8" y="176.0" font-size="12" text-anchor="middle" fill="#222">imem (99 bits)</text>
-<rect x="269.3" y="181.0" width="18" height="18" fill="#c9a227" stroke="#111"/>
-<text x="278.3" y="176.0" font-size="12" text-anchor="middle" fill="#222">perf (256 bits)</text>
-<rect x="1022.2" y="337.1" width="18" height="18" fill="#c9a227" stroke="#111"/>
-<text x="1045.2" y="350.1" font-size="12" text-anchor="start" fill="#222">trap (1 bits)</text>
-<text x="1191" y="190" font-size="15" font-weight="bold" fill="#222">Block     transistors    GE    area um2    share</text>
-<rect x="1191" y="202" width="12" height="12" fill="#4e79a7"/><text x="1209" y="214" font-size="13" fill="#222" xml:space="preserve">regfile         101,588   25,397    136,055   47.0%</text>
-<rect x="1191" y="224" width="12" height="12" fill="#f28e2b"/><text x="1209" y="236" font-size="13" fill="#222" xml:space="preserve">glue             55,628   13,907     74,502   25.7%</text>
-<rect x="1191" y="246" width="12" height="12" fill="#59a14f"/><text x="1209" y="258" font-size="13" fill="#222" xml:space="preserve">muldiv           24,416    6,104     32,700   11.3%</text>
-<rect x="1191" y="268" width="12" height="12" fill="#e15759"/><text x="1209" y="280" font-size="13" fill="#222" xml:space="preserve">alu              13,166    3,292     17,633    6.1%</text>
-<rect x="1191" y="290" width="12" height="12" fill="#76b7b2"/><text x="1209" y="302" font-size="13" fill="#222" xml:space="preserve">perf_counters     9,396    2,349     12,584    4.3%</text>
-<rect x="1191" y="312" width="12" height="12" fill="#edc948"/><text x="1209" y="324" font-size="13" fill="#222" xml:space="preserve">lsu_mem           4,596    1,149      6,155    2.1%</text>
-<rect x="1191" y="334" width="12" height="12" fill="#b07aa1"/><text x="1209" y="346" font-size="13" fill="#222" xml:space="preserve">lsu_wb            4,596    1,149      6,155    2.1%</text>
-<rect x="1191" y="356" width="12" height="12" fill="#ff9da7"/><text x="1209" y="368" font-size="13" fill="#222" xml:space="preserve">branch_unit       1,952      488      2,614    0.9%  [bra]</text>
-<rect x="1191" y="378" width="12" height="12" fill="#9c755f"/><text x="1209" y="390" font-size="13" fill="#222" xml:space="preserve">decoder             550      138        737    0.3%  [dec]</text>
-<rect x="1191" y="400" width="12" height="12" fill="#bab0ac"/><text x="1209" y="412" font-size="13" fill="#222" xml:space="preserve">imm_gen             360       90        482    0.2%  [imm]</text>
-<text x="1191" y="448" font-size="12" fill="#444">blocks: 0.290 mm2; die: 0.303 mm2 (whitespace 4%)</text>
-<text x="1191" y="466" font-size="12" fill="#444">bus length: 511 bit-mm (bits x Manhattan distance)</text>
-<text x="1191" y="484" font-size="12" fill="#444">buses: 24, 2279 bit connections; clk, rst and nets</text>
-<text x="1191" y="502" font-size="12" fill="#444">reaching more than 6 blocks are global, not drawn</text>
-<text x="1191" y="520" font-size="12" fill="#444">top-level ports: 865 bits in 5 groups</text>
-<text x="1191" y="538" font-size="12" fill="#444">regfile: flip-flops here; on silicon a memory macro would be smaller</text>
-<text x="1191" y="556" font-size="12" fill="#444">generated by scripts/floorplan.py from the RTL</text>
+<rect x="150.0" y="190.0" width="838.9" height="900.0" fill="#20262e" stroke="#c9a227" stroke-width="3"/>
+<rect x="344.3" y="192.0" width="642.6" height="457.8" fill="#4e79a7" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="308.8" y="653.8" width="434.2" height="434.2" fill="#f28e2b" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="152.0" y="234.5" width="188.3" height="380.6" fill="#59a14f" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="746.9" y="747.3" width="222.1" height="222.1" fill="#e15759" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="152.0" y="809.3" width="137.3" height="278.7" fill="#76b7b2" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="746.9" y="973.4" width="233.2" height="114.6" fill="#edc948" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="746.9" y="664.3" width="161.9" height="78.9" fill="#b07aa1" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="152.0" y="669.1" width="94.1" height="136.2" fill="#ff9da7" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="250.1" y="692.0" width="54.6" height="113.3" fill="#9c755f" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="152.0" y="619.1" width="65.4" height="30.7" fill="#bab0ac" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<rect x="221.4" y="621.0" width="28.8" height="28.8" fill="#4e79a7" fill-opacity="0.85" stroke="#111" stroke-width="1"/>
+<line x1="858.0" y1="858.4" x2="988.9" y2="864.6" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
+<text x="923.4" y="865.5" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">1</text>
+<line x1="525.9" y1="870.9" x2="988.9" y2="864.6" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
+<text x="757.4" y="871.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">1</text>
+<line x1="220.7" y1="948.7" x2="246.2" y2="424.8" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
+<text x="233.4" y="690.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">1</text>
+<line x1="628.7" y1="1090.0" x2="863.5" y2="1030.7" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
+<text x="746.1" y="1064.4" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">1</text>
+<line x1="628.7" y1="1090.0" x2="199.1" y2="737.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3.6" stroke-linecap="round"/>
+<text x="413.9" y="917.6" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">3</text>
+<line x1="525.9" y1="870.9" x2="863.5" y2="1030.7" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3.6" stroke-linecap="round"/>
+<text x="694.7" y="954.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">3</text>
+<line x1="858.0" y1="858.4" x2="199.1" y2="737.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="4.4" stroke-linecap="round"/>
+<text x="528.5" y="801.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">5</text>
+<line x1="184.7" y1="634.5" x2="665.6" y2="420.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="5.6" stroke-linecap="round"/>
+<text x="425.1" y="531.7" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">10</text>
+<line x1="235.8" y1="635.4" x2="665.6" y2="420.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="5.6" stroke-linecap="round"/>
+<text x="450.7" y="532.2" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">10</text>
+<line x1="184.7" y1="634.5" x2="235.8" y2="635.4" stroke="#ffffff" stroke-opacity="0.55" stroke-width="8.0" stroke-linecap="round"/>
+<text x="210.2" y="639.0" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">35</text>
+<line x1="184.7" y1="634.5" x2="525.9" y2="870.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.0" stroke-linecap="round"/>
+<text x="355.3" y="756.7" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">56</text>
+<line x1="150.0" y1="798.3" x2="827.9" y2="703.8" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.2" stroke-linecap="round"/>
+<text x="488.9" y="755.0" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">64</text>
+<line x1="150.0" y1="798.3" x2="199.1" y2="737.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.2" stroke-linecap="round"/>
+<text x="174.5" y="771.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">64</text>
+<line x1="628.7" y1="1090.0" x2="665.6" y2="420.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.4" stroke-linecap="round"/>
+<text x="647.1" y="759.5" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">69</text>
+<line x1="525.9" y1="870.9" x2="199.1" y2="737.2" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9.4" stroke-linecap="round"/>
+<text x="362.5" y="808.1" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">70</text>
+<line x1="525.9" y1="870.9" x2="235.8" y2="635.4" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.0" stroke-linecap="round"/>
+<text x="380.8" y="757.2" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">96</text>
+<line x1="525.9" y1="870.9" x2="525.9" y2="1090.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.1" stroke-linecap="round"/>
+<text x="525.9" y="984.5" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">99</text>
+<line x1="858.0" y1="858.4" x2="628.7" y2="1090.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.6" stroke-linecap="round"/>
+<text x="743.3" y="978.2" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">128</text>
+<line x1="858.0" y1="858.4" x2="861.7" y2="1090.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.6" stroke-linecap="round"/>
+<text x="859.8" y="978.2" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">128</text>
+<line x1="858.0" y1="858.4" x2="863.5" y2="1030.7" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.6" stroke-linecap="round"/>
+<text x="860.8" y="948.5" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">128</text>
+<line x1="277.4" y1="748.7" x2="246.2" y2="424.8" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.7" stroke-linecap="round"/>
+<text x="261.8" y="590.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">131</text>
+<line x1="277.4" y1="748.7" x2="525.9" y2="870.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.7" stroke-linecap="round"/>
+<text x="401.7" y="813.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">132</text>
+<line x1="525.9" y1="870.9" x2="150.0" y2="798.3" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.8" stroke-linecap="round"/>
+<text x="337.9" y="838.6" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">137</text>
+<line x1="525.9" y1="870.9" x2="827.9" y2="703.8" stroke="#ffffff" stroke-opacity="0.55" stroke-width="10.8" stroke-linecap="round"/>
+<text x="676.9" y="791.4" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">143</text>
+<line x1="220.7" y1="948.7" x2="525.9" y2="870.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="11.5" stroke-linecap="round"/>
+<text x="373.3" y="913.8" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">197</text>
+<line x1="525.9" y1="870.9" x2="246.2" y2="424.8" stroke="#ffffff" stroke-opacity="0.55" stroke-width="11.5" stroke-linecap="round"/>
+<text x="386.0" y="651.9" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">199</text>
+<line x1="525.9" y1="870.9" x2="665.6" y2="420.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="11.6" stroke-linecap="round"/>
+<text x="595.7" y="649.9" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">208</text>
+<line x1="861.7" y1="1090.0" x2="863.5" y2="1030.7" stroke="#ffffff" stroke-opacity="0.55" stroke-width="12.0" stroke-linecap="round"/>
+<text x="862.6" y="1064.4" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">256</text>
+<line x1="525.9" y1="870.9" x2="628.7" y2="1090.0" stroke="#ffffff" stroke-opacity="0.55" stroke-width="12.3" stroke-linecap="round"/>
+<text x="577.3" y="984.5" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">300</text>
+<line x1="858.0" y1="858.4" x2="525.9" y2="870.9" stroke="#ffffff" stroke-opacity="0.55" stroke-width="12.9" stroke-linecap="round"/>
+<text x="691.9" y="868.6" font-size="11" text-anchor="middle" fill="#fff" stroke="#20262e" stroke-width="3" paint-order="stroke">407</text>
+<text x="665.6" y="418.9" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">regfile</text>
+<text x="665.6" y="438.9" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">133.6k um2</text>
+<text x="525.9" y="868.9" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">glue</text>
+<text x="525.9" y="888.9" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">85.9k um2</text>
+<text x="246.2" y="422.8" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">muldiv</text>
+<text x="246.2" y="442.8" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">33.1k um2</text>
+<text x="858.0" y="856.4" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">csr</text>
+<text x="858.0" y="876.4" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">22.9k um2</text>
+<text x="220.7" y="946.7" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">alu</text>
+<text x="220.7" y="966.7" font-size="15" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">17.9k um2</text>
+<text x="863.5" y="1028.7" font-size="16" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">perf_counters</text>
+<text x="863.5" y="1044.7" font-size="11" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">12.6k um2</text>
+<text x="827.9" y="701.8" font-size="11" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">lsu_mem</text>
+<text x="827.9" y="712.8" font-size="9" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">6.2k um2</text>
+<text x="199.1" y="735.2" font-size="14" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">lsu_wb</text>
+<text x="199.1" y="749.2" font-size="9" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="3" paint-order="stroke">6.2k um2</text>
+<text x="277.4" y="752.7" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="2.5" paint-order="stroke">bra</text>
+<text x="184.7" y="638.5" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="2.5" paint-order="stroke">dec</text>
+<text x="235.8" y="639.4" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff" stroke="#111" stroke-width="2.5" paint-order="stroke">imm</text>
+<rect x="619.7" y="1081.0" width="18" height="18" fill="#c9a227" stroke="#111"/>
+<text x="628.7" y="1114.0" font-size="12" text-anchor="middle" fill="#222">commit (305 bits)</text>
+<rect x="141.0" y="789.3" width="18" height="18" fill="#c9a227" stroke="#111"/>
+<text x="136.0" y="802.3" font-size="12" text-anchor="end" fill="#222">dmem (204 bits)</text>
+<rect x="516.9" y="1081.0" width="18" height="18" fill="#c9a227" stroke="#111"/>
+<text x="525.9" y="1114.0" font-size="12" text-anchor="middle" fill="#222">imem (99 bits)</text>
+<rect x="852.7" y="1081.0" width="18" height="18" fill="#c9a227" stroke="#111"/>
+<text x="861.7" y="1114.0" font-size="12" text-anchor="middle" fill="#222">perf (256 bits)</text>
+<rect x="979.9" y="855.6" width="18" height="18" fill="#c9a227" stroke="#111"/>
+<text x="1002.9" y="868.6" font-size="12" text-anchor="start" fill="#222">trap (1 bits)</text>
+<text x="1148" y="190" font-size="15" font-weight="bold" fill="#222">Block     transistors    GE    area um2    share</text>
+<rect x="1148" y="202" width="12" height="12" fill="#4e79a7"/><text x="1166" y="214" font-size="13" fill="#222" xml:space="preserve">regfile          99,768   24,942    133,618   41.4%</text>
+<rect x="1148" y="224" width="12" height="12" fill="#f28e2b"/><text x="1166" y="236" font-size="13" fill="#222" xml:space="preserve">glue             64,146   16,036     85,910   26.6%</text>
+<rect x="1148" y="246" width="12" height="12" fill="#59a14f"/><text x="1166" y="258" font-size="13" fill="#222" xml:space="preserve">muldiv           24,712    6,178     33,096   10.2%</text>
+<rect x="1148" y="268" width="12" height="12" fill="#e15759"/><text x="1166" y="280" font-size="13" fill="#222" xml:space="preserve">csr              17,086    4,272     22,883    7.1%</text>
+<rect x="1148" y="290" width="12" height="12" fill="#76b7b2"/><text x="1166" y="302" font-size="13" fill="#222" xml:space="preserve">alu              13,348    3,337     17,877    5.5%</text>
+<rect x="1148" y="312" width="12" height="12" fill="#edc948"/><text x="1166" y="324" font-size="13" fill="#222" xml:space="preserve">perf_counters     9,396    2,349     12,584    3.9%</text>
+<rect x="1148" y="334" width="12" height="12" fill="#b07aa1"/><text x="1166" y="346" font-size="13" fill="#222" xml:space="preserve">lsu_mem           4,596    1,149      6,155    1.9%</text>
+<rect x="1148" y="356" width="12" height="12" fill="#ff9da7"/><text x="1166" y="368" font-size="13" fill="#222" xml:space="preserve">lsu_wb            4,596    1,149      6,155    1.9%</text>
+<rect x="1148" y="378" width="12" height="12" fill="#9c755f"/><text x="1166" y="390" font-size="13" fill="#222" xml:space="preserve">branch_unit       2,298      574      3,078    1.0%  [bra]</text>
+<rect x="1148" y="400" width="12" height="12" fill="#bab0ac"/><text x="1166" y="412" font-size="13" fill="#222" xml:space="preserve">decoder             804      201      1,077    0.3%  [dec]</text>
+<rect x="1148" y="422" width="12" height="12" fill="#4e79a7"/><text x="1166" y="434" font-size="13" fill="#222" xml:space="preserve">imm_gen             360       90        482    0.1%  [imm]</text>
+<text x="1148" y="470" font-size="12" fill="#444">blocks: 0.323 mm2; die: 0.338 mm2 (whitespace 4%)</text>
+<text x="1148" y="488" font-size="12" fill="#444">bus length: 801 bit-mm (bits x Manhattan distance)</text>
+<text x="1148" y="506" font-size="12" fill="#444">buses: 30, 3082 bit connections; clk, rst and nets</text>
+<text x="1148" y="524" font-size="12" fill="#444">reaching more than 6 blocks are global, not drawn</text>
+<text x="1148" y="542" font-size="12" fill="#444">top-level ports: 865 bits in 5 groups</text>
+<text x="1148" y="560" font-size="12" fill="#444">regfile: flip-flops here; on silicon a memory macro would be smaller</text>
+<text x="1148" y="578" font-size="12" fill="#444">generated by scripts/floorplan.py from the RTL</text>
 </svg>

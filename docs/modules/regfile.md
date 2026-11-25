@@ -1,7 +1,5 @@
 # Register file (`rtl/core/regfile.sv`)
 
-Status: draft, pending author review
-
 Diagram: [img/regfile.svg](../img/regfile.svg). Connections between modules and area: [overview.md](overview.md).
 
 The RV64I register file: 32 registers of `XLEN` bits, one write port and two read ports. Reads are combinational, writes happen on the rising clock edge.

@@ -1,7 +1,5 @@
 # Multiply and divide (`rtl/core/muldiv.sv`)
 
-Status: draft, pending author review
-
 Diagram: [img/muldiv.svg](../img/muldiv.svg). Decisions and measurements: [ADR 009](../adr/009-muldiv-iterative.md), [ADR 011](../adr/011-muldiv-short-path.md) (short path, `last_q`). Connections between modules and area: [overview.md](overview.md).
 
 The iterative unit of the M extension: MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU and (RV64) MULW, DIVW, DIVUW, REMW, REMUW. One state machine, one adder, `XLEN` iterations, or `XLEN / 2` on the short path.
@@ -12,6 +10,7 @@ The iterative unit of the M extension: MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM,
 |---|---|---|---|
 | `clk_i`, `rst_ni` | input | 1 | Clock, synchronous reset of the state machine (data registers have no reset) |
 | `valid_i` | input | 1 | An instruction is waiting for the result; hold 1 until `done_o` |
+| `abort_i` | input | 1 | The instruction was flushed (an exception in WB, ADR 014): back to `IDLE` at the next edge, no `done_o` |
 | `funct3_i` | input | 3 | 000 MUL, 001 MULH, 010 MULHSU, 011 MULHU, 100 DIV, 101 DIVU, 110 REM, 111 REMU |
 | `word_i` | input | 1 | W instruction (RV64 only): operands from the low 32 bits, the result is sign-extended |
 | `a_i`, `b_i` | input | `XLEN` | rs1 and rs2 |

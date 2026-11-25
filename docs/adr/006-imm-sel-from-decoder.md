@@ -1,7 +1,5 @@
 # ADR 006: The decoder selects the immediate format for `imm_gen` (`imm_sel_t`)
 
-Status: draft, pending author review
-
 ## Context
 
 The immediate generator needs to know the format (I, S, B, U, J). It can derive it from the opcode inside `imm_gen`, or receive it from the decoder.

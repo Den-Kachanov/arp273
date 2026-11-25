@@ -1,7 +1,5 @@
 # ADR 012: Chip-readiness checks: random initial state, structural rules, clean registers in crt0
 
-Status: draft, pending author review
-
 ## Context
 
 The author wants the RTL to move to silicon later without rework. Several things that the simulator hides break on a chip. They were found while working on ADR 011.

@@ -1,7 +1,5 @@
 # Load/store alignment (`rtl/core/lsu.sv`)
 
-Status: draft, pending author review
-
 Diagram: [img/lsu.svg](../img/lsu.svg). Connections between modules and area: [overview.md](overview.md).
 
 A combinational unit between the datapath and an `XLEN`-bit-wide memory: for a store it shifts the data into its byte lane and produces byte strobes; for a load it extracts the lane and sign- or zero-extends it. Misaligned accesses are not supported: the unit only raises `misaligned_o` (misaligned access is the first feature to be cut in the project plan).

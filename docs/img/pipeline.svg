@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" width="960" height="430" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <title>Five-stage pipeline of core_pipe</title>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1f7a3d"/>
+    </marker>
+  </defs>
+  <rect width="960" height="430" fill="#ffffff"/>
+
+  <!-- redirect from WB (exceptions, MRET, FENCE.I) -->
+  <path d="M 860 112 V 28 H 100 V 112" fill="none" stroke="#c0392b" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#r)"/>
+  <text x="480" y="22" text-anchor="middle" fill="#c0392b">WB redirect: exception → mtvec, MRET → mepc, FENCE.I → pc + 4 (flushes all younger)</text>
+  <!-- redirect from EX (taken branch or jump) -->
+  <path d="M 480 112 V 62 H 112 V 112" fill="none" stroke="#c0392b" stroke-width="1.8" marker-end="url(#r)"/>
+  <text x="300" y="56" text-anchor="middle" fill="#c0392b">EX redirect: taken branch / jump (2 cycles)</text>
+
+  <!-- stages -->
+  <g stroke="#333" stroke-width="1.5">
+    <rect x="40" y="112" width="130" height="110" rx="6" fill="#eaf2fb"/>
+    <rect x="230" y="112" width="130" height="110" rx="6" fill="#eaf2fb"/>
+    <rect x="420" y="112" width="130" height="110" rx="6" fill="#fdf3e1"/>
+    <rect x="610" y="112" width="130" height="110" rx="6" fill="#eaf7ee"/>
+    <rect x="800" y="112" width="130" height="110" rx="6" fill="#f3ecf8"/>
+  </g>
+  <g text-anchor="middle">
+    <text x="105" y="134" font-weight="bold" font-size="15">IF</text>
+    <text x="105" y="156">fetch address</text>
+    <text x="105" y="174">fetch queue (2)</text>
+    <text x="105" y="192">drops stale</text>
+    <text x="105" y="208">responses</text>
+
+    <text x="295" y="134" font-weight="bold" font-size="15">ID</text>
+    <text x="295" y="156">decoder</text>
+    <text x="295" y="174">imm_gen</text>
+    <text x="295" y="192">regfile read</text>
+    <text x="295" y="208">(write-through)</text>
+
+    <text x="485" y="134" font-weight="bold" font-size="15">EX</text>
+    <text x="485" y="156">ALU, branch_unit</text>
+    <text x="485" y="174">muldiv (holds EX)</text>
+    <text x="485" y="192">jump targets</text>
+    <text x="485" y="208">ECALL, illegal</text>
+
+    <text x="675" y="134" font-weight="bold" font-size="15">MEM</text>
+    <text x="675" y="156">lsu: strobes,</text>
+    <text x="675" y="174">store data</text>
+    <text x="675" y="192">data request</text>
+    <text x="675" y="208">misaligned trap</text>
+
+    <text x="865" y="134" font-weight="bold" font-size="15">WB</text>
+    <text x="865" y="156">load align</text>
+    <text x="865" y="174">csr read/write</text>
+    <text x="865" y="192">regfile write</text>
+    <text x="865" y="208">takes exceptions</text>
+  </g>
+
+  <!-- stage-to-stage arrows -->
+  <g stroke="#333" stroke-width="1.6" marker-end="url(#a)">
+    <line x1="170" y1="167" x2="228" y2="167"/>
+    <line x1="360" y1="167" x2="418" y2="167"/>
+    <line x1="550" y1="167" x2="608" y2="167"/>
+    <line x1="740" y1="167" x2="798" y2="167"/>
+  </g>
+
+  <!-- forwarding -->
+  <path d="M 675 222 V 262 H 500 V 224" fill="none" stroke="#1f7a3d" stroke-width="1.8" marker-end="url(#g)"/>
+  <path d="M 865 222 V 286 H 470 V 224" fill="none" stroke="#1f7a3d" stroke-width="1.8" marker-end="url(#g)"/>
+  <text x="590" y="256" text-anchor="middle" fill="#1f7a3d">forward from MEM (not loads, not CSR reads)</text>
+  <text x="680" y="302" text-anchor="middle" fill="#1f7a3d">forward from WB (loads and CSR reads: 1 cycle wait)</text>
+  <!-- regfile write back to ID -->
+  <path d="M 900 222 V 310 H 295 V 224" fill="none" stroke="#555" stroke-width="1.4" stroke-dasharray="3 3" marker-end="url(#a)"/>
+  <text x="400" y="326" text-anchor="middle" fill="#555">register write (read in the same cycle)</text>
+
+  <!-- memory ports -->
+  <g stroke="#333" stroke-width="1.5" fill="#f7f7f7">
+    <rect x="40" y="356" width="130" height="50" rx="4"/>
+    <rect x="610" y="356" width="320" height="50" rx="4"/>
+  </g>
+  <g text-anchor="middle">
+    <text x="105" y="378">instruction port</text>
+    <text x="105" y="396" font-size="11">valid/ready, ≥1 cycle</text>
+    <text x="770" y="378">data port</text>
+    <text x="770" y="396" font-size="11">request in MEM, response in WB (valid/ready, ≥1 cycle)</text>
+  </g>
+  <g stroke="#333" stroke-width="1.4" marker-end="url(#a)">
+    <line x1="80" y1="222" x2="80" y2="354"/>
+    <line x1="130" y1="354" x2="130" y2="224"/>
+    <line x1="640" y1="222" x2="640" y2="354"/>
+    <line x1="915" y1="354" x2="915" y2="224"/>
+  </g>
+</svg>

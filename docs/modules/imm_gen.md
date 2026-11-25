@@ -1,7 +1,5 @@
 # Immediate generator (`rtl/core/imm_gen.sv`)
 
-Status: draft, pending author review
-
 Diagram: [img/imm_gen.svg](../img/imm_gen.svg). Connections between modules and area: [overview.md](overview.md).
 
 A combinational module: it assembles the immediate of the selected format from a 32-bit instruction and sign-extends it from bit 31 to `XLEN` bits.

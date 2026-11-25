@@ -1,6 +1,6 @@
 # ADR 008: Memory interface of the single-cycle core
 
-Status: draft, pending author review. For the pipelined core the interface is replaced by [ADR 013](013-pipeline-and-memory-interface.md); this ADR describes the single-cycle reference core
+Update: For the pipelined core the interface is replaced by [ADR 013](013-pipeline-and-memory-interface.md); this ADR describes the single-cycle reference core
 
 ## Context
 

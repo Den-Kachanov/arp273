@@ -1,7 +1,5 @@
 # Branch condition unit (`rtl/core/branch_unit.sv`)
 
-Status: draft, pending author review
-
 Diagram: [img/branch_unit.svg](../img/branch_unit.svg). Connections between modules and area: [overview.md](overview.md).
 
 A combinational unit: it compares `rs1` and `rs2` according to `funct3` and tells whether the branch condition holds. The branch target is computed by the ALU, so the comparison needs its own comparators. The `branch_o` signal from the decoder is applied outside: the unit itself does not know it.

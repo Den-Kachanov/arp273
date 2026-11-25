@@ -1,7 +1,5 @@
 # ADR 002: One `alu` with a `word_i` input, and the `{funct7[5], funct3}` encoding
 
-Status: draft, pending author review
-
 ## Context
 
 RV64I has 5 W instructions without an immediate (ADDW, SUBW, SLLW, SRLW, SRAW) and 4 with one (ADDIW, SLLIW, SRLIW, SRAIW). They perform the same operation as the 64-bit ones, but on the low 32 bits, and sign-extend the result. RV32 does not have them, and the project rules require the XLEN = 32 configuration to build as well. We need to decide where the W variants live and how ALU operations are encoded.

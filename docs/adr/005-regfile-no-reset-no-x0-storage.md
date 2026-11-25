@@ -1,7 +1,5 @@
 # ADR 005: Register file without reset and without storage for x0
 
-Status: draft, pending author review
-
 ## Context
 
 The project rules require the same synchronous reset `rst_ni` in every module. A 32 × `XLEN` register file maps well onto distributed RAM (LUT-RAM) on an FPGA if it has no reset. By the specification, register x0 is always 0.

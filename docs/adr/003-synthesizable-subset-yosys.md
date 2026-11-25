@@ -1,7 +1,5 @@
 # ADR 003: The SystemVerilog subset that Yosys understands
 
-Status: draft, pending author review
-
 ## Context
 
 The project rules require a Yosys synthesis every week, before a board is available. Lint and simulation run through Verilator, which accepts almost all of SystemVerilog, so code can be green in Verilator and fail in Yosys.
