@@ -19,8 +19,11 @@ jobs:
         with:
           persist-credentials: false
 
-      # Verilator and Yosys from apt are older than the ones the project is written against
+      # Verilator and Yosys from apt are older than the ones the project is written against.
+      # The token avoids the anonymous GitHub API limit, shared by everyone on the runner's IP
       - uses: YosysHQ/setup-oss-cad-suite@aefa8397bbf8fc6670a0a62af9805a89738f3cde # v3
+        with:
+          github-token: ${{ github.token }}
 
       - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
@@ -64,6 +67,8 @@ jobs:
           persist-credentials: false
 
       - uses: YosysHQ/setup-oss-cad-suite@aefa8397bbf8fc6670a0a62af9805a89738f3cde # v3
+        with:
+          github-token: ${{ github.token }}
 
       - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
