@@ -1,8 +1,7 @@
 # arp273
 
 RV64 SoC: CPU, vector unit and SIMT GPU
-
-> **Status: work in progress.** Stage 1 (the RV64IM core) is functionally complete; stage 2 (SoC, FPGA) is next.
+> **Status: work in progress.** Stage 1 (the RV64IM core) is complete and released as [v0.1.0](https://github.com/Den-Kachanov/arp273/releases/tag/v0.1.0); stage 2 (SoC, FPGA) is next.
 
 1. **CPU:** RV64IM core, 5-stage pipeline, M-mode CSRs and precise exceptions, caches, FPGA bring-up, CoreMark.
 2. **Vector unit:** subset of RVV 1.0 (Zve32x, VLEN = 128 as a parameter), checked against Spike.
@@ -21,7 +20,7 @@ No third-party RTL is used.
 - Commit log matches Spike on C programs and on random programs
 - Mutation-tested unit tests (cocotb), lint and structural checks (no latches, loops, async resets) in CI
 
-Measured 2026-11-25 (Yosys 0.66, estimates; the commit hash will be added with the next measurement):
+Measured 2026-11-25/26 on the RTL of commit `3c7be96` (unchanged in v0.1.0), Yosys 0.66; area figures are estimates:
 
 | | |
 |---|---|
@@ -29,7 +28,7 @@ Measured 2026-11-25 (Yosys 0.66, estimates; the commit hash will be added with t
 | Area, XLEN = 64 (generic LUT6) | 5920 LUT6, 4000 flip-flops (release build: 5907 / 3741) |
 | Fmax | pending FPGA place-and-route |
 
-Design decisions are recorded in [docs/adr](docs/adr), module descriptions in [docs/modules](docs/modules/overview.md), diagrams generated from the RTL in [docs/diagrams.md](docs/diagrams.md).
+The core's contract is in [docs/spec.md](docs/spec.md), the verification plan and its results in [docs/verification.md](docs/verification.md). Design decisions are recorded in [docs/adr](docs/adr), module descriptions in [docs/modules](docs/modules/overview.md), diagrams generated from the RTL in [docs/diagrams.md](docs/diagrams.md).
 
 ## Roadmap
 
@@ -42,9 +41,9 @@ Design decisions are recorded in [docs/adr](docs/adr), module descriptions in [d
 
 ## Verification approach
 
-- Module tests with cocotb, including edge cases (0, -1, smallest and largest values); mutation checks of the tests.
+- Module tests with cocotb, including edge cases (0, -1, smallest and largest values); mutation checks of the tests (220 mutants, 216 killed, 4 equivalent).
 - Commit-log comparison against [Spike](https://github.com/riscv-software-src/riscv-isa-sim) (`--log-commits`), stopping at the first mismatch.
-- Compliance: `riscv-tests`, later `riscv-arch-test` via RISCOF.
+- Compliance: `riscv-tests` rv64ui-p and rv64um-p in CI; later `riscv-arch-test` via RISCOF.
 - Random program generator with saved seeds.
 - Random initial register state in every simulation, as on silicon.
 - Later: SymbiYosys / riscv-formal.
