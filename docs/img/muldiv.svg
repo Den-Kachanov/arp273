@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 540" width="940" height="540" font-family="DejaVu Sans, sans-serif" font-size="13">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
+<rect width="940" height="540" fill="#ffffff"/>
+<text x="470" y="24" text-anchor="middle" fill="#222" font-size="16" font-weight="bold">muldiv</text>
+<text x="470" y="42" text-anchor="middle" fill="#555" font-size="11">iterative multiplier and divider (M): N + 1 edges from valid_i to done_o, N = XLEN/2 (short path) or XLEN</text>
+
+<!-- state machine -->
+<text x="110" y="72" text-anchor="middle" fill="#222" font-size="12" font-weight="bold">state machine</text>
+<rect x="50" y="90" width="120" height="44" rx="6" fill="#eef4fb" stroke="#33597f"/>
+<text x="110" y="109" text-anchor="middle" fill="#222" font-size="13" font-weight="bold">IDLE</text>
+<text x="110" y="125" text-anchor="middle" fill="#555" font-size="10">waits for valid_i</text>
+<rect x="50" y="210" width="120" height="44" rx="6" fill="#eef4fb" stroke="#33597f"/>
+<text x="110" y="229" text-anchor="middle" fill="#222" font-size="13" font-weight="bold">RUN</text>
+<text x="110" y="245" text-anchor="middle" fill="#555" font-size="10">cnt = N-1 ... 0</text>
+<rect x="50" y="330" width="120" height="44" rx="6" fill="#eef4fb" stroke="#33597f"/>
+<text x="110" y="349" text-anchor="middle" fill="#222" font-size="13" font-weight="bold">DONE</text>
+<text x="110" y="365" text-anchor="middle" fill="#555" font-size="10">done_o = 1</text>
+<polyline points="110,134 110,210" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="118" y="168" text-anchor="start" fill="#333" font-size="10">valid_i:</text>
+<text x="118" y="181" text-anchor="start" fill="#333" font-size="10">load</text>
+<text x="118" y="194" text-anchor="start" fill="#333" font-size="10">operands</text>
+<path d="M170,222 C215,205 215,240 170,244" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="200" y="218" text-anchor="start" fill="#333" font-size="10">last_q = 0</text>
+<polyline points="110,254 110,330" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="118" y="296" text-anchor="start" fill="#333" font-size="10">last_q = 1</text>
+<polyline points="50,352 22,352 22,112 50,112" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="16" y="236" text-anchor="middle" fill="#333" font-size="10" transform="rotate(-90 16 236)">always after one cycle</text>
+<text x="40" y="410" text-anchor="start" fill="#555" font-size="10">The core holds the operands and valid_i until done_o;</text>
+<text x="40" y="424" text-anchor="start" fill="#555" font-size="10">the instruction commits in the done_o cycle.</text>
+
+<!-- operand preparation -->
+<text x="330" y="86" text-anchor="end" fill="#222" font-size="12">a_i, b_i</text>
+<text x="330" y="108" text-anchor="end" fill="#222" font-size="12">funct3_i</text>
+<text x="330" y="130" text-anchor="end" fill="#222" font-size="12">word_i</text>
+<polyline points="334,82 380,82" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="334,104 380,104" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="334,126 380,126" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="380" y="64" width="330" height="82" rx="6" fill="#fff6e8" stroke="#a8691a"/>
+<text x="545" y="82" text-anchor="middle" fill="#6b4210" font-size="12" font-weight="bold">operand preparation (in the load cycle)</text>
+<text x="545" y="99" text-anchor="middle" fill="#333" font-size="10.5">W: low 32 bits, sign-extended (signed) or zero-extended</text>
+<text x="545" y="114" text-anchor="middle" fill="#333" font-size="10.5">DIV, REM: |a|, |b|, signs, b = 0; short: dividend &lt;&lt; XLEN/2</text>
+<text x="545" y="129" text-anchor="middle" fill="#333" font-size="10.5">MUL*: multiplier b; multiplicand a, XLEN + 1 bits</text>
+
+<!-- registers -->
+<rect x="300" y="190" width="120" height="40" rx="6" fill="#eef4fb" stroke="#33597f"/>
+<text x="360" y="207" text-anchor="middle" fill="#222" font-size="12" font-weight="bold">opa_q [X:0]</text>
+<text x="360" y="222" text-anchor="middle" fill="#555" font-size="10">multiplicand / divisor</text>
+<rect x="450" y="190" width="120" height="40" rx="6" fill="#eef4fb" stroke="#33597f"/>
+<text x="510" y="207" text-anchor="middle" fill="#222" font-size="12" font-weight="bold">hi_q [X:0]</text>
+<text x="510" y="222" text-anchor="middle" fill="#555" font-size="10">product hi / remainder</text>
+<rect x="600" y="190" width="120" height="40" rx="6" fill="#eef4fb" stroke="#33597f"/>
+<text x="660" y="207" text-anchor="middle" fill="#222" font-size="12" font-weight="bold">lo_q [X-1:0]</text>
+<text x="660" y="222" text-anchor="middle" fill="#555" font-size="10">multiplier / quotient</text>
+<polyline points="400,146 400,168 360,168 360,190" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="545,146 545,168 510,168 510,190" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="690,146 690,168 660,168 660,190" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<!-- adder -->
+<rect x="300" y="276" width="340" height="56" rx="6" fill="#f4eefb" stroke="#5d3f86"/>
+<text x="470" y="293" text-anchor="middle" fill="#3d2766" font-size="12" font-weight="bold">shared adder, XLEN + 1 bits</text>
+<text x="470" y="311" text-anchor="middle" fill="#333" font-size="10.5">sum = hi_q +/- y;  y = opa_q (DIV, or lo_q[0] = 1), otherwise 0</text>
+<text x="470" y="325" text-anchor="middle" fill="#333" font-size="10.5">subtracts: DIV always; MUL (signed b) in the last step</text>
+<polyline points="360,230 360,276" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="510,230 510,276" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="660,230 660,254 620,254 620,276" fill="none" stroke="#333" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+<text x="664" y="250" text-anchor="start" fill="#777" font-size="9">lo_q[0]</text>
+
+<!-- next values -->
+<rect x="340" y="364" width="380" height="72" rx="6" fill="#eaf6ee" stroke="#2e7d4f"/>
+<text x="530" y="382" text-anchor="middle" fill="#1d5a36" font-size="12" font-weight="bold">next hi, lo (every RUN step)</text>
+<text x="530" y="400" text-anchor="middle" fill="#333" font-size="10.5">MUL: hi = {sign, sum[X:1]},  lo = {sum[0], lo[X-1:1]}   (shift right)</text>
+<text x="530" y="416" text-anchor="middle" fill="#333" font-size="10.5">DIV: ge = ~sum[X] (no borrow);  rem = ge ? sum : hi</text>
+<text x="530" y="430" text-anchor="middle" fill="#333" font-size="10.5">     hi = {rem, lo[X-1]},  lo = {lo[X-2:0], ge}   (shift left)</text>
+<polyline points="470,332 470,364" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="720,400 770,400 770,210 720,210" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="778" y="300" text-anchor="start" fill="#555" font-size="10">new values</text>
+<text x="778" y="314" text-anchor="start" fill="#555" font-size="10">into hi_q and lo_q</text>
+
+<!-- result -->
+<rect x="340" y="468" width="380" height="56" rx="6" fill="#fff6e8" stroke="#a8691a"/>
+<text x="530" y="486" text-anchor="middle" fill="#6b4210" font-size="12" font-weight="bold">result (state DONE)</text>
+<text x="530" y="503" text-anchor="middle" fill="#333" font-size="10.5">lo | hi (MULH*) | hi[X:1] (rem.) | {hi[H-1:0], lo[X-1:H]} (short MUL)</text>
+<text x="530" y="517" text-anchor="middle" fill="#333" font-size="10.5">neg_q ? -x : x;  W: sign-extend bit 31</text>
+<polyline points="530,436 530,468" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="720,496 790,496" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="796" y="500" text-anchor="start" fill="#222" font-size="12">result_o</text>
+<polyline points="170,352 250,352 250,496 340,496" fill="none" stroke="#333" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+<text x="256" y="478" text-anchor="start" fill="#777" font-size="9">done_o = 1</text>
+</svg>

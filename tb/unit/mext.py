@@ -3,7 +3,8 @@
 Reference model of the M extension for tests, written from the RISC-V specification
 on Python integers (not from the structure of the RTL)
 
-    expected(funct3, a, b, word) -> XLEN-bit result
+    expected(funct3, a, b, word)   -> XLEN-bit result
+    iterations(funct3, a, b, word) -> iterations the unit spends (ADR 011), latency = iterations + 1
 
 funct3: 0 MUL, 1 MULH, 2 MULHSU, 3 MULHU, 4 DIV, 5 DIVU, 6 REM, 7 REMU.
 word=1 selects the W instructions (RV64): operands are the low 32 bits, the 32-bit result
@@ -67,3 +68,37 @@ def expected(funct3: int, a: int, b: int, word: int = 0) -> int:
     if word:
         r = common.to_signed(r, 32)
     return r & common.mask()
+
+
+def iterations(funct3: int, a: int, b: int, word: int = 0) -> int:
+    """
+    Iterations of the multiplier/divider for one instruction (the rule of ADR 011, not the RTL):
+    XLEN / 2 when the operands fit in half a word, otherwise XLEN.
+
+    Short: MUL (also MULW) with a multiplier whose upper half is zero; DIV, DIVU, REM, REMU (also W)
+    with a dividend magnitude below 2^(XLEN/2) and a non-zero divisor. Operands are taken as the unit
+    sees them: a W instruction uses the low 32 bits, extended by the signedness of the instruction
+
+    Dependencies: common.xlen, common.to_signed
+    """
+    x = common.xlen()
+    h = x // 2
+    a_signed = funct3 in (1, 2, 4, 6)
+    b_signed = funct3 in (1, 4, 6)
+
+    def operand(v, signed):
+        if word:
+            v = common.to_signed(v & 0xFFFFFFFF, 32) if signed else v & 0xFFFFFFFF
+        else:
+            v = common.to_signed(v & common.mask(), x) if signed else v & common.mask()
+        return v
+
+    a_val = operand(a, a_signed)
+    b_val = operand(b, b_signed)
+    if funct3 == 0:
+        short = (b_val & common.mask()) >> h == 0
+    elif funct3 >= 4:
+        short = abs(a_val) < (1 << h) and b_val != 0
+    else:
+        short = False
+    return h if short else x
