@@ -17,6 +17,7 @@
 //            The pipelined core takes exceptions (ADR 014): by default the run still stops at the first
 //            one (trap_o), as the C programs install no handler; env TRAP_STOP=0 lets the core enter its
 //            handler at mtvec (riscv-tests end with ECALL, and their handler writes tohost)
+// A byte stored to 0x1000_0000 (UART transmit register) is printed to stdout (CoreMark's report).
 
 #include <cstdint>
 #include <cstdio>
@@ -54,6 +55,17 @@ static void write_strb(uint64_t base, uint64_t wdata, unsigned strb)
 	for (unsigned i = 0; i < 8; i++)
 		if (((strb >> i) & 1) && in_ram(base + i, 1))
 			mem[base + i - BASE] = (wdata >> (8 * i)) & 0xFF;
+}
+
+// UART transmit register at 0x1000_0000 (the planned SoC address, and Spike's ns16550): a byte
+// stored there goes to stdout
+static const uint64_t UART_THR = 0x10000000ull;
+static void uart_store(uint64_t base, uint64_t wdata, unsigned strb)
+{
+	if (base == UART_THR && (strb & 1)) {
+		putchar((int)(wdata & 0xFF));
+		fflush(stdout);
+	}
 }
 
 // log a store the way Spike does: address of the first byte and the value of the stored bytes;
@@ -224,6 +236,7 @@ int main(int argc, char **argv)
 			uint64_t addr = top->dmem_req_addr_o;
 			if (top->dmem_req_we_o) {
 				write_strb(addr, top->dmem_req_wdata_o, top->dmem_req_wstrb_o);
+				uart_store(addr, top->dmem_req_wdata_o, top->dmem_req_wstrb_o);
 				pd = {true, cycle + latency(), 0};
 				if (end_on_store && addr == (tohost & ~7ull)) {
 					exit_code = read_le(tohost, 8) >> 1;
@@ -265,6 +278,7 @@ int main(int argc, char **argv)
 		if (top->dmem_wstrb_o) {
 			uint64_t addr = top->dmem_addr_o;
 			write_strb(addr & ~7ull, top->dmem_wdata_o, top->dmem_wstrb_o);
+			uart_store(addr & ~7ull, top->dmem_wdata_o, top->dmem_wstrb_o);
 			uint64_t value = log_store(log, addr, top->dmem_wdata_o, top->dmem_wstrb_o);
 			if (addr == tohost) {
 				done = true;

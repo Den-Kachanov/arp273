@@ -12,7 +12,7 @@ MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard rt
 XLENS   := 64 32
 VLINT   := verilator --lint-only -Wall
 
-.PHONY: help lint struct unit synth sim compare regress fuzz release-check riscv-tests area schematics schematics-all floorplan docs-img mutate spdx clean
+.PHONY: help lint struct unit synth sim compare regress fuzz release-check riscv-tests coremark bench area schematics schematics-all floorplan docs-img mutate spdx clean
 
 help:
 	@echo "make lint            lint every module for XLEN = 64 and 32"
@@ -26,6 +26,8 @@ help:
 	@echo "make fuzz SEEDS='1 2 3'  random programs (scripts/gen_prog.py) against Spike"
 	@echo "make release-check   the release build of the pipeline (DEBUG = 0) behaves like the debug build"
 	@echo "make riscv-tests     riscv-tests rv64ui-p and rv64um-p on the pipelined core (git submodule third_party/riscv-tests)"
+	@echo "make coremark        CoreMark/MHz on the pipelined core, release build (git submodule third_party/coremark; CM_ITER=10)"
+	@echo "make bench           CoreMark, riscv-tests benchmarks, Embench-IoT: cycles (FP ones in soft-float; SOFTFP=0: integer only); BASELINE=<json> compares"
 	@echo "make area            area and logic delay of the modules (scripts/area.py); RELEASE=1: core_pipe without debug parts"
 	@echo "make schematics      schematics drawn from the RTL (scripts/schematic.py, needs npm --prefix tools ci)"
 	@echo "make schematics-all  every module at every level, in parallel (J=8 to limit the jobs)"
@@ -186,6 +188,44 @@ RT_SUITES   ?= rv64ui rv64um
 riscv-tests: $(BUILD)/core_pipe_sim
 	$(PYTHON) scripts/riscv_tests.py --sim $(BUILD)/core_pipe_sim --src $(RISCV_TESTS) --cross $(CROSS) \
 	  --suites $(RT_SUITES) --out $(BUILD)/riscv-tests
+
+# CoreMark (git submodule): its benchmark sources with our port in sw/coremark; one tick = one cycle.
+# Runs the release build (no commit log: millions of instructions); CORE_SIM picks another build,
+# MEM_STALL works here too
+COREMARK  ?= third_party/coremark
+CM_ITER   ?= 10
+CM_CFLAGS := $(CFLAGS)
+CM_SRC    := $(addprefix $(COREMARK)/,core_list_join.c core_main.c core_matrix.c core_state.c core_util.c) \
+             sw/coremark/core_portme.c sw/lib/printf.c
+CORE_SIM  ?= $(BUILD)/core_pipe_rel_sim
+
+$(BUILD)/coremark.elf: $(CM_SRC) sw/coremark/core_portme.h sw/lib/libc.c sw/crt0.S sw/link.ld
+	@mkdir -p $(BUILD)
+	$(CC) $(CM_CFLAGS) -Isw/coremark -I$(COREMARK) -DPERFORMANCE_RUN=1 -DITERATIONS=$(CM_ITER) \
+	  -DFLAGS_STR='"$(CM_CFLAGS)"' -Wl,--no-warn-rwx-segments -T sw/link.ld sw/crt0.S $(CM_SRC) sw/lib/libc.c -o $@
+	$(CROSS)objdump -d $@ > $(BUILD)/coremark.dis
+
+# the ELF depends on CM_ITER: rebuild every time
+.PHONY: $(BUILD)/coremark.elf
+coremark: $(CORE_SIM) $(BUILD)/coremark.bin
+	$(PYTHON) scripts/coremark.py --sim $(CORE_SIM) --elf $(BUILD)/coremark.elf --bin $(BUILD)/coremark.bin --cross $(CROSS)
+
+# all benchmark suites (scripts/bench.py): CoreMark, riscv-tests benchmarks, Embench-IoT 1.0 (git
+# submodules); results in build/bench/results.json, BASELINE=<earlier json> prints the speedups
+# The floating-point benchmarks use a soft-float library (scripts/softfp.py: compiler-rt and fdlibm
+# from pinned release archives, downloaded once); SOFTFP=0 runs only the integer ones
+EMBENCH ?= third_party/embench-iot
+SOFTFP  ?= 1
+SOFTFP_LIB := $(BUILD)/softfp/libsoftfp.a
+$(SOFTFP_LIB): scripts/softfp.py sw/softfp/libm_shim.c
+	$(PYTHON) scripts/softfp.py --out $(BUILD)/softfp --cross $(CROSS)
+
+bench: $(CORE_SIM) $(if $(filter 1,$(SOFTFP)),$(SOFTFP_LIB))
+	$(PYTHON) scripts/bench.py --sim $(CORE_SIM) --cross $(CROSS) --coremark $(COREMARK) \
+	  --riscv-tests $(RISCV_TESTS) --embench $(EMBENCH) --cm-iter $(CM_ITER) \
+	  $(if $(filter 1,$(SOFTFP)),--softfp $(SOFTFP_LIB)) \
+	  --json $(BUILD)/bench/results.json $(if $(BASELINE),--baseline $(BASELINE)) \
+	  $(if $(CORE_NAME),--core "$(CORE_NAME)") $(if $(COMMIT),--commit $(COMMIT))
 
 area:
 	@mkdir -p $(BUILD)
