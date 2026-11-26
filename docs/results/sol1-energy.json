@@ -1,0 +1,53 @@
+{
+ "meta": {
+  "core": "Sol 1",
+  "commit": "3c7be96",
+  "date": "2026-11-26",
+  "params": {},
+  "transistors": 127320,
+  "flip_flops": 3741,
+  "clock_weight": 2,
+  "units": "relative: transitions x (fanout + 1), plus clock"
+ },
+ "results": {
+  "coremark1": {
+   "cycles": 765176,
+   "toggle_load": 6065294977,
+   "clock": 5725046832,
+   "energy": 11790341809,
+   "covered_bits": 37339,
+   "instret": 0
+  },
+  "coremark2": {
+   "cycles": 1501383,
+   "toggle_load": 11830556715,
+   "clock": 11233347606,
+   "energy": 23063904321,
+   "covered_bits": 37339,
+   "instret": 0
+  },
+  "rt-qsort": {
+   "cycles": 321786,
+   "toggle_load": 4076630028,
+   "clock": 2407602852,
+   "energy": 6484232880,
+   "covered_bits": 37339,
+   "instret": 0
+  },
+  "rt-dhrystone": {
+   "cycles": 407874,
+   "toggle_load": 4674095098,
+   "clock": 3051713268,
+   "energy": 7725808366,
+   "covered_bits": 37339,
+   "instret": 0
+  },
+  "coremark_iteration": {
+   "cycles": 736207,
+   "toggle_load": 5765261738,
+   "clock": 5508300774,
+   "energy": 11273562512,
+   "edp": 8299675636271984
+  }
+ }
+}

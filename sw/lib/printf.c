@@ -103,4 +103,11 @@ int printf(const char *fmt, ...)
 
 /* weak: a program may define its own (Dhrystone has a debug_printf that prints nothing) */
 int ee_printf(const char *fmt, ...) __attribute__((weak, alias("printf")));
-void debug_printf(const char *fmt, ...) __attribute__((weak, alias("printf")));
+
+__attribute__((weak)) void debug_printf(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+}

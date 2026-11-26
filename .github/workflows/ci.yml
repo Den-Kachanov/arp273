@@ -131,3 +131,8 @@ jobs:
         run: |
           make riscv-tests CROSS=riscv64-unknown-elf-
           MEM_STALL=0.3 make riscv-tests CROSS=riscv64-unknown-elf-
+
+      # 21 self-checking integer benchmarks (CoreMark, riscv-tests, Embench-IoT): a wrong result fails;
+      # the soft-float ones need archives from the network, so they are run locally (make bench)
+      - name: Benchmarks on the release build (self-checking)
+        run: make bench SOFTFP=0 CROSS=riscv64-unknown-elf-

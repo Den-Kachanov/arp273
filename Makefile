@@ -12,7 +12,7 @@ MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard rt
 XLENS   := 64 32
 VLINT   := verilator --lint-only -Wall
 
-.PHONY: help lint struct unit synth sim compare regress fuzz release-check riscv-tests coremark bench area schematics schematics-all floorplan docs-img mutate spdx clean
+.PHONY: help lint struct unit synth sim compare regress fuzz release-check riscv-tests coremark bench energy area schematics schematics-all floorplan docs-img mutate spdx clean
 
 help:
 	@echo "make lint            lint every module for XLEN = 64 and 32"
@@ -28,6 +28,7 @@ help:
 	@echo "make riscv-tests     riscv-tests rv64ui-p and rv64um-p on the pipelined core (git submodule third_party/riscv-tests)"
 	@echo "make coremark        CoreMark/MHz on the pipelined core, release build (git submodule third_party/coremark; CM_ITER=10)"
 	@echo "make bench           CoreMark, riscv-tests benchmarks, Embench-IoT: cycles (FP ones in soft-float; SOFTFP=0: integer only); BASELINE=<json> compares"
+	@echo "make energy          switching-energy estimate from the gate netlist (scripts/energy.py, ADR 016); PARAMS='MUL_BITS=4'"
 	@echo "make area            area and logic delay of the modules (scripts/area.py); RELEASE=1: core_pipe without debug parts"
 	@echo "make schematics      schematics drawn from the RTL (scripts/schematic.py, needs npm --prefix tools ci)"
 	@echo "make schematics-all  every module at every level, in parallel (J=8 to limit the jobs)"
@@ -104,13 +105,23 @@ $(BUILD)/%.elf: $(BUILD)/%.S sw/crt0.S sw/link.ld
 $(BUILD)/%.bin: $(BUILD)/%.elf
 	$(CROSS)objcopy -O binary $< $@
 
+# PARAMS="NAME=VALUE ...": parameters of the pipelined core (for example MUL_BITS=4); every set gets its
+# own simulation binaries, so builds with different parameters do not overwrite each other
+empty    :=
+space    := $(empty) $(empty)
+PARAMS   ?=
+PTAG     := $(if $(strip $(PARAMS)),_$(subst =,,$(subst $(space),_,$(strip $(PARAMS)))))
+GPARAMS  := $(addprefix -G,$(PARAMS))
+PIPE_SIM := $(BUILD)/core_pipe$(PTAG)_sim
+REL_SIM  := $(BUILD)/core_pipe_rel$(PTAG)_sim
+
 # CORE=single (default): the single-cycle core; CORE=pipe: the pipelined core (ADR 013).
 # For the pipeline, env MEM_STALL (0..1) makes the memory stall at random, MEM_SEED picks the run
 CORE ?= single
 ifeq ($(CORE),pipe)
-SIM_BIN := $(BUILD)/core_pipe_sim
+SIM_BIN := $(PIPE_SIM)
 else ifeq ($(CORE),pipe-release)
-SIM_BIN := $(BUILD)/core_pipe_rel_sim
+SIM_BIN := $(REL_SIM)
 else
 SIM_BIN := $(BUILD)/core_sim
 endif
@@ -124,28 +135,28 @@ $(BUILD)/core_sim: $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	$(VERILATOR_SIM) --top-module core --Mdir $(BUILD)/obj_core -o core_sim $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	cp $(BUILD)/obj_core/core_sim $@
 
-$(BUILD)/core_pipe_sim: $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+$(PIPE_SIM): $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	@mkdir -p $(BUILD)
-	$(VERILATOR_SIM) --top-module core_pipe -CFLAGS -DPIPE --Mdir $(BUILD)/obj_core_pipe -o core_pipe_sim \
+	$(VERILATOR_SIM) --top-module core_pipe $(GPARAMS) -CFLAGS -DPIPE --Mdir $(BUILD)/obj_core_pipe$(PTAG) -o core_pipe_sim \
 	  $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
-	cp $(BUILD)/obj_core_pipe/core_pipe_sim $@
+	cp $(BUILD)/obj_core_pipe$(PTAG)/core_pipe_sim $@
 
 # the release build of the pipeline (DEBUG = 0): no commit trace
-$(BUILD)/core_pipe_rel_sim: $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+$(REL_SIM): $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	@mkdir -p $(BUILD)
-	$(VERILATOR_SIM) --top-module core_pipe -GDEBUG=0 -CFLAGS "-DPIPE -DRELEASE" --Mdir $(BUILD)/obj_core_pipe_rel \
+	$(VERILATOR_SIM) --top-module core_pipe -GDEBUG=0 $(GPARAMS) -CFLAGS "-DPIPE -DRELEASE" --Mdir $(BUILD)/obj_core_pipe_rel$(PTAG) \
 	  -o core_pipe_rel_sim $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
-	cp $(BUILD)/obj_core_pipe_rel/core_pipe_rel_sim $@
+	cp $(BUILD)/obj_core_pipe_rel$(PTAG)/core_pipe_rel_sim $@
 
 # the release build must behave like the debug build: same exit code, cycles and instret at the
 # store to tohost, for every program and fuzz seed (also with MEM_STALL); the stall and flush
 # counters exist only in the debug build and are not compared
-release-check: $(BUILD)/core_pipe_sim $(BUILD)/core_pipe_rel_sim
+release-check: $(PIPE_SIM) $(REL_SIM)
 	@for p in $(PROGS) $(addprefix fuzz_,$(SEEDS)); do \
 	  $(MAKE) --no-print-directory -s $(BUILD)/$$p.bin >/dev/null || exit 1; \
 	  th=$$($(CROSS)nm $(BUILD)/$$p.elf | awk '$$3=="tohost"{print $$1}'); \
-	  d=$$(END_ON_STORE=1 $(BUILD)/core_pipe_sim $(BUILD)/$$p.bin /dev/null $$th 2>&1 | grep -E "^(exit code|cycles)" | sed -E 's/ stalls.*//'); \
-	  r=$$($(BUILD)/core_pipe_rel_sim $(BUILD)/$$p.bin /dev/null $$th 2>&1 | grep -E "^(exit code|cycles)" | sed -E 's/ stalls.*//'); \
+	  d=$$(END_ON_STORE=1 $(PIPE_SIM) $(BUILD)/$$p.bin /dev/null $$th 2>&1 | grep -E "^(exit code|cycles)" | sed -E 's/ stalls.*//'); \
+	  r=$$($(REL_SIM) $(BUILD)/$$p.bin /dev/null $$th 2>&1 | grep -E "^(exit code|cycles)" | sed -E 's/ stalls.*//'); \
 	  if [ "$$d" = "$$r" ]; then echo "  same  $$p: $$(echo $$d | tr '\n' ' ')"; \
 	  else echo "  DIFFERENT $$p"; echo "    debug:   $$d"; echo "    release: $$r"; exit 1; fi; \
 	done; echo "release-check: OK"
@@ -185,8 +196,8 @@ fuzz:
 # exceptions itself (TRAP_STOP=0 in the script). MEM_STALL works here too
 RISCV_TESTS ?= third_party/riscv-tests
 RT_SUITES   ?= rv64ui rv64um
-riscv-tests: $(BUILD)/core_pipe_sim
-	$(PYTHON) scripts/riscv_tests.py --sim $(BUILD)/core_pipe_sim --src $(RISCV_TESTS) --cross $(CROSS) \
+riscv-tests: $(PIPE_SIM)
+	$(PYTHON) scripts/riscv_tests.py --sim $(PIPE_SIM) --src $(RISCV_TESTS) --cross $(CROSS) \
 	  --suites $(RT_SUITES) --out $(BUILD)/riscv-tests
 
 # CoreMark (git submodule): its benchmark sources with our port in sw/coremark; one tick = one cycle.
@@ -197,7 +208,7 @@ CM_ITER   ?= 10
 CM_CFLAGS := $(CFLAGS)
 CM_SRC    := $(addprefix $(COREMARK)/,core_list_join.c core_main.c core_matrix.c core_state.c core_util.c) \
              sw/coremark/core_portme.c sw/lib/printf.c
-CORE_SIM  ?= $(BUILD)/core_pipe_rel_sim
+CORE_SIM  ?= $(REL_SIM)
 
 $(BUILD)/coremark.elf: $(CM_SRC) sw/coremark/core_portme.h sw/lib/libc.c sw/crt0.S sw/link.ld
 	@mkdir -p $(BUILD)
@@ -227,9 +238,19 @@ bench: $(CORE_SIM) $(if $(filter 1,$(SOFTFP)),$(SOFTFP_LIB))
 	  --json $(BUILD)/bench/results.json $(if $(BASELINE),--baseline $(BASELINE)) \
 	  $(if $(CORE_NAME),--core "$(CORE_NAME)") $(if $(COMMIT),--commit $(COMMIT))
 
+# energy estimate (scripts/energy.py, ADR 016): the release core as a gate netlist, toggle counts on
+# benchmarks; PARAMS="NAME=VALUE ..." sets core_pipe parameters, ENERGY_BENCH picks the programs
+ENERGY_BENCH ?= coremark rt-qsort rt-dhrystone
+energy: $(if $(filter 1,$(SOFTFP)),$(SOFTFP_LIB))
+	$(PYTHON) scripts/bench.py --build-only --sim none --cross $(CROSS) --coremark $(COREMARK) \
+	  --riscv-tests $(RISCV_TESTS) --embench $(EMBENCH) $(if $(filter 1,$(SOFTFP)),--softfp $(SOFTFP_LIB))
+	$(PYTHON) scripts/energy.py --cross $(CROSS) --coremark $(COREMARK) $(addprefix --param ,$(PARAMS)) \
+	  $(addprefix --bench ,$(ENERGY_BENCH)) --json $(BUILD)/energy/results.json \
+	  $(if $(CORE_NAME),--core "$(CORE_NAME)") $(if $(COMMIT),--commit $(COMMIT))
+
 area:
 	@mkdir -p $(BUILD)
-	$(PYTHON) scripts/area.py --xc7 $(if $(RELEASE),--release) $(if $(COMMIT),--commit $(COMMIT)) --json $(BUILD)/area.json
+	$(PYTHON) scripts/area.py --xc7 $(if $(RELEASE),--release) $(addprefix --param ,$(PARAMS)) $(if $(COMMIT),--commit $(COMMIT)) --json $(BUILD)/area$(PTAG).json
 
 schematics:
 	$(PYTHON) scripts/schematic.py $(if $(M),$(M) --level $(or $(LEVEL),rtl)) $(if $(XLEN),--xlen $(XLEN))

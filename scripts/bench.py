@@ -70,12 +70,15 @@ def build_commands(args):
 
 
 def run_one(name, suite, gcc_args, args):
+    """build one benchmark and (unless --build-only) run it; returns (name, result)"""
     out = Path(args.out)
     elf, binf = out / f"{name}.elf", out / f"{name}.bin"
     cc = subprocess.run([f"{args.cross}gcc", *gcc_args, "-o", str(elf)], capture_output=True, text=True)
     if cc.returncode != 0:
         return name, {"error": "build failed: " + cc.stderr.strip().splitlines()[-1]}
     subprocess.run([f"{args.cross}objcopy", "-O", "binary", str(elf), str(binf)], check=True)
+    if args.build_only:
+        return name, {"built": True}
     nm = subprocess.run([f"{args.cross}nm", str(elf)], check=True, capture_output=True, text=True).stdout
     tohost = next(p[0] for p in (ln.split() for ln in nm.splitlines()) if len(p) == 3 and p[2] == "tohost")
     run = subprocess.run([args.sim, str(binf), "/dev/null", tohost, str(args.max_cycles)],
@@ -120,12 +123,18 @@ def main():
     ap.add_argument("--core", default="", help="name of the core for the JSON, for example 'Sol 1'")
     ap.add_argument("--commit", default="", help="commit of the RTL, recorded in the JSON")
     ap.add_argument("-j", type=int, default=8)
+    ap.add_argument("--build-only", action="store_true", help="only build the programs (for scripts/energy.py)")
     args = ap.parse_args()
     Path(args.out).mkdir(parents=True, exist_ok=True)
 
     cmds = build_commands(args)
     with cf.ThreadPoolExecutor(args.j) as ex:
         results = dict(ex.map(lambda kv: run_one(kv[0], kv[1][0], kv[1][1], args), cmds.items()))
+    if args.build_only:
+        failed = [n for n, r in results.items() if "error" in r]
+        for n in failed:
+            print(f"{n}: {results[n]['error']}")
+        sys.exit(1 if failed else 0)
 
     base = json.loads(Path(args.baseline).read_text())["results"] if args.baseline else {}
     print(f"{'benchmark':22s} {'cycles':>12s} {'CPI':>6s}  {'vs baseline':>11s}  note")

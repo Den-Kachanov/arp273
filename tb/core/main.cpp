@@ -18,6 +18,7 @@
 //            one (trap_o), as the C programs install no handler; env TRAP_STOP=0 lets the core enter its
 //            handler at mtvec (riscv-tests end with ECALL, and their handler writes tohost)
 // A byte stored to 0x1000_0000 (UART transmit register) is printed to stdout (CoreMark's report).
+// Built with --coverage-toggle (scripts/energy.py), it writes the toggle counts to env COVERAGE_FILE.
 
 #include <cstdint>
 #include <cstdio>
@@ -306,6 +307,10 @@ int main(int argc, char **argv)
 #ifdef PIPE
 	if (ntraps)
 		fprintf(stderr, "exceptions taken %llu\n", (unsigned long long)ntraps);
+#endif
+#if VM_COVERAGE
+	// built with --coverage-toggle (scripts/energy.py): the toggle counts of every net, for the energy estimate
+	Verilated::threadContextp()->coveragep()->write(getenv("COVERAGE_FILE") ? getenv("COVERAGE_FILE") : "coverage.dat");
 #endif
 	delete top;
 	if (status == 3)
