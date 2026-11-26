@@ -14,7 +14,7 @@ import asm
 import cocotb
 import common
 import pytest
-from test_core import BASE, MODULES, registers, run_pipe
+from test_core import BASE, CONFIGS, MODULES, config_run, registers, run_pipe
 from test_pipeline import both
 
 HANDLER = 64          # word index of the handler
@@ -280,7 +280,106 @@ async def test_counters_readable(dut):
         assert r[4] > r[3] > 0
 
 
+@cocotb.test()
+async def test_stale_btb_after_fence_i(dut):
+    """
+    A taken branch is learned, then overwritten with a NOP (store, FENCE.I) and reached again by a
+    sequential fetch, so a predictor would guess "taken" from a stale entry: the NOP must fall through,
+    and the instruction behind it must run (ADR 018)
+    """
+    nop = asm.NOP
+    body = [
+        asm.auipc(5, 0),                 # 0: x5 = address of word 0
+        asm.addi(7, 0, 0),               # 1: the register file has no reset
+        asm.addi(9, 0, 0),               # 2
+        asm.addi(6, 0, 2),               # 3
+        asm.NOP,                         # 4: landing pad, so that P is fetched sequentially
+        asm.beq(0, 0, 8),                # 5: P, taken: skips word 6
+        asm.addi(7, 7, 100),             # 6: runs only once P is a NOP
+        asm.addi(6, 6, -1),              # 7
+        asm.bne(6, 0, -12),              # 8: back to P
+        asm.bne(9, 0, 28),               # 9: second pass done: to word 16
+        asm.addi(9, 0, 1),               # 10
+        asm.addi(8, 0, nop),             # 11: x8 = the NOP encoding (0x13)
+        asm.sw(8, 20, 5),                # 12: overwrite P
+        asm.FENCE_I,                     # 13
+        asm.addi(6, 0, 1),               # 14
+        asm.jal(0, -44),                 # 15: to word 4
+        asm.EBREAK,                      # 16
+    ]
+    assert nop == 0x13
+    prog, _ = program(body)
+    (trace, _, _), _ = await both(dut, prog)
+    assert registers(trace).get(7) == 100, "the overwritten branch must fall through to the ADDI"
+
+
+@cocotb.test()
+async def test_trap_on_predicted_path(dut):
+    """
+    A branch learned as taken jumps to an ECALL: the exception and the MRET back happen on the
+    predicted path, three times; every memory timing gives the same trace
+    """
+    body = [
+        asm.addi(6, 0, 3),               # 0
+        asm.NOP,                         # 1: loop; P is then fetched sequentially
+        asm.beq(0, 0, 8),                # 2: P, taken: to the ECALL
+        asm.addi(7, 0, 100),             # 3: never runs
+        asm.ECALL,                       # 4: the handler returns to word 5
+        asm.addi(6, 6, -1),              # 5
+        asm.bne(6, 0, -20),              # 6: to word 1
+        asm.EBREAK,
+    ]
+    prog, first = program(body)
+    (trace, _, _), _ = await both(dut, prog, skip_traps=3)
+    r = registers(trace)
+    assert r[20] == 3 and 7 not in r
+    assert [m[:2] for m in handler_reads(trace)] == [(11, BASE + 4 * (first + 4))] * 3
+
+
+@cocotb.test()
+async def test_dropped_branch_not_learned(dut):
+    """
+    FENCE.I commits while the branch two instructions behind it leaves EX: that branch is dropped and
+    fetched again, so it must not train the predictor. Its first real run is then a first sight: 2
+    flushes in both cores (FENCE.I, and the taken branch, which Sol 2 does not know yet)
+    """
+    body = [
+        asm.FENCE_I,
+        asm.NOP,
+        asm.beq(0, 0, 8),                # taken: skips the ADDI
+        asm.addi(7, 0, 1),
+        asm.EBREAK,
+    ]
+    prog, _ = program(body)
+    (trace, _, _), c = await both(dut, prog)
+    assert 7 not in registers(trace)
+    assert c["flushes"] == 2
+
+
+@cocotb.test()
+async def test_misaligned_jump_traps_every_time(dut):
+    """
+    A JALR to an address with bit 1 set traps (cause 0) every time it runs, also once the predictor has
+    learned it (it is learned harmlessly: the BTB drops target bits 1:0, and the trap drops the path)
+    """
+    body = [
+        asm.auipc(5, 0),                 # 0
+        asm.addi(6, 0, 2),               # 1
+        asm.NOP,                         # 2: loop
+        asm.jalr(0, 2, 5),               # 3: target x5 + 2, misaligned: trap, the handler returns to word 4
+        asm.addi(6, 6, -1),              # 4
+        asm.bne(6, 0, -12),              # 5: to word 2
+        asm.EBREAK,
+    ]
+    prog, first = program(body)
+    (trace, _, _), _ = await both(dut, prog, skip_traps=2)
+    jump = BASE + 4 * (first + 3)
+    target = BASE + 4 * first + 2
+    assert handler_reads(trace) == [(0, jump, target)] * 2
+
+
 @pytest.mark.parametrize("xlen", common.XLENS)
-def test_csr_runner(xlen):
-    """Build the pipelined core for this XLEN and run the CSR and exception tests"""
-    common.run("core_pipe", __file__, xlen, extra_sources=[str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])
+@pytest.mark.parametrize("config", CONFIGS)
+def test_csr_runner(xlen, config):
+    """Build the pipelined core (Sol 1 and Sol 2) for this XLEN and run the CSR and exception tests"""
+    config_run("core_pipe", __file__, xlen, config, [str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])

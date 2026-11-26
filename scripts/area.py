@@ -40,15 +40,20 @@ REPO = Path(__file__).resolve().parents[1]
 TOPS = ("core", "core_pipe")
 # --release: the pipelined core without its verification-only parts (parameter DEBUG = 0)
 RELEASE = {"on": False}
+# --param NAME=VALUE: parameters of the pipelined core (for example MUL_BITS=4, ADR 017)
+CORE_PARAMS: dict[str, str] = {}
 
 
 def read_cmd(files, xlen, top):
     """read_verilog, and for a release build the DEBUG parameter of core_pipe set to 0"""
     cmd = f"read_verilog -sv -DXLEN={xlen} {' '.join(str(f) for f in files)}; "
-    if RELEASE["on"] and top == "core_pipe":
-        cmd += "hierarchy -top core_pipe -chparam DEBUG 0; "
+    if top == "core_pipe" and (RELEASE["on"] or CORE_PARAMS):
+        params = ({"DEBUG": "0"} if RELEASE["on"] else {}) | CORE_PARAMS
+        cmd += f"hierarchy -top core_pipe {' '.join(f'-chparam {k} {v}' for k, v in params.items())}; "
+    elif top == "muldiv" and "MUL_BITS" in CORE_PARAMS:
+        cmd += f"hierarchy -top muldiv -chparam MUL_BITS {CORE_PARAMS['MUL_BITS']}; "
     return cmd
-STUB = """module muldiv (
+STUB = """module muldiv #(parameter int MUL_BITS = 1) (
 \tinput  logic clk_i, rst_ni, valid_i, abort_i,
 \tinput  logic [2:0] funct3_i,
 \tinput  logic word_i,
@@ -221,6 +226,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--xlen", type=int, nargs="+", default=[64, 32])
     ap.add_argument("--xc7", action="store_true", help="also synthesize for Xilinx 7 series with sta")
+    ap.add_argument("--param", action="append", default=[], help="NAME=VALUE for core_pipe (and muldiv's MUL_BITS)")
     ap.add_argument("--release", action="store_true",
                     help="core_pipe as a release build: DEBUG = 0 (no commit trace, no stall/flush counters)")
     ap.add_argument("--commit", default="", help="commit hash to print with the result")
@@ -228,6 +234,7 @@ def main():
     ap.add_argument("--svg", help="write the bar chart (needs --xlen 64 32)")
     args = ap.parse_args()
     RELEASE["on"] = args.release
+    CORE_PARAMS.update(p.split("=", 1) for p in args.param)
     if args.svg and sorted(args.xlen) != [32, 64]:
         sys.exit("area: --svg needs both XLEN = 64 and XLEN = 32")
 

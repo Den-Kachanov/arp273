@@ -4,6 +4,8 @@
 
 RTL = "rtl/core/muldiv.sv"
 TEST = "tb/unit/test_muldiv.py"
+# XLEN = 64 for every MUL_BITS (1, 4, 8): the mutants of the multi-bit branch need MUL_BITS > 1
+KEXPR = "64"
 
 MUTANTS = [
     ("no subtract in the last step", "assign sub  = is_div_q | (last_q & b_signed_q);", "assign sub  = is_div_q;"),
@@ -15,7 +17,7 @@ MUTANTS = [
     ("W result not sign-extended",
      "assign result_o = word_q ? {{(X-32){signed_res[31]}}, signed_res[31:0]} : signed_res;",
      "assign result_o = signed_res;"),
-    ("one iteration too few", "cnt_q      <= short_op ? CW'(H - 1) : CW'(X - 1);", "cnt_q      <= short_op ? CW'(H - 1) : CW'(X - 2);"),
+    ("one iteration too few", "cnt_q      <= is_div ? (short_op ? CW'(H - 1) : CW'(X - 1))", "cnt_q      <= is_div ? (short_op ? CW'(H - 1) : CW'(X - 2))"),
     ("DONE does not return to idle", "S_DONE:               state_q <= S_IDLE;", "S_DONE:               state_q <= S_DONE;"),
     ("MULHU treats a as signed", "3'b010:  a_signed = 1'b1;", "3'b010, 3'b011:  a_signed = 1'b1;"),
     ("W operands: a sign-extended when unsigned", "{{(X-32){a_signed & a_i[31]}}", "{{(X-32){a_i[31]}}"),
@@ -40,10 +42,20 @@ MUTANTS = [
     ("negative dividend never fits", "(&a_eff[X-1:H] & |a_eff[H-1:0])", "1'b0"),
     ("signed dividend read as unsigned", "assign a_fits    = sign_a ?", "assign a_fits    = 1'b0 ?"),
     ("dividend not moved up", "assign dividend = short_div ? {mag_a[H-1:0], {H{1'b0}}} : mag_a;", "assign dividend = mag_a;"),
-    ("short path one iteration more", "cnt_q      <= short_op ? CW'(H - 1) : CW'(X - 1);", "cnt_q      <= short_op ? CW'(H) : CW'(X - 1);"),
+    ("short path one iteration more", "cnt_q      <= is_div ? (short_op ? CW'(H - 1) : CW'(X - 1))", "cnt_q      <= is_div ? (short_op ? CW'(H) : CW'(X - 1))"),
     ("short MUL picks lo", "else if (short_q && !is_div_q) picked = {hi_q[H-1:0], lo_q[X-1:H]};", "else if (1'b0) picked = lo_q;"),
     ("short MUL picks the wrong half", "picked = {hi_q[H-1:0], lo_q[X-1:H]};", "picked = {lo_q[X-1:H], hi_q[H-1:0]};"),
     ("short flag not stored", "short_q    <= short_op;", "short_q    <= 1'b0;"),
+    # several multiplier bits per cycle (MUL_BITS > 1, ADR 017)
+    ("multiply: one iteration too many", ": (short_op ? CW'(H / K - 1) : CW'(X / K - 1));", ": (short_op ? CW'(H / K - 1) : CW'(X / K));"),
+    ("short multiply: one iteration too few", ": (short_op ? CW'(H / K - 1) : CW'(X / K - 1));", ": (short_op ? CW'(H / K - 2) : CW'(X / K - 1));"),
+    ("a partial product dropped", "if (lo_q[j]) begin", "if (lo_q[j] && j != 1) begin"),
+    ("negative weight on the wrong row", "if (j == K - 1 && last_q && b_signed_q)", "if (j == K - 2 && last_q && b_signed_q)"),
+    ("negative weight in every iteration", "if (j == K - 1 && last_q && b_signed_q)", "if (j == K - 1 && b_signed_q)"),
+    ("negative weight for an unsigned multiplier", "if (j == K - 1 && last_q && b_signed_q)", "if (j == K - 1 && last_q)"),
+    ("hi not sign-extended", "acc = {{(K){hi_q[X]}}, hi_q};", "acc = {{(K){1'b0}}, hi_q};"),
+    ("multiplicand not sign-extended", "assign a_ext = {{(K){opa_q[X]}}, opa_q};", "assign a_ext = {{(K){1'b0}}, opa_q};"),
+    ("shift by MUL_BITS - 1", "assign mul_lo = {acc[K-1:0], lo_q[X-1:K]};", "assign mul_lo = {acc[K-2:0], lo_q[X-1:K-1]};"),
 ]
 
 EQUIVALENT = {}

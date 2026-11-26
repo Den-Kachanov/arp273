@@ -27,7 +27,18 @@ module core_pipe #(
 	// of store data and strobes in WB, all commit_* outputs read 0) and the stall and flush
 	// counters (stalls_o and flushes_o read 0). The cycle and instret counters stay: they become
 	// architectural CSRs. The behaviour on the memory ports does not depend on DEBUG
-	parameter bit DEBUG = 1'b1
+	parameter bit DEBUG = 1'b1,
+	// multiplier bits per cycle of the M unit (1, 2, 4, 8; ADR 017): 4 = Sol 2, 1 = Sol 1
+	parameter int MUL_BITS = 4,
+	// branch prediction in IF (bpred, ADR 018): measured and not enabled by default (0 = Sol 1 and Sol 2,
+	// cycle for cycle without it; 1 = with the predictor); the sizes
+	// are the predictor's parameters
+	parameter bit BP              = 1'b0,
+	parameter int BHT_ENTRIES     = 64,
+	parameter int BTB_ENTRIES     = 16,
+	parameter int RAS_DEPTH       = 8,
+	parameter int BTB_TAG_BITS    = 10,
+	parameter int BTB_TARGET_BITS = 20
 ) (
 	input  logic                          clk_i,
 	input  logic                          rst_ni,
@@ -98,6 +109,24 @@ module core_pipe #(
 	logic         fetch_issue;
 	logic         fetch_accept;
 	logic [X-1:0] fetch_addr;
+	logic [X-1:0] fe_target;         // where an EX redirect fetches: the target, or pc + 4 when a
+	logic [X-1:0] fe_target4;        // predicted-taken instruction falls through; and that + 4
+
+	// branch prediction (BP = 1, ADR 018): the guess for the fetch at pc_f_q. It travels with the
+	// instruction (taken bit and the low target bits; the upper bits are those of the pc) to EX,
+	// which checks it. The fetch at an EX redirect target is not predicted, so the lookup stays off
+	// the redirect path
+	localparam int TB = BTB_TARGET_BITS;
+	localparam int TW = TB - 2;
+	logic          bp_taken;
+	logic [X-1:0]  bp_target;
+	logic          f_pred;           // this fetch is predicted taken
+	logic          out_pred_q;
+	logic [TW-1:0] out_ptgt_q;
+	logic          fq_pred_q [2];
+	logic [TW-1:0] fq_ptgt_q [2];
+
+	assign f_pred = BP & ~ex_redirect & bp_taken;
 
 	assign fq_push      = imem_rsp_valid_i & out_q & ~drop_q & ~redirect;
 	assign fq_occ_next  = redirect ? 2'd0 : (fq_cnt_q + {1'b0, fq_push} - {1'b0, fq_pop});
@@ -107,7 +136,7 @@ module core_pipe #(
 	// three. A redirect from WB (rare: exceptions, MRET, FENCE.I) fetches one cycle later, so that
 	// no mux and adder follow the WB decision in the same cycle
 	assign redirect     = ex_redirect | wb_redirect;
-	assign fetch_addr   = ex_redirect ? redirect_pc : pc_f_q;
+	assign fetch_addr   = ex_redirect ? fe_target : pc_f_q;
 	assign fetch_issue  = rst_ni & ~wb_redirect & (~out_q | imem_rsp_valid_i) & (fq_occ_next <= 2'd1);
 	assign fetch_accept = fetch_issue & imem_req_ready_i;
 
@@ -124,8 +153,8 @@ module core_pipe #(
 			// no adder after the redirect decision: the target + 4 comes ready from EX, so the
 			// branch compare is not followed by another carry chain in the same cycle
 			if (wb_redirect)      pc_f_q <= wb_target;
-			else if (fetch_accept) pc_f_q <= ex_redirect ? redirect_pc4 : pc_f_q + X'(4);
-			else if (ex_redirect)  pc_f_q <= redirect_pc;
+			else if (fetch_accept) pc_f_q <= ex_redirect ? fe_target4 : (f_pred ? bp_target : pc_f_q + X'(4));
+			else if (ex_redirect)  pc_f_q <= fe_target;
 
 			out_q    <= fetch_accept | (out_q & ~imem_rsp_valid_i);
 			// a response still on the way when the path changes is dropped when it arrives (a request
@@ -137,18 +166,28 @@ module core_pipe #(
 			if (fq_pop) begin
 				fq_pc_q[0]   <= fq_pc_q[1];
 				fq_inst_q[0] <= fq_inst_q[1];
+				fq_pred_q[0] <= fq_pred_q[1];
+				fq_ptgt_q[0] <= fq_ptgt_q[1];
 			end
 			if (fq_push) begin
 				if (fq_cnt_q - {1'b0, fq_pop} == 2'd0) begin
 					fq_pc_q[0]   <= out_pc_q;
 					fq_inst_q[0] <= imem_rsp_data_i;
+					fq_pred_q[0] <= out_pred_q;
+					fq_ptgt_q[0] <= out_ptgt_q;
 				end else begin
 					fq_pc_q[1]   <= out_pc_q;
 					fq_inst_q[1] <= imem_rsp_data_i;
+					fq_pred_q[1] <= out_pred_q;
+					fq_ptgt_q[1] <= out_ptgt_q;
 				end
 			end
 		end
-		if (fetch_accept) out_pc_q <= fetch_addr;
+		if (fetch_accept) begin
+			out_pc_q   <= fetch_addr;
+			out_pred_q <= f_pred;
+			out_ptgt_q <= bp_target[TB-1:2];
+		end
 	end
 
 	// ------------------------------------------------------------------ ID
@@ -247,6 +286,8 @@ module core_pipe #(
 	logic [4:0]          ex_rd_q, ex_rs1_q, ex_rs2_q;
 	logic                ex_use_rs1_q, ex_use_rs2_q;
 	logic [X-1:0]        ex_rs1_data_q, ex_rs2_data_q, ex_imm_q, ex_imm4_q;
+	logic                ex_pred_q;        // fetched as predicted taken (BP)
+	logic [TW-1:0]       ex_ptgt_q;        // low bits of the predicted target
 
 	// ------------------------------------------------------------------ EX/MEM and MEM/WB registers
 	logic                mem_valid_q;
@@ -288,6 +329,7 @@ module core_pipe #(
 	logic         ex_trap;
 	logic [3:0]   ex_cause;
 	logic [X-1:0] ex_result;
+	logic [X-1:0] ex_pc4;            // pc + 4: the link value, and where a wrongly predicted fall-through goes
 	logic         flush;             // WB redirects: every younger instruction is dropped
 	logic         ex_ops_ready;
 	logic         ex_done;
@@ -375,7 +417,7 @@ module core_pipe #(
 
 	assign md_valid = ex_valid_q & ex_muldiv_q & ~md_have_q & (md_busy_q | ex_ops_ready);
 
-	muldiv u_muldiv (
+	muldiv #(.MUL_BITS(MUL_BITS)) u_muldiv (
 		.clk_i    (clk_i),
 		.rst_ni   (rst_ni),
 		.valid_i  (md_valid),
@@ -398,21 +440,80 @@ module core_pipe #(
 		else if (ex_ebreak_q)                       ex_result = ex_pc_q;
 		else if (ex_ecall_q)                        ex_result = '0;
 		else if (ex_csr_q)                          ex_result = ex_funct3_q[2] ? X'(ex_imm_q[19:15]) : ex_rs1;
-		else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc_q + X'(4);
+		else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc4;
 		else if (ex_muldiv_q)                       ex_result = md_have_q ? md_res_q : md_result;
 	end
 
 	assign ex_done    = ex_ops_ready & (~ex_muldiv_q | md_have_q | md_done);
 	assign ex_advance = ex_valid_q & ex_done & mem_can_accept;
 
-	assign ex_redirect = ex_advance & ex_ctrl_taken & ~ex_trap;
 	assign redirect_pc = ex_jalr_q ? {alu_r[X-1:1], 1'b0} : alu_r;
+
+	// a redirect from EX corrects the fetch: without prediction after every taken transfer; with it
+	// when the direction was wrong, when the target was wrong, or when an instruction that is no
+	// transfer at all was predicted taken (a stale or aliased BTB entry, ADR 018)
+	logic ex_pred_tgt_ok;
+	logic ex_mispredict;
+
+	assign ex_pc4         = ex_pc_q + X'(4);
+	assign ex_pred_tgt_ok = (redirect_pc[TB-1:2] == ex_ptgt_q) & (redirect_pc[X-1:TB] == ex_pc_q[X-1:TB]);
+	assign ex_mispredict  = BP ? (ex_ctrl_taken ? ~(ex_pred_q & ex_pred_tgt_ok) : ex_pred_q) : ex_ctrl_taken;
+	assign ex_redirect    = ex_advance & ex_mispredict & ~ex_trap;
 
 	// target + 4 = base + (imm + 4), in parallel with the ALU; for JALR bit 0 is cleared after the
 	// add, which gives the same result because 4 does not touch bit 0
 	logic [X-1:0] tgt4;
 	assign tgt4         = (ex_jalr_q ? ex_rs1 : ex_pc_q) + ex_imm4_q;
 	assign redirect_pc4 = ex_jalr_q ? {tgt4[X-1:1], 1'b0} : tgt4;
+
+	// predicted taken but not taken: continue at pc + 4 (and pc + 8 for the fetch after it)
+	assign fe_target  = (BP && !ex_ctrl_taken) ? ex_pc4 : redirect_pc;
+	assign fe_target4 = (BP && !ex_ctrl_taken) ? ex_pc_q + X'(8) : redirect_pc4;
+
+	// predictor update: a control instruction leaving EX that is not dropped. A jump that traps on its
+	// misaligned target is learned too, harmlessly: the BTB drops target bits 1:0, so a later guess
+	// fetches an aligned word, and the trap in WB drops that path anyway (mutation check, ADR 018).
+	// Kinds as in bpred: a link register (x1 or x5) as rd makes a call, a JALR from one with rd = x0 a return
+	logic       bp_upd;
+	logic [1:0] bp_kind;
+	logic       rd_link, rs1_link;
+
+	assign rd_link  = (ex_rd_q == 5'd1) | (ex_rd_q == 5'd5);
+	assign rs1_link = (ex_rs1_q == 5'd1) | (ex_rs1_q == 5'd5);
+	assign bp_upd   = ex_advance & ~flush & (ex_branch_q | ex_jal_q | ex_jalr_q);
+	assign bp_kind  = ex_branch_q ? 2'd0 :
+	                  rd_link ? 2'd2 :
+	                  (ex_jalr_q & rs1_link & (ex_rd_q == 5'd0)) ? 2'd3 : 2'd1;
+
+	generate
+		if (BP) begin : g_bp
+			bpred #(
+				.BHT_ENTRIES (BHT_ENTRIES),
+				.BTB_ENTRIES (BTB_ENTRIES),
+				.RAS_DEPTH   (RAS_DEPTH),
+				.TAG_BITS    (BTB_TAG_BITS),
+				.TARGET_BITS (BTB_TARGET_BITS)
+			) u_bpred (
+				.clk_i        (clk_i),
+				.rst_ni       (rst_ni),
+				.pc_i         (pc_f_q),
+				.taken_o      (bp_taken),
+				.target_o     (bp_target),
+				.accept_i     (fetch_accept & ~ex_redirect),
+				.upd_i        (bp_upd),
+				.upd_pc_i     (ex_pc_q),
+				.upd_kind_i   (bp_kind),
+				.upd_taken_i  (ex_ctrl_taken),
+				.upd_target_i (redirect_pc)
+			);
+		end else begin : g_no_bp
+			logic unused_bp;
+
+			assign bp_taken  = 1'b0;
+			assign bp_target = '0;
+			assign unused_bp = &{1'b0, bp_upd, bp_kind, ex_pred_tgt_ok, ex_pred_q, ex_ptgt_q};
+		end
+	endgenerate
 
 	// ------------------------------------------------------------------ ID hands over to EX
 	// There is no load-use check here: the consumer waits in EX while the load is in MEM
@@ -588,6 +689,8 @@ module core_pipe #(
 				// the CSR address and the 5-bit immediate come from them
 				ex_imm_q      <= (id_illegal | id_csr) ? X'(id_inst) : id_imm;
 				ex_imm4_q     <= id_imm4;
+				ex_pred_q     <= fq_pred_q[0];
+				ex_ptgt_q     <= fq_ptgt_q[0];
 			end else begin
 				if (ex_advance) ex_valid_q <= 1'b0;
 				if (!ex_rs1_wait) ex_rs1_data_q <= ex_rs1;

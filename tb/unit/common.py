@@ -77,9 +77,12 @@ def _find_source(top: str) -> Path:
 
 
 def run(top: str, test_file: str, xlen_value: int, extra_sources: list[str] | None = None,
-        build_args: list[str] | None = None) -> None:
+        build_args: list[str] | None = None, extra_env: dict[str, str] | None = None) -> None:
     """
     Build module `top` for one XLEN and run the cocotb tests from `test_file`
+
+    build_args may set parameters (-GNAME=VALUE); each set of them gets its own build directory.
+    extra_env is passed to the tests (for example the parameter values they need to know)
 
     Waves (dump.vcd in the build directory) are enabled with WAVES=1.
     A failed cocotb test becomes a pytest failure.
@@ -94,7 +97,8 @@ def run(top: str, test_file: str, xlen_value: int, extra_sources: list[str] | No
     from cocotb_tools.runner import get_runner
 
     test_path = Path(test_file).resolve()
-    build_dir = test_path.parent / "sim_build" / f"{top}_xlen{xlen_value}"
+    params = "".join("_" + a[2:].replace("=", "") for a in (build_args or []) if a.startswith("-G"))
+    build_dir = test_path.parent / "sim_build" / f"{top}_xlen{xlen_value}{params}"
     waves = os.environ.get("WAVES") == "1"
 
     sources = sorted((REPO / "rtl" / "pkg").glob("*.sv"))
@@ -116,7 +120,7 @@ def run(top: str, test_file: str, xlen_value: int, extra_sources: list[str] | No
         test_module=test_path.stem,
         test_dir=build_dir,
         build_dir=build_dir,
-        extra_env={"XLEN": str(xlen_value), "PYTHONPATH": str(test_path.parent)},
+        extra_env={"XLEN": str(xlen_value), "PYTHONPATH": str(test_path.parent)} | (extra_env or {}),
         plusargs=["+verilator+rand+reset+2", f"+verilator+seed+{os.environ.get('X_SEED', '1')}"],
         waves=waves,
     )

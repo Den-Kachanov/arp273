@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
+import os
 import random
 
 import asm
@@ -12,6 +13,25 @@ from cocotb.triggers import FallingEdge, RisingEdge, Timer
 
 BASE = 0x80000000
 MAX_CYCLES = 2000
+
+# configurations of the pipelined core under test: Sol 1 (no branch prediction, one multiplier bit per
+# cycle), Sol 2 (four multiplier bits, ADR 017) and Sol 2 with the branch predictor, which is measured
+# but not enabled by default (ADR 018). Each is built with -G; the values reach the tests through the
+# environment, so that the tests whose cycle counts depend on them know which core they run on
+CONFIGS = {"sol1": {"BP": 0, "MUL_BITS": 1}, "sol2": {"BP": 0, "MUL_BITS": 4}, "bp": {"BP": 1, "MUL_BITS": 4}}
+
+
+def cfg(name: str) -> int:
+    """value of a core parameter in this build (the Sol 1 value when the runner did not set it)"""
+    return int(os.environ.get(name, CONFIGS["sol1"][name]))
+
+
+def config_run(top: str, test_file: str, xlen: int, config: str, extra_sources: list[str]) -> None:
+    """common.run for one configuration of CONFIGS"""
+    params = CONFIGS[config]
+    common.run(top, test_file, xlen, extra_sources=extra_sources,
+               build_args=[f"-G{k}={v}" for k, v in params.items()],
+               extra_env={k: str(v) for k, v in params.items()})
 
 
 class Memory:
@@ -378,7 +398,8 @@ async def test_perf_counters(dut):
     trace, _, _ = await run_program(dut, prog)
     assert len(trace) == 3 + 3 * 3
     assert int(dut.perf_instret_o.value) == len(trace)
-    assert int(dut.perf_flushes_o.value) == 2, "BNE is taken twice, falls through once"
+    if not is_pipe(dut) or cfg("BP") == 0:
+        assert int(dut.perf_flushes_o.value) == 2, "BNE is taken twice, falls through once"
     if not is_pipe(dut):
         assert int(dut.perf_stalls_o.value) == 0
     assert int(dut.perf_cycles_o.value) >= len(trace)
@@ -489,7 +510,8 @@ async def test_m_in_a_loop(dut):
     assert all(mext.iterations(*op) == x // 2 for op in md_ops)
     if not is_pipe(dut):
         assert int(dut.perf_stalls_o.value) == sum(mext.iterations(*op) + 1 for op in md_ops)
-    assert int(dut.perf_flushes_o.value) == 4, "BNE is taken 4 times"
+    if not is_pipe(dut) or cfg("BP") == 0:
+        assert int(dut.perf_flushes_o.value) == 4, "BNE is taken 4 times"
 
 
 @cocotb.test()
@@ -571,7 +593,7 @@ async def test_misaligned_store_traps(dut):
     assert mem.read(BASE + 0x1000, 4) == 0, "nothing may be stored"
 
 
-MODULES = ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters", "muldiv", "csr")
+MODULES = ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_counters", "muldiv", "csr", "bpred")
 
 
 @pytest.mark.parametrize("xlen", common.XLENS)
@@ -581,6 +603,7 @@ def test_core_runner(xlen):
 
 
 @pytest.mark.parametrize("xlen", common.XLENS)
-def test_core_pipe_runner(xlen):
-    """The same programs on the pipelined core, with a slow memory that stalls at random"""
-    common.run("core_pipe", __file__, xlen, extra_sources=[str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])
+@pytest.mark.parametrize("config", CONFIGS)
+def test_core_pipe_runner(xlen, config):
+    """The same programs on the pipelined core (Sol 1 and Sol 2), with a slow memory that stalls at random"""
+    config_run("core_pipe", __file__, xlen, config, [str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])

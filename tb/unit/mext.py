@@ -71,14 +71,16 @@ def expected(funct3: int, a: int, b: int, word: int = 0) -> int:
     return r & common.mask()
 
 
-def iterations(funct3: int, a: int, b: int, word: int = 0) -> int:
+def iterations(funct3: int, a: int, b: int, word: int = 0, mul_bits: int = 1) -> int:
     """
     Iterations of the multiplier/divider for one instruction (the rule of ADR 011, not the RTL):
     XLEN / 2 when the operands fit in half a word, otherwise XLEN.
 
     Short: MUL (also MULW) with a multiplier whose upper half is zero; DIV, DIVU, REM, REMU (also W)
     with a dividend magnitude below 2^(XLEN/2) and a non-zero divisor. Operands are taken as the unit
-    sees them: a W instruction uses the low 32 bits, extended by the signedness of the instruction
+    sees them: a W instruction uses the low 32 bits, extended by the signedness of the instruction.
+    A multiplication handles mul_bits multiplier bits per iteration (parameter MUL_BITS, ADR 017);
+    division always one bit
 
     Dependencies: common.xlen, common.to_signed
     """
@@ -102,4 +104,5 @@ def iterations(funct3: int, a: int, b: int, word: int = 0) -> int:
         short = abs(a_val) < (1 << h) and b_val != 0
     else:
         short = False
-    return h if short else x
+    n = h if short else x
+    return n if funct3 >= 4 else n // mul_bits

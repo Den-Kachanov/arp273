@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
 // SPDX-FileCopyrightText: 2026 Denys Kachanov
 
-// Multiplier and divider of the M extension (ADR 009, ADR 011): one iterative unit, one bit per cycle
+// Multiplier and divider of the M extension (ADR 009, ADR 011, ADR 017): one iterative unit. Division
+// handles one bit per cycle; multiplication MUL_BITS bits per cycle (1, 2, 4 or 8; it must divide XLEN / 2)
 //
 // Protocol: the core holds valid_i, funct3_i, word_i, a_i and b_i stable until done_o.
 // The first cycle loads the operands, then N cycles iterate, then done_o is 1 for one cycle
 // with result_o valid (the core commits in that cycle). The unit returns to idle by itself,
 // so the next instruction can raise valid_i in the cycle after done_o.
-// Latency from valid_i to done_o: N + 1 clock edges, where N = XLEN / 2 on the short path, XLEN otherwise
+// Latency from valid_i to done_o: N + 1 clock edges, where N = XLEN / 2 on the short path, XLEN otherwise;
+// for a multiplication N is divided by MUL_BITS
 //
 // Short path (ADR 011): XLEN / 2 iterations are enough when the operands fit in half a word:
 //   MUL (also MULW) whose multiplier b has a zero upper half: the low product is ready after XLEN / 2 steps
@@ -24,9 +26,14 @@
 //   division by zero:  quotient all ones, remainder = dividend (the divider gives this by itself)
 //   overflow (MIN / -1): quotient MIN, remainder 0 (magnitude 2^(XLEN-1) fits unsigned)
 //
-// One adder/subtractor serves both operations
+// MUL_BITS = 1: one adder/subtractor serves both operations (Sol 1, unchanged).
+// MUL_BITS > 1: each multiply iteration adds MUL_BITS partial products to hi in one sum (Yosys builds
+// a carry-save tree for it, alumacc/maccmap) and shifts {hi, lo} right by MUL_BITS; the divider keeps
+// the shared adder
 
-module muldiv (
+module muldiv #(
+	parameter int MUL_BITS = 1
+) (
 	input  logic                       clk_i,
 	input  logic                       rst_ni,
 
@@ -44,7 +51,16 @@ module muldiv (
 
 	localparam int X  = riscv_pkg::XLEN;
 	localparam int H  = X / 2;
+	localparam int K  = MUL_BITS;
 	localparam int CW = $clog2(X);
+
+	// the iteration counter assumes K in {1, 2, 4, 8} and at least two iterations of K bits: otherwise the
+	// last-step flag comes too late and the result is wrong
+	generate
+		if (!(K == 1 || K == 2 || K == 4 || K == 8) || (H % K) != 0 || H / K < 2) begin : g_bad_mul_bits
+			$error("muldiv: MUL_BITS must be 1, 2, 4 or 8 and give at least two iterations of XLEN / 2 bits");
+		end
+	endgenerate
 
 	typedef enum logic [1:0] {
 		S_IDLE = 2'b00,
@@ -162,9 +178,42 @@ module muldiv (
 	logic [X:0]   div_hi;
 	logic [X-1:0] div_lo;
 
-	// multiply: arithmetic shift right of {sum, lo} for a signed multiplicand, logical for an unsigned one
-	assign mul_hi = {a_signed_q & sum[X], sum[X:1]};
-	assign mul_lo = {sum[0], lo_q[X-1:1]};
+	generate
+		if (K == 1) begin : g_mul1
+			// multiply: arithmetic shift right of {sum, lo} for a signed multiplicand, logical for an unsigned one
+			assign mul_hi = {a_signed_q & sum[X], sum[X:1]};
+			assign mul_lo = {sum[0], lo_q[X-1:1]};
+		end else begin : g_mulk
+			// MUL_BITS multiplier bits (lo[K-1:0]) at once: acc = hi + sum of lo[j] * A * 2^j, where the top bit
+			// of a signed multiplier, in the last iteration, has a negative weight. Everything is signed when the
+			// multiplicand is signed (a negative partial sum needs a signed multiplier too, and that implies a
+			// signed multiplicand: MULH, MULHSU), unsigned otherwise. hi has X + 1 bits; acc needs K more.
+			// Both sign extensions copy the top bit without looking at a_signed_q: opa_q[X] is already
+			// a_signed & a[X-1], and for an unsigned multiplicand hi stays below 2^X (hi < 2^X and the K partial
+			// products sum below 2^(X+K) - 2^X, so acc < 2^(X+K) and acc >> K < 2^X), so hi_q[X] is 0
+			localparam int AW = X + K + 1;
+
+			logic [AW-1:0] a_ext;
+			logic [AW-1:0] acc;
+			logic          unused_a_signed;  // a_signed_q is needed only by the one-bit shift (g_mul1)
+
+			assign unused_a_signed = &{1'b0, a_signed_q};
+			assign a_ext = {{(K){opa_q[X]}}, opa_q};
+
+			always_comb begin
+				acc = {{(K){hi_q[X]}}, hi_q};
+				for (int j = 0; j < K; j++) begin
+					if (lo_q[j]) begin
+						if (j == K - 1 && last_q && b_signed_q) acc = acc - (a_ext << j);
+						else                                     acc = acc + (a_ext << j);
+					end
+				end
+			end
+
+			assign mul_hi = acc[AW-1:K];
+			assign mul_lo = {acc[K-1:0], lo_q[X-1:K]};
+		end
+	endgenerate
 
 	// divide: the trial subtraction succeeded when there is no borrow; the next dividend bit enters from lo.
 	// The new remainder is below the divisor, so it fits in XLEN bits
@@ -193,7 +242,9 @@ module muldiv (
 			hi_q       <= is_div ? {{X{1'b0}}, dividend[X-1]} : '0;
 			lo_q       <= is_div ? {dividend[X-2:0], 1'b0} : b_eff;
 			opa_q      <= is_div ? {1'b0, mag_b} : {a_signed & a_eff[X-1], a_eff};
-			cnt_q      <= short_op ? CW'(H - 1) : CW'(X - 1);
+			// iterations - 1: a multiplication takes MUL_BITS multiplier bits per iteration
+			cnt_q      <= is_div ? (short_op ? CW'(H - 1) : CW'(X - 1))
+			                     : (short_op ? CW'(H / K - 1) : CW'(X / K - 1));
 			last_q     <= 1'b0;
 			short_q    <= short_op;
 			is_div_q   <= is_div;

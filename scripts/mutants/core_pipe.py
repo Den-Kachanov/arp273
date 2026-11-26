@@ -38,7 +38,7 @@ MUTANTS = [
     ("JALR keeps bit 0", "assign redirect_pc = ex_jalr_q ? {alu_r[X-1:1], 1'b0} : alu_r;", "assign redirect_pc = alu_r;"),
     ("target + 4 is the target", "assign redirect_pc4 = ex_jalr_q ? {tgt4[X-1:1], 1'b0} : tgt4;", "assign redirect_pc4 = redirect_pc;"),
     ("JALR target + 4 from pc", "assign tgt4         = (ex_jalr_q ? ex_rs1 : ex_pc_q) + ex_imm4_q;", "assign tgt4         = ex_pc_q + ex_imm4_q;"),
-    ("link is pc", "else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc_q + X'(4);",
+    ("link is pc", "else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc4;",
      "else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc_q;"),
     ("two requests outstanding", "assign fetch_issue  = rst_ni & ~wb_redirect & (~out_q | imem_rsp_valid_i) & (fq_occ_next <= 2'd1);",
      "assign fetch_issue  = rst_ni & ~wb_redirect & (fq_occ_next <= 2'd1);"),
@@ -58,7 +58,7 @@ MUTANTS = [
     ("stores do not wait for their response", "assign wb_wait       = (wb_mem_re_q | wb_mem_we_q) & ~wb_trap_q & ~dmem_rsp_valid_i;",
      "assign wb_wait       = wb_mem_re_q & ~wb_trap_q & ~dmem_rsp_valid_i;"),
     ("exception commits", "assign wb_advance    = wb_valid_q & ~wb_wait & ~wb_exc;", "assign wb_advance    = wb_valid_q & ~wb_wait;"),
-    ("trapping jump redirects", "assign ex_redirect = ex_advance & ex_ctrl_taken & ~ex_trap;", "assign ex_redirect = ex_advance & ex_ctrl_taken;"),
+    ("trapping jump redirects", "assign ex_redirect    = ex_advance & ex_mispredict & ~ex_trap;", "assign ex_redirect    = ex_advance & ex_mispredict;"),
     ("load data not used", "assign wb_data = wb_mem_re_q ? wb_load_data : (wb_csr_q ? csr_rdata : wb_result_q);",
      "assign wb_data = wb_csr_q ? csr_rdata : wb_result_q;"),
     # CSRs and exceptions (ADR 014)
@@ -93,6 +93,22 @@ MUTANTS = [
     ("fetch on WB redirect from the old pc", "if (wb_redirect)      pc_f_q <= wb_target;", "if (1'b0)      pc_f_q <= wb_target;"),
     ("ECALL trap skipped in WB (MEM drops trap flag)", "wb_trap_q   <= mem_trap;", "wb_trap_q   <= mem_trap_in_q;"),
     ("flushes not counted", ".flush_i   (DEBUG & redirect),", ".flush_i   (1'b0),"),
+    # branch prediction (BP = 1, ADR 018)
+    ("a predicted non-transfer is not corrected", ": ex_pred_q) : ex_ctrl_taken;", ": 1'b0) : ex_ctrl_taken;"),
+    ("the predicted target is not checked", "~(ex_pred_q & ex_pred_tgt_ok)", "~ex_pred_q"),
+    ("upper target bits not checked", " & (redirect_pc[X-1:TB] == ex_pc_q[X-1:TB]);", ";"),
+    ("low target bits not checked", "assign ex_pred_tgt_ok = (redirect_pc[TB-1:2] == ex_ptgt_q) &", "assign ex_pred_tgt_ok = 1'b1 &"),
+    ("a fall-through continues at the target", "assign fe_target  = (BP && !ex_ctrl_taken) ? ex_pc4 : redirect_pc;", "assign fe_target  = redirect_pc;"),
+    ("a fall-through fetches the target + 4 next", "assign fe_target4 = (BP && !ex_ctrl_taken) ? ex_pc_q + X'(8) : redirect_pc4;", "assign fe_target4 = redirect_pc4;"),
+    ("a fall-through fetches pc + 4 twice", "ex_pc_q + X'(8) : redirect_pc4;", "ex_pc4 : redirect_pc4;"),
+    ("the prediction is not followed", "(f_pred ? bp_target : pc_f_q + X'(4))", "(pc_f_q + X'(4))"),
+    ("the prediction is lost before EX", "ex_pred_q     <= fq_pred_q[0];", "ex_pred_q     <= 1'b0;"),
+    ("the prediction of the second queue entry is lost", "fq_pred_q[1] <= out_pred_q;", "fq_pred_q[1] <= 1'b0;"),
+    ("the predicted target of the queue entry is shifted wrong", "fq_ptgt_q[0] <= fq_ptgt_q[1];", "fq_ptgt_q[0] <= fq_ptgt_q[0];"),
+    ("a dropped instruction updates the predictor", "assign bp_upd   = ex_advance & ~flush &", "assign bp_upd   = ex_advance &"),
+    ("calls never recognised", "                  rd_link ? 2'd2 :", "                  1'b0 ? 2'd2 :"),
+    ("returns never recognised", "(ex_jalr_q & rs1_link & (ex_rd_q == 5'd0)) ? 2'd3", "1'b0 ? 2'd3"),
+    ("only x1 is a link register", "assign rd_link  = (ex_rd_q == 5'd1) | (ex_rd_q == 5'd5);", "assign rd_link  = (ex_rd_q == 5'd1);"),
 ]
 
 EQUIVALENT = {

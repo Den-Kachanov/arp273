@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
+import os
 import random
 
 import cocotb
@@ -8,6 +9,16 @@ import mext
 import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge
+
+
+def mul_bits() -> int:
+    """MUL_BITS of the unit under test (the runner builds it with -GMUL_BITS and passes the value)"""
+    return int(os.environ.get("MUL_BITS", "1"))
+
+
+def iters(funct3, a, b, word=0):
+    """iterations of this build of the unit"""
+    return mext.iterations(funct3, a, b, word, mul_bits=mul_bits())
 
 
 class Unit:
@@ -52,7 +63,7 @@ class Unit:
     async def op(self, funct3, a, b, word=0):
         """Run one operation, check the latency, return result_o"""
         dut = self.dut
-        edges = mext.iterations(funct3, a, b, word) + (1 if self.idle else 2)
+        edges = iters(funct3, a, b, word) + (1 if self.idle else 2)
         name = f"{mext.NAMES[funct3]}{'W' if word else ''} {a:#x} {b:#x}"
         self.drive(funct3, a, b, word)
         await ClockCycles(dut.clk_i, edges - 1)
@@ -216,15 +227,15 @@ async def test_protocol(dut):
         assert int(dut.done_o.value) == 0, "done_o without valid_i"
 
     # one operation from idle, cycle by cycle: a short one (XLEN / 2 iterations) and a full one (XLEN)
-    for funct3, a, b, want, iters in ((4, 100, 7, 14, x // 2), (5, m, 7, None, x)):
+    for funct3, a, b, want, n_iters in ((4, 100, 7, 14, x // 2), (5, m, 7, None, x)):
         if want is None:
             want = mext.expected(funct3, a, b)
-        assert mext.iterations(funct3, a, b) == iters
+        assert mext.iterations(funct3, a, b) == n_iters
         unit.drive(funct3, a, b)
-        for edge in range(1, iters + 1):
+        for edge in range(1, n_iters + 1):
             await RisingEdge(dut.clk_i)
             await FallingEdge(dut.clk_i)
-            assert int(dut.done_o.value) == 0, f"done_o after {edge} edges, expected after {iters + 1}"
+            assert int(dut.done_o.value) == 0, f"done_o after {edge} edges, expected after {n_iters + 1}"
         await RisingEdge(dut.clk_i)
         await FallingEdge(dut.clk_i)
         assert int(dut.done_o.value) == 1 and int(dut.result_o.value) == want
@@ -258,7 +269,7 @@ async def test_operands_are_latched(dut):
         unit.drive(funct3, a, b)
         await RisingEdge(dut.clk_i)
         await FallingEdge(dut.clk_i)
-        for _ in range(mext.iterations(funct3, a, b)):
+        for _ in range(iters(funct3, a, b)):
             dut.a_i.value = r.getrandbits(x)
             dut.b_i.value = r.getrandbits(x)
             dut.funct3_i.value = r.getrandbits(3)
@@ -320,7 +331,7 @@ async def test_short_path_boundaries(dut):
     ]
     short = full = 0
     for funct3, a, b in cases:
-        if mext.iterations(funct3, a, b) == h:
+        if mext.iterations(funct3, a, b) == h:  # the path, independent of MUL_BITS
             short += 1
         else:
             full += 1
@@ -370,8 +381,10 @@ async def test_abort(dut):
     await unit.reset()
     x = common.xlen()
     m = common.mask()
-    for cycles in (1, 2, x // 3, x - 1):
-        unit.drive(4, m, 3)                      # a long division
+    mulh_iters = iters(1, m, 1 << (x - 1))
+    for funct3, a, b, cycles in [(4, m, 3, c) for c in (1, 2, x // 3, x - 1)] + \
+            [(1, m, 1 << (x - 1), c) for c in sorted({1, 2, mulh_iters - 1})]:
+        unit.drive(funct3, a, b)                 # a long division, then MULH (full path)
         for _ in range(cycles):
             await RisingEdge(dut.clk_i)
             await FallingEdge(dut.clk_i)
@@ -383,13 +396,35 @@ async def test_abort(dut):
         for _ in range(2 * x):
             await RisingEdge(dut.clk_i)
             await FallingEdge(dut.clk_i)
-            assert int(dut.done_o.value) == 0, f"done_o after an abort ({cycles} cycles in)"
+            assert int(dut.done_o.value) == 0, f"done_o after an abort ({mext.NAMES[funct3]}, {cycles} cycles in)"
         unit.idle = True
         assert await unit.op(0, 6, 7) == 42, "the operation after an abort"
         await unit.release()
 
 
+@cocotb.test()
+async def test_signed_multiplier_groups(dut):
+    """
+    MULH and MULHSU with a signed multiplier: its top bit has a negative weight and, with several bits
+    per cycle, falls inside the last group of bits; multipliers around that bit and around the short
+    path boundary, against every edge multiplicand (results and latency)
+    """
+    unit = Unit(dut)
+    await unit.reset()
+    x = common.xlen()
+    m = common.mask()
+    h = x // 2
+    multipliers = [1 << (x - 1), m, (1 << (x - 1)) + 1, (-(1 << h)) & m, (1 << h) - 1, (1 << (x - 1)) - 1, 2]
+    for b in multipliers:
+        for a in common.edge_values() + [0x55555555 & m, (0x9E3779B97F4A7C15 & m) | 1]:
+            await check(unit, 1, a, b)           # MULH: both signed
+            await check(unit, 2, a, b)           # MULHSU: a signed, b unsigned
+            await check(unit, 0, a, b)           # MUL: the low half from the same partial products
+
+
 @pytest.mark.parametrize("xlen", common.XLENS)
-def test_muldiv_runner(xlen):
-    """Build the multiplier/divider for this XLEN and run the cocotb tests"""
-    common.run("muldiv", __file__, xlen)
+@pytest.mark.parametrize("mul_bits", (1, 4, 8))
+def test_muldiv_runner(xlen, mul_bits):
+    """Build the multiplier/divider for this XLEN and multiplier width and run the cocotb tests"""
+    common.run("muldiv", __file__, xlen, build_args=[f"-GMUL_BITS={mul_bits}"],
+               extra_env={"MUL_BITS": str(mul_bits)})

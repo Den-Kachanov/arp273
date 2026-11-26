@@ -16,7 +16,7 @@ import cocotb
 import common
 import mext
 import pytest
-from test_core import BASE, MODULES, registers, run_pipe
+from test_core import BASE, CONFIGS, MODULES, cfg, config_run, registers, run_pipe
 
 BRAM = {"stall": 0.0, "extra": 0}
 SLOW = {"stall": 0.4, "extra": 3}
@@ -148,9 +148,53 @@ async def test_taken_branch_costs_two_cycles(dut):
     ]
     (trace, _, _), c = await both(dut, prog)
     assert registers(trace)[1] == 6
-    assert c["flushes"] == 5, "BNE taken 5 times"
+    # Sol 1: BNE taken 5 times; with prediction only the first taken one and the exit are wrong
+    assert c["flushes"] == (2 if cfg("BP") else 5)
     (_, _, _), base = await both(dut, straight(5))
-    # a straight program of 5 + ECALL instructions sets the fill cost; each taken branch adds 2
+    # a straight program of 5 + ECALL instructions sets the fill cost; each flush (a taken branch in
+    # Sol 1, a misprediction with prediction) adds 2
+    assert c["cycles"] - c["instret"] == (base["cycles"] - base["instret"]) + 2 * c["flushes"]
+
+
+@cocotb.test()
+async def test_loop_predicted(dut):
+    """
+    A 10-iteration loop: Sol 1 pays for 9 taken branches; with prediction only the first sight (empty
+    BTB) and the exit (the counter says taken) are flushed: 14 cycles fewer
+    """
+    prog = [asm.addi(1, 0, 0), asm.addi(2, 0, 10), asm.addi(1, 1, 1), asm.bne(1, 2, -4), asm.ECALL]
+    (trace, _, _), c = await both(dut, prog)
+    assert registers(trace)[1] == 10
+    assert c["flushes"] == (2 if cfg("BP") else 9)
+    (_, _, _), base = await both(dut, straight(5))
+    assert c["cycles"] - c["instret"] == (base["cycles"] - base["instret"]) + 2 * c["flushes"]
+
+
+@cocotb.test()
+async def test_call_return_predicted(dut):
+    """
+    A function called 3 times from one call site in a loop. An ADDI starts the loop and one comes before
+    RET, so no call or return is the first fetch after a redirect (that fetch is not predicted). Sol 1:
+    3 calls + 3 returns + 2 taken loop branches = 8 flushes. With prediction: the first iteration's call,
+    return and loop branch (BTB empty), and the loop exit = 4 flushes, 8 cycles fewer
+    """
+    prog = [
+        asm.addi(11, 0, 0),         # the register file has no reset: start from 0
+        asm.addi(12, 0, 0),
+        asm.addi(10, 0, 3),
+        asm.addi(12, 12, 1),        # loop
+        asm.jal(1, 16),             # call f
+        asm.addi(10, 10, -1),
+        asm.bne(10, 0, -12),
+        asm.ECALL,
+        asm.addi(11, 11, 1),        # f
+        asm.jalr(0, 0, 1),          # ret
+    ]
+    (trace, _, _), c = await both(dut, prog)
+    r = registers(trace)
+    assert r[11] == 3 and r[12] == 3
+    assert c["flushes"] == (4 if cfg("BP") else 8)
+    (_, _, _), base = await both(dut, straight(5))
     assert c["cycles"] - c["instret"] == (base["cycles"] - base["instret"]) + 2 * c["flushes"]
 
 
@@ -246,7 +290,112 @@ async def test_misaligned_jump_does_not_redirect(dut):
     assert c["flushes"] == 0
 
 
+@cocotb.test()
+async def test_far_jalr_target_checked(dut):
+    """
+    A JALR learned with one target runs again with a target exactly 1 MiB (2^20) further: the low 20
+    bits, which the BTB stores, are the same, so EX must also compare the upper bits (ADR 018)
+    """
+    far = 1 << 20
+    prog = [
+        asm.lui(5, far >> 12),      # 0: x5 = 1 MiB
+        asm.auipc(6, 0),            # 1
+        asm.addi(6, 6, 36),         # 2: x6 = word 10 (auipc is word 1)
+        asm.addi(7, 0, 0),          # 3
+        asm.NOP,                    # 4: loop; the JALR is then fetched sequentially
+        asm.jalr(1, 0, 6),          # 5: to x6 (word 10, then word 10 + 1 MiB)
+        asm.bne(7, 0, -8),          # 6: after the first call: to word 4
+        asm.ECALL,                  # 7: not reached
+        asm.NOP, asm.NOP,           # 8, 9
+        asm.addi(7, 7, 1),          # 10: near target
+        asm.add(6, 6, 5),           # 11: the next target is 1 MiB further
+        asm.jalr(0, 0, 1),          # 12: return to word 6
+    ]
+    prog += [asm.NOP] * (far // 4 + 10 - len(prog)) + [asm.addi(8, 0, 77), asm.ECALL]
+    (trace, _, trap_pc), _ = await both(dut, prog)
+    r = registers(trace)
+    assert r[7] == 1 and r[8] == 77, "the second JALR must reach the far target"
+    assert trap_pc == BASE + 40 + far + 4
+
+
+@cocotb.test()
+async def test_jalr_target_changes(dut):
+    """
+    One JALR (rd = x0: a plain jump) goes to two targets in turn, near each other: a prediction from
+    the BTB has the right upper bits but the wrong low bits, and EX must redirect every time
+    """
+    prog = [
+        asm.auipc(6, 0),            # 0: x6 = word 0
+        asm.addi(7, 6, 48),         # 1: x7 = T1 (word 12)
+        asm.addi(8, 6, 60),         # 2: x8 = T2 (word 15)
+        asm.addi(9, 6, 48),         # 3: x9 = T1
+        asm.addi(10, 0, 4),         # 4
+        asm.addi(11, 0, 0),         # 5
+        asm.NOP,                    # 6: loop
+        asm.jalr(0, 0, 7),          # 7: to T1, T2, T1, T2
+        asm.addi(10, 10, -1),       # 8: both targets come back here
+        asm.bne(10, 0, -12),        # 9: to word 6
+        asm.ECALL,                  # 10
+        asm.NOP,                    # 11
+        asm.addi(11, 11, 1),        # 12: T1
+        asm.add(7, 8, 0),           # 13: next time T2
+        asm.jal(0, -24),            # 14: to word 8
+        asm.addi(11, 11, 16),       # 15: T2
+        asm.add(7, 9, 0),           # 16: next time T1
+        asm.jal(0, -36),            # 17: to word 8
+    ]
+    (trace, _, _), _ = await both(dut, prog)
+    assert registers(trace)[11] == 34, "T1, T2, T1, T2"
+
+
+@cocotb.test()
+async def test_prediction_through_full_queue(dut):
+    """
+    A loop with MUL: while the multiplier holds EX, the predicted branch waits in the second entry of
+    the fetch queue and moves to the first; its prediction must move with it (2 flushes, not more).
+    The loop starts 40 words in: the BTB keeps its targets across tests (only the valid bits are
+    reset), and near the start an old target could match by chance
+    """
+    prog = [asm.addi(1, 0, 3), asm.addi(2, 0, 5)] + [asm.NOP] * 40 + \
+        [asm.mul(3, 1, 1), asm.addi(2, 2, -1), asm.bne(2, 0, -8), asm.ECALL]
+    (trace, _, _), c = await both(dut, prog, max_cycles=6000)
+    assert registers(trace)[3] == 9
+    assert c["flushes"] == (2 if cfg("BP") else 4)
+
+
+@cocotb.test()
+async def test_returns_to_several_sites(dut):
+    """
+    One function called from two sites and another called through x5 (the alternate link register):
+    returns are predicted by the return stack, not by the last target in the BTB. Sol 1: 9 calls and
+    9 returns + 2 taken loop branches = 20 flushes. With prediction: the first iteration sees every
+    transfer for the first time (7 flushes; the second return of f pops an empty stack), then only
+    the loop exit: 8
+    """
+    prog = [
+        asm.addi(10, 0, 3),         # 0
+        asm.addi(11, 0, 0),         # 1
+        asm.NOP,                    # 2: loop
+        asm.jal(1, 32),             # 3: call f (site A)
+        asm.NOP,                    # 4
+        asm.jal(1, 24),             # 5: call f (site B)
+        asm.NOP,                    # 6
+        asm.jal(5, 24),             # 7: call g through x5
+        asm.addi(10, 10, -1),       # 8
+        asm.bne(10, 0, -28),        # 9: to word 2
+        asm.ECALL,                  # 10
+        asm.addi(11, 11, 1),        # 11: f
+        asm.jalr(0, 0, 1),          # 12: return through x1
+        asm.addi(11, 11, 1),        # 13: g
+        asm.jalr(0, 0, 5),          # 14: return through x5
+    ]
+    (trace, _, _), c = await both(dut, prog)
+    assert registers(trace)[11] == 9
+    assert c["flushes"] == (8 if cfg("BP") else 20)
+
+
 @pytest.mark.parametrize("xlen", common.XLENS)
-def test_pipeline_runner(xlen):
-    """Build the pipelined core for this XLEN and run the hazard tests"""
-    common.run("core_pipe", __file__, xlen, extra_sources=[str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])
+@pytest.mark.parametrize("config", CONFIGS)
+def test_pipeline_runner(xlen, config):
+    """Build the pipelined core (Sol 1 and Sol 2) for this XLEN and run the hazard tests"""
+    config_run("core_pipe", __file__, xlen, config, [str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])
