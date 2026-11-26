@@ -54,6 +54,39 @@ class Memory:
             if (strb >> k) & 1:
                 self.bytes[addr + k] = (data >> (8 * k)) & 0xFF
 
+    reservation = None
+
+    def atomic(self, addr, atop, data, strb, nbytes):
+        """
+        Execute an atomic of the A extension on the aligned word at addr, as the memory side of the
+        data port does (ADR 019): the lanes come in strb; return the response (the old word for LR and
+        the AMOs, the SC result 0 = stored / 1 = failed in the lane). One reservation at the exact
+        address of the LR; every SC clears it
+        """
+        off = (strb & -strb).bit_length() - 1
+        n = bin(strb).count("1")
+        word = self.read(addr, nbytes)
+        m = (1 << (8 * n)) - 1
+        a, b = (word >> (8 * off)) & m, (data >> (8 * off)) & m
+
+        def signed(v):
+            return v - (1 << (8 * n)) if v >> (8 * n - 1) else v
+        if atop == 0b00010:
+            self.reservation = addr + off
+            return word
+        if atop == 0b00011:
+            ok = self.reservation == addr + off
+            self.reservation = None
+            if ok:
+                self.write(addr, data, strb, nbytes)
+            return (0 if ok else 1) << (8 * off)
+        ops = {0b00000: lambda: a + b, 0b00001: lambda: b, 0b00100: lambda: a ^ b, 0b01000: lambda: a | b,
+               0b01100: lambda: a & b, 0b10000: lambda: a if signed(a) < signed(b) else b,
+               0b10100: lambda: a if signed(a) > signed(b) else b, 0b11000: lambda: min(a, b),
+               0b11100: lambda: max(a, b)}
+        self.write(addr, (ops[atop]() & m) << (8 * off), strb, nbytes)
+        return word
+
 
 def is_pipe(dut):
     """The pipelined core has the valid/ready memory ports (ADR 013)"""
@@ -145,7 +178,11 @@ async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PI
             assert pend["d"] is None or due["d"], "data port: a second request while one is outstanding"
             addr = int(dut.dmem_req_addr_o.value)
             assert addr % nbytes == 0, f"data request not aligned: {addr:#x}"
-            if int(dut.dmem_req_we_o.value):
+            if int(dut.dmem_req_amo_o.value):
+                pend["d"] = (cycle + latency(dstall),
+                             mem.atomic(addr, int(dut.dmem_req_atop_o.value), int(dut.dmem_req_wdata_o.value),
+                                        int(dut.dmem_req_wstrb_o.value), nbytes))
+            elif int(dut.dmem_req_we_o.value):
                 mem.write(addr, int(dut.dmem_req_wdata_o.value), int(dut.dmem_req_wstrb_o.value), nbytes)
                 pend["d"] = (cycle + latency(dstall), 0)
             else:

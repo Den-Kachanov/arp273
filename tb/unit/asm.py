@@ -9,7 +9,7 @@ OPC = {
     "OP": 0b0110011, "OP_IMM": 0b0010011, "OP_32": 0b0111011, "OP_IMM_32": 0b0011011,
     "LUI": 0b0110111, "AUIPC": 0b0010111, "LOAD": 0b0000011, "STORE": 0b0100011,
     "BRANCH": 0b1100011, "JAL": 0b1101111, "JALR": 0b1100111, "MISC_MEM": 0b0001111,
-    "SYSTEM": 0b1110011,
+    "SYSTEM": 0b1110011, "AMO": 0b0101111,
 }
 
 
@@ -108,6 +108,25 @@ def jal(rd, off):
 
 def jalr(rd, imm, rs1):
     return i_type(imm, rs1, 0, rd, OPC["JALR"])
+
+
+# A extension: rd, rs2 (the operand or the SC data), rs1 (the address, no offset); aq and rl are bits 26:25
+AMO_FUNCT5 = {"add": 0b00000, "swap": 0b00001, "lr": 0b00010, "sc": 0b00011, "xor": 0b00100, "or": 0b01000,
+              "and": 0b01100, "min": 0b10000, "max": 0b10100, "minu": 0b11000, "maxu": 0b11100}
+
+
+def amo(op, width, rd, rs2, rs1, aq=0, rl=0):
+    """AMO<op>.W / .D, LR, SC (width "w" or "d"; for LR rs2 must be 0)"""
+    f7 = (AMO_FUNCT5[op] << 2) | (aq << 1) | rl
+    return r_type(f7, rs2, rs1, {"w": 2, "d": 3}[width], rd, OPC["AMO"])
+
+
+def lr(width, rd, rs1):
+    return amo("lr", width, rd, 0, rs1)
+
+
+def sc(width, rd, rs2, rs1):
+    return amo("sc", width, rd, rs2, rs1)
 
 
 ECALL = 0x00000073

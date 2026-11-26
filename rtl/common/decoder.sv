@@ -16,12 +16,18 @@ module decoder (
 	output logic                jal_o,
 	output logic                jalr_o,
 	output logic                muldiv_o,
-	// SYSTEM and MISC-MEM (ADR 014): CSRRW/S/C and the immediate forms, ECALL, EBREAK, MRET, FENCE.I
+	// SYSTEM and MISC-MEM (ADR 014): CSRRW/S/C and the immediate forms, ECALL, EBREAK, MRET, WFI, FENCE.I
 	output logic                csr_o,
 	output logic                ecall_o,
 	output logic                ebreak_o,
 	output logic                mret_o,
+	output logic                wfi_o,
 	output logic                fence_i_o,
+	// A extension (ADR 019): LR, SC and the AMOs. The address is rs1 (no offset); mem_re is set for
+	// all of them (rd gets the old value, or the SC result), mem_we for all but LR; the operation is
+	// inst[31:27], sent on the data port. aq and rl (inst[26:25]) need nothing in an in-order core with
+	// one data request in flight: every access is already ordered
+	output logic                amo_o,
 	output logic [2:0]          funct3_o,
 	output logic                illegal_o
 );
@@ -63,7 +69,9 @@ module decoder (
 		ecall_o   = 1'b0;
 		ebreak_o  = 1'b0;
 		mret_o    = 1'b0;
+		wfi_o     = 1'b0;
 		fence_i_o = 1'b0;
+		amo_o     = 1'b0;
 		illegal_o = 1'b1;
 
 		case (inst_i[6:0])
@@ -212,6 +220,25 @@ module decoder (
 				illegal_o = (funct3 != 3'b000);
 			end
 
+			// LR.W/D, SC.W/D, AMO*.W/D; .D only in RV64; LR needs rs2 = 0
+			riscv_pkg::OPC_AMO: begin
+				reg_we_o = 1'b1;
+				mem_re_o = 1'b1;
+				amo_o    = 1'b1;
+				wb_sel_o = riscv_pkg::WB_MEM;
+				mem_we_o = (inst_i[31:27] != riscv_pkg::AMO_LR);
+				b_sel_o  = (inst_i[31:27] == riscv_pkg::AMO_LR) ? riscv_pkg::B_IMM : riscv_pkg::B_RS2;
+				case (inst_i[31:27])
+					riscv_pkg::AMO_LR:  illegal_o = (inst_i[24:20] != 5'd0);
+					riscv_pkg::AMO_ADD, riscv_pkg::AMO_SWAP, riscv_pkg::AMO_SC, riscv_pkg::AMO_XOR,
+					riscv_pkg::AMO_OR, riscv_pkg::AMO_AND, riscv_pkg::AMO_MIN, riscv_pkg::AMO_MAX,
+					riscv_pkg::AMO_MINU, riscv_pkg::AMO_MAXU: illegal_o = 1'b0;
+					default:            illegal_o = 1'b1;
+				endcase
+				if (!(funct3 == 3'b010 || (RV64 && funct3 == 3'b011)))
+					illegal_o = 1'b1;
+			end
+
 			// FENCE is a no-op in a single-hart core without caches. FENCE.I makes stores visible to
 			// instruction fetch: the core flushes what it has fetched ahead; its imm, rs1 and rd fields
 			// are reserved and ignored, as the specification asks
@@ -226,7 +253,7 @@ module decoder (
 				endcase
 			end
 
-			// SYSTEM. funct3 = 0: ECALL, EBREAK, MRET, WFI (a no-op without interrupts), all with fixed
+			// SYSTEM. funct3 = 0: ECALL, EBREAK, MRET, WFI (waits for an interrupt, ADR 019), all with fixed
 			// encodings. Otherwise a CSR instruction: rd gets the old value; the register forms read
 			// rs1, the immediate forms (funct3[2] = 1) take rs1 as a 5-bit zero-extended immediate.
 			// Whether the CSR exists and may be written is decided by the CSR unit
@@ -238,7 +265,7 @@ module decoder (
 							32'h0000_0073: begin ecall_o  = 1'b1; illegal_o = 1'b0; end
 							32'h0010_0073: begin ebreak_o = 1'b1; illegal_o = 1'b0; end
 							32'h3020_0073: begin mret_o   = 1'b1; illegal_o = 1'b0; end
-							32'h1050_0073: illegal_o = 1'b0;
+							32'h1050_0073: begin wfi_o    = 1'b1; illegal_o = 1'b0; end
 							default:       illegal_o = 1'b1;
 						endcase
 					end
@@ -265,6 +292,7 @@ module decoder (
 			jalr_o   = 1'b0;
 			muldiv_o = 1'b0;
 			csr_o    = 1'b0;
+			amo_o    = 1'b0;
 		end
 	end
 

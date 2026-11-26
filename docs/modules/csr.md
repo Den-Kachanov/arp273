@@ -28,7 +28,7 @@ All outputs are combinational from the address and the registers; the registers 
 | Address | CSR | Behaviour |
 |---|---|---|
 | 0x300 | `mstatus` | MIE (bit 3) and MPIE (bit 7) writable; MPP (12:11) reads 11, only M-mode; other bits 0 |
-| 0x301 | `misa` | Reads MXL (2 for XLEN = 64, 1 for 32) and the I and M bits; writes ignored (WARL) |
+| 0x301 | `misa` | Reads MXL (2 for XLEN = 64, 1 for 32) and the A, I and M bits; writes ignored (WARL) |
 | 0x304 | `mie` | MSIE, MTIE, MEIE writable; no interrupt sources yet |
 | 0x305 | `mtvec` | Direct mode only: bits 1:0 read 0 |
 | 0x340 | `mscratch` | Read/write |
@@ -39,7 +39,7 @@ All outputs are combinational from the address and the registers; the registers 
 | 0xB00, 0xB02 | `mcycle`, `minstret` | Read the counters; writes ignored (simplification, ADR 014) |
 | 0xC00, 0xC02 | `cycle`, `instret` | Read-only copies |
 | 0xB80, 0xB82, 0xC80, 0xC82 | high halves | XLEN = 32 only |
-| 0xF11–0xF15 | `mvendorid`, `marchid`, `mimpid`, `mhartid`, `mconfigptr` | Read 0 |
+| 0xF11–0xF15 | `mvendorid`, `marchid`, `mimpid`, `mhartid`, `mconfigptr` | Read 0, except `mhartid`: the parameter `HART_ID` |
 
 Every other address is an illegal instruction (`satp`, `pmp*`, `medeleg`, `mideleg`, `stvec`...). The
 startup code of `riscv-tests` relies on this: it points `mtvec` past each optional CSR write first.
@@ -52,7 +52,7 @@ startup code of `riscv-tests` relies on this: it points `mtvec` past each option
 | Illegal instruction | 2 | instruction bits | ID (decoder) or WB (CSR) |
 | Breakpoint (EBREAK) | 3 | pc | EX |
 | Load address misaligned | 4 | address | MEM |
-| Store address misaligned | 6 | address | MEM |
+| Store/AMO address misaligned | 6 | address | MEM |
 | ECALL from M-mode | 11 | 0 | EX |
 
 On an exception: `mepc` = pc of the instruction, `mcause`, `mtval`, `MPIE` = `MIE`, `MIE` = 0. On MRET:

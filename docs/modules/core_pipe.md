@@ -1,6 +1,6 @@
 # Pipelined core (`rtl/sol/core_pipe.sv`)
 
-A five-stage pipelined RV64IM core (RV32IM for XLEN = 32): IF, ID, EX, MEM, WB. Design decisions,
+A five-stage pipelined RV64IMA core (RV32IMA for XLEN = 32): IF, ID, EX, MEM, WB. Design decisions,
 measurements and verification: [ADR 013](../adr/013-pipeline-and-memory-interface.md); Sol 2 adds the
 multiplier width ([ADR 017](../adr/017-multiplier-bits-per-cycle.md)) and branch prediction (ADR 018). It
 is built from the same units as the single-cycle reference core ([core.md](core.md)). In the family of
@@ -18,7 +18,8 @@ prediction (`BP = 1`) was built and measured but is not enabled: it did not lowe
 | `imem_rsp_valid_i`, `imem_rsp_data_i` | input | 1, 32 | Instruction response |
 | `dmem_req_valid_o`, `dmem_req_ready_i` | out, in | 1 | Data request handshake |
 | `dmem_req_addr_o`, `dmem_req_we_o`, `dmem_req_wstrb_o`, `dmem_req_wdata_o` | output | `XLEN`, 1, `XLEN/8`, `XLEN` | Aligned address, write enable, byte strobes, data in its lane |
-| `dmem_rsp_valid_i`, `dmem_rsp_data_i` | input | 1, `XLEN` | Data response (a store gets one too) |
+| `dmem_req_amo_o`, `dmem_req_atop_o` | output | 1, 5 | An atomic of the A extension and its operation (`funct5`); the memory side executes it ([ADR 019](../adr/019-soc-architecture.md), [spec](../spec.md#ports)) |
+| `dmem_rsp_valid_i`, `dmem_rsp_data_i` | input | 1, `XLEN` | Data response (a store gets one too; an atomic gets the old word or the SC result) |
 | `trap_o` | output | 1 | An exception is taken in this cycle; `commit_pc_o` shows the instruction (ADR 014) |
 | `commit_valid_o`, `commit_pc_o`, `commit_inst_o`, `commit_we_o`, `commit_rd_o`, `commit_data_o` | output | | Commit trace from WB, as in the single-cycle core |
 | `commit_mem_re_o`, `commit_mem_we_o`, `commit_mem_addr_o`, `commit_mem_wdata_o`, `commit_mem_wstrb_o` | output | | The memory access of the committed instruction, for the commit log |
@@ -27,6 +28,7 @@ prediction (`BP = 1`) was built and measured but is not enabled: it did not lowe
 | Parameter | Default | Meaning |
 |---|---|---|
 | `RESET_PC` | `0x8000_0000` | First fetch |
+| `HART_ID` | 0 | Value of `mhartid` |
 | `DEBUG` | 1 | 0: release build, no commit trace (the `commit_*` outputs read 0) and no stall and flush counters; the behaviour on the memory ports is the same (`make release-check`, ADR 013) |
 | `MUL_BITS` | 4 | Multiplier bits per cycle of `muldiv` (1, 2, 4, 8; ADR 017) |
 | `BP` | 0 | Branch prediction in IF ([bpred.md](bpred.md), ADR 018); 0 removes the predictor. Not enabled by default: measured, it costs as much time as it saves cycles and more energy |
@@ -82,13 +84,31 @@ Every test of the core runs in three configurations (`CONFIGS` in `tb/unit/test_
   memories with identical commit traces. With prediction: a loop (2 flushes instead of 9), calls and
   returns from one site (4 instead of 8), a JALR whose target moves by exactly 2^20 (the BTB keeps only
   the low 20 bits, so EX must compare the upper bits too).
+- `tb/unit/test_atomic.py`: 6 tests of the A extension and `mhartid` in every configuration and on a core with `HART_ID = 5`: every `.W` and `.D` operation, a `.W` atomic in the upper half of a doubleword, LR/SC (success, failure without a reservation, at another address, twice), the result used by the next instruction, the exceptions of misaligned atomics.
 - `tb/unit/test_csr.py`: 12 tests of CSRs and exceptions (ADR 014), among them a branch overwritten by
   FENCE.I while the BTB still predicts it, an exception on the predicted path, a misaligned jump that
   traps every time (also once learned), and a branch dropped by FENCE.I that must not train the predictor.
-- `make mutate M=core_pipe`: 67 mutants (the prediction ones included), 66 caught, 1 equivalent; every
+- `make mutate M=core_pipe`: 75 mutants (the prediction and A-extension ones included), 74 caught, 1 equivalent; every
   mutant runs in the three configurations.
-- `make riscv-tests`: `rv64ui-p` and `rv64um-p`, 66 of 66 (`ma_data` not run: misaligned access traps).
-- `make regress CORE=pipe`, `make fuzz CORE=pipe`, also with `MEM_STALL=0.3`: match Spike.
+- `make riscv-tests`: `rv64ui-p`, `rv64um-p` and `rv64ua-p`, 85 of 85 (`ma_data` not run: misaligned access traps), also with `MEM_STALL=0.3`.
+- `make regress CORE=pipe` (with `sw/a/atomic.c`: fetch-and-op builtins, compare-and-swap as an LR/SC loop, a spinlock), `make fuzz CORE=pipe`, also with `MEM_STALL=0.3`: match Spike.
+
+## Atomics (A extension)
+
+An LR, SC or AMO goes through the pipeline like a load: its address is rs1 (EX passes rs1 instead of the
+ALU result), its data is rs2 in its lane (the MEM `lsu` with `funct3` = 2 or 3 gives the lanes of a
+word or a doubleword), and its result arrives in WB as load data, sign-extended by the WB `lsu`. The
+operation `inst[31:27]` travels in the bits that carry the CSR address (`ex_imm_q`, `mem_sys_q`), so
+it costs no new pipeline register; only the `amo` flag is new in EX and MEM. The memory side executes
+the operation and keeps the LR reservation, as the L2 will (ADR 019). Because the core has one data
+request in flight and completes every access in order, `aq` and `rl` need nothing. A misaligned LR
+raises cause 4, a misaligned SC or AMO cause 6.
+
+Cost, measured on 2026-11-27 (Yosys 0.66, release build, Sol 2 parameters, XLEN = 64, against the RTL of
+commit `0603b07`; the change itself is not committed yet; ABC moves such numbers by a few percent between
+runs): `core_pipe` 6516 → 6616 LUT6 (+1.5 %), 3740 → 3742 flip-flops; on xc7 4836 → 4750 LUT (within the
+noise) and logic delay 6098 → 6168 ps (+1.1 %); the decoder 68 → 78 LUT6. Timing of everything else
+is unchanged: the exact cycle counts of `test_pipeline.py` pass as before.
 
 ## Status
 

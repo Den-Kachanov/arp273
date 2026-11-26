@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
 // SPDX-FileCopyrightText: 2026 Denys Kachanov
 
-// Five-stage pipelined core, RV64IM (RV32IM for XLEN = 32), ADR 013
+// Five-stage pipelined core, RV64IMA (RV32IMA for XLEN = 32), ADR 013, ADR 019
 //
 //   IF   fetch: requests to the instruction port, responses into a 2-entry fetch queue
 //   ID   decode, register read (the head of the fetch queue is the ID instruction)
@@ -10,7 +10,10 @@
 //   WB   load response, register write, commit
 //
 // Memory ports (ADR 013): valid/ready request, response at least one cycle later, in order,
-// one outstanding request per port, a response for every request (stores too)
+// one outstanding request per port, a response for every request (stores too). An atomic of the A
+// extension is one data request with dmem_req_amo_o set and its operation on dmem_req_atop_o; the
+// memory side executes it (the model now, the L2 later, ADR 019) and responds with the old value
+// (LR, AMOs) or the SC result (0 = stored, 1 = failed), in the lane of the access
 //
 // Hazards:
 //   forwarding from MEM (not loads) and from WB into EX, never for x0
@@ -19,9 +22,17 @@
 //   response still on the way is dropped
 //   the multiplier/divider holds EX until done; the result is kept if MEM cannot take it yet
 //   a trap reaches WB and freezes the pipeline: younger instructions write nothing
+//
+// Interrupts (ADR 019): taken in WB in place of the instruction there, which then has not executed
+// (mepc = its pc), like an exception. Not on a load, store or atomic: its request has already gone to
+// memory, so it commits and the next instruction takes the interrupt. WFI waits in WB until an
+// interrupt is pending and enabled in mie; with MIE set that interrupt is taken on the WFI itself
+// (mepc = the WFI, as in Spike), with MIE clear the WFI commits and execution goes on
 
 module core_pipe #(
 	parameter logic [riscv_pkg::XLEN-1:0] RESET_PC = riscv_pkg::XLEN'(64'h8000_0000),
+	// mhartid (ADR 019)
+	parameter int HART_ID = 0,
 	// 1: verification build. 0: release build: everything that exists only to check the core is
 	// removed: the commit trace (the instruction carried through ID/EX, EX/MEM and MEM/WB, the copies
 	// of store data and strobes in WB, all commit_* outputs read 0) and the stall and flush
@@ -57,10 +68,19 @@ module core_pipe #(
 	output logic                          dmem_req_we_o,
 	output logic [riscv_pkg::XLEN/8-1:0]  dmem_req_wstrb_o,
 	output logic [riscv_pkg::XLEN-1:0]    dmem_req_wdata_o,
+	// atomic request: the operation (funct5 of the A extension, riscv_pkg::amo_op_t); for these
+	// dmem_req_wstrb_o gives the lanes of the access, LR included
+	output logic                          dmem_req_amo_o,
+	output logic [4:0]                    dmem_req_atop_o,
 	input  logic                          dmem_rsp_valid_i,
 	input  logic [riscv_pkg::XLEN-1:0]    dmem_rsp_data_i,
 
-	// a trap in WB stops the core; commit_pc_o shows the trapping instruction
+	// interrupt lines, levels: CLINT (software, timer) and PLIC (external)
+	input  logic                          irq_msip_i,
+	input  logic                          irq_mtip_i,
+	input  logic                          irq_meip_i,
+
+	// a trap (exception or interrupt) is taken in WB; commit_pc_o shows the instruction it replaces
 	output logic                          trap_o,
 
 	// commit trace, from WB
@@ -201,7 +221,7 @@ module core_pipe #(
 	riscv_pkg::b_sel_t   id_b_sel;
 	riscv_pkg::wb_sel_t  id_wb_sel;
 	logic                id_reg_we, id_mem_re, id_mem_we, id_branch, id_jal, id_jalr, id_muldiv, id_illegal;
-	logic                id_csr, id_ecall, id_ebreak, id_mret, id_fence_i;
+	logic                id_csr, id_ecall, id_ebreak, id_mret, id_wfi, id_fence_i, id_amo;
 	logic                id_csr_write;
 	logic [2:0]          id_funct3;
 	logic [X-1:0]        id_rs1_data, id_rs2_data, id_imm;
@@ -232,7 +252,9 @@ module core_pipe #(
 		.ecall_o   (id_ecall),
 		.ebreak_o  (id_ebreak),
 		.mret_o    (id_mret),
+		.wfi_o     (id_wfi),
 		.fence_i_o (id_fence_i),
+		.amo_o     (id_amo),
 		.funct3_o  (id_funct3),
 		.illegal_o (id_illegal)
 	);
@@ -281,7 +303,7 @@ module core_pipe #(
 	riscv_pkg::wb_sel_t  ex_wb_sel_q;
 	logic                ex_reg_we_q, ex_mem_re_q, ex_mem_we_q, ex_branch_q, ex_jal_q, ex_jalr_q, ex_muldiv_q;
 	logic                ex_illegal_q;
-	logic                ex_csr_q, ex_csr_write_q, ex_ecall_q, ex_ebreak_q, ex_mret_q, ex_fence_i_q;
+	logic                ex_csr_q, ex_csr_write_q, ex_ecall_q, ex_ebreak_q, ex_mret_q, ex_wfi_q, ex_fence_i_q, ex_amo_q;
 	logic [2:0]          ex_funct3_q;
 	logic [4:0]          ex_rd_q, ex_rs1_q, ex_rs2_q;
 	logic                ex_use_rs1_q, ex_use_rs2_q;
@@ -299,15 +321,16 @@ module core_pipe #(
 	logic [X-1:0]        mem_result_q;     // ALU result, link address or M result; the address for loads and stores;
 	                                       // the CSR write value; mtval of a trap
 	logic [X-1:0]        mem_store_q;
-	logic                mem_csr_q, mem_csr_write_q, mem_mret_q, mem_fence_i_q;
+	logic                mem_csr_q, mem_csr_write_q, mem_mret_q, mem_wfi_q, mem_fence_i_q, mem_amo_q;
 	logic [3:0]          mem_cause_q;      // exception cause of a trap from ID or EX
-	logic [16:0]         mem_sys_q;        // CSR address and rs1 field (instruction bits 31:15)
+	logic [16:0]         mem_sys_q;        // CSR address and rs1 field (instruction bits 31:15); the AMO
+	                                       // operation is bits 31:27
 
 	logic                wb_valid_q;
 	logic [X-1:0]        wb_pc_q;
 	logic [31:0]         wb_inst_q;
 	logic                wb_reg_we_q, wb_mem_re_q, wb_mem_we_q, wb_trap_q;
-	logic                wb_csr_q, wb_csr_write_q, wb_mret_q, wb_fence_i_q;
+	logic                wb_csr_q, wb_csr_write_q, wb_mret_q, wb_wfi_q, wb_fence_i_q;
 	logic [3:0]          wb_cause_q;
 	logic [16:0]         wb_sys_q;
 	logic [2:0]          wb_funct3_q;
@@ -432,7 +455,8 @@ module core_pipe #(
 
 	// the value EX passes on. For a trap it is mtval: the instruction bits of an illegal instruction
 	// (ID put them in ex_imm_q), the target of a misaligned jump, the pc of EBREAK, 0 for ECALL.
-	// For a CSR instruction it is the write value: rs1, or the zero-extended 5-bit immediate
+	// For a CSR instruction it is the write value: rs1, or the zero-extended 5-bit immediate. For an
+	// atomic it is the address: rs1, without an offset
 	always_comb begin
 		ex_result = alu_r;
 		if (ex_illegal_q)                           ex_result = ex_imm_q;
@@ -440,6 +464,7 @@ module core_pipe #(
 		else if (ex_ebreak_q)                       ex_result = ex_pc_q;
 		else if (ex_ecall_q)                        ex_result = '0;
 		else if (ex_csr_q)                          ex_result = ex_funct3_q[2] ? X'(ex_imm_q[19:15]) : ex_rs1;
+		else if (ex_amo_q)                          ex_result = ex_rs1;
 		else if (ex_jal_q || ex_jalr_q || ex_fence_i_q) ex_result = ex_pc4;
 		else if (ex_muldiv_q)                       ex_result = md_have_q ? md_res_q : md_result;
 	end
@@ -546,17 +571,20 @@ module core_pipe #(
 	assign mem_access  = mem_mem_re_q | mem_mem_we_q;
 	assign mem_trap    = mem_trap_in_q | (mem_access & mem_misaligned);
 
-	// a misaligned access is a load (4) or store (6) address misaligned exception; mtval is the address
+	// a misaligned access is a load (4) or store/AMO (6) address misaligned exception: LR counts as a
+	// load, SC and the AMOs as stores; mtval is the address
 	logic [3:0] mem_cause;
-	assign mem_cause = mem_trap_in_q ? mem_cause_q : (mem_mem_re_q ? 4'd4 : 4'd6);
+	assign mem_cause = mem_trap_in_q ? mem_cause_q : (mem_mem_we_q ? 4'd6 : 4'd4);
 
 	// the request goes out only when WB can take the instruction in the same cycle, so that the
 	// response (one cycle or more later) meets it in WB; a trapping access does not go out
 	assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept & ~flush;
 	assign dmem_req_addr_o  = {mem_result_q[X-1:$clog2(S)], {$clog2(S){1'b0}}};
 	assign dmem_req_we_o    = mem_mem_we_q;
-	assign dmem_req_wstrb_o = mem_mem_we_q ? mem_wstrb : '0;
+	assign dmem_req_wstrb_o = (mem_mem_we_q | mem_amo_q) ? mem_wstrb : '0;
 	assign dmem_req_wdata_o = mem_wdata;
+	assign dmem_req_amo_o   = mem_amo_q;
+	assign dmem_req_atop_o  = mem_sys_q[16:12];
 
 	assign mem_advance    = mem_valid_q & wb_can_accept & (~mem_access | mem_trap | dmem_req_ready_i);
 	assign mem_can_accept = ~mem_valid_q | mem_advance;
@@ -587,11 +615,14 @@ module core_pipe #(
 	logic [X-1:0] csr_rdata;
 	logic         csr_illegal;
 	logic [X-1:0] mtvec, mepc;
-	logic         wb_exc;            // WB takes an exception in this cycle
+	logic         wb_exc;            // WB takes an exception or an interrupt in this cycle
+	logic         wb_irq;            // ... an interrupt
+	logic         irq_pending, irq_take;
+	logic [3:0]   irq_code;
 	logic [3:0]   wb_cause;
 	logic [X-1:0] wb_tval;
 
-	csr u_csr (
+	csr #(.HART_ID(HART_ID)) u_csr (
 		.clk_i     (clk_i),
 		.rst_ni    (rst_ni),
 		.access_i  (wb_valid_q & wb_csr_q),
@@ -602,26 +633,34 @@ module core_pipe #(
 		.rdata_o   (csr_rdata),
 		.illegal_o (csr_illegal),
 		.trap_i    (wb_exc),
-		.cause_i   (X'(wb_cause)),
+		.cause_i   ({wb_irq, (X - 5)'(0), wb_cause}),
 		.epc_i     (wb_pc_q),
 		.tval_i    (wb_tval),
 		.mret_i    (wb_advance & wb_mret_q),
 		.mtvec_o   (mtvec),
 		.mepc_o    (mepc),
+		.irq_i         ({irq_meip_i, irq_mtip_i, irq_msip_i}),
+		.irq_pending_o (irq_pending),
+		.irq_take_o    (irq_take),
+		.irq_code_o    (irq_code),
 		.cycle_i   (perf_cycles_o),
 		.instret_i (perf_instret_o)
 	);
 
-	assign wb_exc   = wb_valid_q & (wb_trap_q | (wb_csr_q & csr_illegal));
-	assign wb_cause = wb_trap_q ? wb_cause_q : 4'd2;
-	// mtval of an illegal CSR access: the instruction, rebuilt from the fields WB has
-	assign wb_tval  = wb_trap_q ? wb_result_q : X'({wb_sys_q, wb_funct3_q, wb_rd_q, 7'b1110011});
+	// an interrupt replaces the WB instruction unless that one has sent its memory request (a trapping
+	// access has not: its flags are cleared)
+	assign wb_irq   = wb_valid_q & irq_take & ~wb_mem_re_q & ~wb_mem_we_q;
+	assign wb_exc   = wb_irq | (wb_valid_q & (wb_trap_q | (wb_csr_q & csr_illegal)));
+	assign wb_cause = wb_irq ? irq_code : (wb_trap_q ? wb_cause_q : 4'd2);
+	// mtval of an illegal CSR access: the instruction, rebuilt from the fields WB has; 0 for an interrupt
+	assign wb_tval  = wb_irq ? '0 : (wb_trap_q ? wb_result_q : X'({wb_sys_q, wb_funct3_q, wb_rd_q, 7'b1110011}));
 
 	// loads and stores wait for their response. An exception does not commit: it flushes every
 	// younger instruction and fetches from mtvec. MRET and FENCE.I commit and flush, then fetch
 	// from mepc, or from pc + 4 (FENCE.I: the instructions after it are fetched again, after the
 	// stores before it)
-	assign wb_wait       = (wb_mem_re_q | wb_mem_we_q) & ~wb_trap_q & ~dmem_rsp_valid_i;
+	assign wb_wait       = ((wb_mem_re_q | wb_mem_we_q) & ~wb_trap_q & ~dmem_rsp_valid_i) |
+	                       (wb_wfi_q & ~irq_pending);
 	assign wb_advance    = wb_valid_q & ~wb_wait & ~wb_exc;
 	assign wb_can_accept = ~wb_valid_q | wb_advance;
 	assign wb_redirect   = wb_exc | (wb_advance & (wb_mret_q | wb_fence_i_q));
@@ -676,7 +715,9 @@ module core_pipe #(
 				ex_ecall_q    <= id_ecall;
 				ex_ebreak_q   <= id_ebreak;
 				ex_mret_q     <= id_mret;
+				ex_wfi_q      <= id_wfi;
 				ex_fence_i_q  <= id_fence_i;
+				ex_amo_q      <= id_amo;
 				ex_funct3_q   <= id_funct3;
 				ex_rd_q       <= id_inst[11:7];
 				ex_rs1_q      <= id_inst[19:15];
@@ -685,9 +726,9 @@ module core_pipe #(
 				ex_use_rs2_q  <= id_use_rs2;
 				ex_rs1_data_q <= id_rs1_data;
 				ex_rs2_data_q <= id_rs2_data;
-				// an illegal or CSR instruction carries its own bits instead of the immediate: mtval,
-				// the CSR address and the 5-bit immediate come from them
-				ex_imm_q      <= (id_illegal | id_csr) ? X'(id_inst) : id_imm;
+				// an illegal, CSR or atomic instruction carries its own bits instead of the immediate:
+				// mtval, the CSR address, the 5-bit immediate and the AMO operation come from them
+				ex_imm_q      <= (id_illegal | id_csr | id_amo) ? X'(id_inst) : id_imm;
 				ex_imm4_q     <= id_imm4;
 				ex_pred_q     <= fq_pred_q[0];
 				ex_ptgt_q     <= fq_ptgt_q[0];
@@ -723,7 +764,9 @@ module core_pipe #(
 				mem_csr_q     <= ex_csr_q & ~ex_trap;
 				mem_csr_write_q <= ex_csr_write_q;
 				mem_mret_q    <= ex_mret_q & ~ex_trap;
+				mem_wfi_q     <= ex_wfi_q & ~ex_trap;
 				mem_fence_i_q <= ex_fence_i_q & ~ex_trap;
+				mem_amo_q     <= ex_amo_q & ~ex_trap;
 				mem_sys_q     <= ex_imm_q[31:15];
 				mem_funct3_q  <= ex_funct3_q;
 				mem_rd_q      <= ex_rd_q;
@@ -746,6 +789,7 @@ module core_pipe #(
 				wb_csr_q    <= mem_csr_q & ~mem_trap;
 				wb_csr_write_q <= mem_csr_write_q;
 				wb_mret_q   <= mem_mret_q & ~mem_trap;
+				wb_wfi_q    <= mem_wfi_q & ~mem_trap;
 				wb_fence_i_q <= mem_fence_i_q & ~mem_trap;
 				wb_sys_q    <= mem_sys_q;
 				wb_funct3_q <= mem_funct3_q;

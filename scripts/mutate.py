@@ -4,7 +4,10 @@
 """
 Mutation check of the unit tests
 
-Usage: mutate.py <name> [--jobs N]        (list of mutants: scripts/mutants/<name>.py)
+Usage: mutate.py <name> [--jobs N] [--only TEXT ...]   (list of mutants: scripts/mutants/<name>.py)
+
+--only runs the mutants whose name contains one of the given texts (after a change to a few lines);
+the full list must still pass before a module counts as checked
 
 A copy of rtl/ and tb/ is made in a temporary directory. Each mutant is one textual change
 of one RTL file; the tests of that module run against the changed copy. A mutant is
@@ -74,6 +77,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("name", help="mutants file name without .py")
     ap.add_argument("--jobs", type=int, default=2, help="mutants tested in parallel (default 2)")
+    ap.add_argument("--only", nargs="+", help="run only the mutants whose name contains one of these texts")
     args = ap.parse_args()
 
     mod = load(args.name)
@@ -86,6 +90,8 @@ def main():
             sys.exit(f"mutate: '{name}': the old text occurs {source.count(old)} times in {mod.RTL}, expected 1")
         if old == new:
             sys.exit(f"mutate: '{name}': the mutant does not change anything")
+        if args.only and not any(t in name for t in args.only):
+            continue
         jobs.append((i, name, old, new))
 
     unexplained = []

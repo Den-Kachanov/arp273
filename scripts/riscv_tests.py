@@ -12,7 +12,7 @@ submodule; nothing of it is copied into this repository.
 Not run: ma_data (misaligned loads and stores must work, in hardware or emulated by a handler;
 the core traps on them, which the specification allows; see ADR 014)
 
-Usage: riscv_tests.py --sim build/core_pipe_sim [--src third_party/riscv-tests] [--suites rv64ui rv64um]
+Usage: riscv_tests.py --sim build/core_pipe_sim [--src third_party/riscv-tests] [--suites rv64ui rv64um rv64ua]
                       [--cross riscv64-elf-] [-j N]
 """
 
@@ -24,7 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 SKIP = {"ma_data": "misaligned data access is not supported (traps)"}
-ARCH = {"rv64ui": "rv64i_zicsr_zifencei", "rv64um": "rv64im_zicsr_zifencei"}
+ARCH = {"rv64ui": "rv64i_zicsr_zifencei", "rv64um": "rv64im_zicsr_zifencei", "rv64ua": "rv64ia_zicsr_zifencei"}
 GCC_OPTS = ["-mabi=lp64", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-nostartfiles"]
 
 
@@ -67,7 +67,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("--sim", required=True, type=Path)
     ap.add_argument("--src", default="third_party/riscv-tests", type=Path)
-    ap.add_argument("--suites", nargs="+", default=["rv64ui", "rv64um"])
+    ap.add_argument("--suites", nargs="+", default=["rv64ui", "rv64um", "rv64ua"])
     ap.add_argument("--cross", default="riscv64-elf-")
     ap.add_argument("--out", default="build/riscv-tests", type=Path)
     ap.add_argument("-j", type=int, default=os.cpu_count() or 4)

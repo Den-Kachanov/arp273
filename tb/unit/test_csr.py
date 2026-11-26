@@ -104,7 +104,7 @@ async def test_csr_read_modify_write(dut):
     """CSRRW/S/C and the immediate forms return the old value; reads feed the next instruction at once"""
     m = common.mask()
     x = common.xlen()
-    misa = ((2 if x == 64 else 1) << (x - 2)) | (1 << 8) | (1 << 12)
+    misa = ((2 if x == 64 else 1) << (x - 2)) | (1 << 0) | (1 << 8) | (1 << 12)
     body = [
         asm.addi(1, 0, 0x0F0), asm.addi(3, 0, 0x00F), asm.addi(5, 0, 0x0F0),
         asm.csrw("mscratch", 1),

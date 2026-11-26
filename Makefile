@@ -28,7 +28,7 @@ help:
 	@echo "make regress           compare every program in sw/ with Spike (CORE=pipe: the pipelined core)"
 	@echo "make fuzz SEEDS='1 2 3'  random programs (scripts/gen_prog.py) against Spike"
 	@echo "make release-check   the release build of the pipeline (DEBUG = 0) behaves like the debug build"
-	@echo "make riscv-tests     riscv-tests rv64ui-p and rv64um-p on the pipelined core (git submodule third_party/riscv-tests)"
+	@echo "make riscv-tests     riscv-tests rv64ui-p, rv64um-p, rv64ua-p on the pipelined core (git submodule third_party/riscv-tests)"
 	@echo "make coremark        CoreMark/MHz on the pipelined core, release build (git submodule third_party/coremark; CM_ITER=10)"
 	@echo "make bench           CoreMark, riscv-tests benchmarks, Embench-IoT: cycles (FP ones in soft-float; SOFTFP=0: integer only); BASELINE=<json> compares"
 	@echo "make energy          switching-energy estimate from the gate netlist (scripts/energy.py, ADR 016); PARAMS='MUL_BITS=4'"
@@ -83,15 +83,23 @@ synth:
 BUILD    := build
 CROSS    ?= riscv64-elf-
 CC       := $(CROSS)gcc
-CFLAGS   := -march=rv64im_zicsr -mabi=lp64 -mcmodel=medany -O2 -ffreestanding -nostdlib -nostartfiles
+CFLAGS   := -march=rv64ima_zicsr -mabi=lp64 -mcmodel=medany -O2 -ffreestanding -nostdlib -nostartfiles
 SPIKE    := spike
 PROGS    := $(basename $(notdir $(wildcard sw/*.c)))
+# programs with atomics (A extension, ADR 019): only the pipelined core runs them
+PROGS_A  := $(basename $(notdir $(wildcard sw/a/*.c)))
+PROGS_CORE = $(PROGS) $(if $(filter pipe,$(CORE)),$(PROGS_A))
 CORE_SRC := $(sort $(wildcard $(addsuffix /*.sv,$(RTL_DIRS))))
 
 # keep the ELF: Spike and nm need it after the .bin is built
 .PRECIOUS: $(BUILD)/%.elf $(BUILD)/fuzz_%.S
 
 $(BUILD)/%.elf: sw/%.c sw/crt0.S sw/link.ld
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -Wl,--no-warn-rwx-segments -T sw/link.ld sw/crt0.S $< -o $@
+	$(CROSS)objdump -d $@ > $(BUILD)/$*.dis
+
+$(BUILD)/%.elf: sw/a/%.c sw/crt0.S sw/link.ld
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -Wl,--no-warn-rwx-segments -T sw/link.ld sw/crt0.S $< -o $@
 	$(CROSS)objdump -d $@ > $(BUILD)/$*.dis
@@ -162,7 +170,7 @@ $(REL_SIM): $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 # store to tohost, for every program and fuzz seed (also with MEM_STALL); the stall and flush
 # counters exist only in the debug build and are not compared
 release-check: $(PIPE_SIM) $(REL_SIM)
-	@for p in $(PROGS) $(addprefix fuzz_,$(SEEDS)); do \
+	@for p in $(PROGS) $(PROGS_A) $(addprefix fuzz_,$(SEEDS)); do \
 	  $(MAKE) --no-print-directory -s $(BUILD)/$$p.bin >/dev/null || exit 1; \
 	  th=$$($(CROSS)nm $(BUILD)/$$p.elf | awk '$$3=="tohost"{print $$1}'); \
 	  d=$$(END_ON_STORE=1 $(PIPE_SIM) $(BUILD)/$$p.bin /dev/null $$th 2>&1 | grep -E "^(exit code|cycles)" | sed -E 's/ stalls.*//'); \
@@ -182,12 +190,12 @@ sim: $(SIM_BIN) $(BUILD)/$(PROG).bin
 	  $$($(CROSS)nm $(BUILD)/$(PROG).elf | awk '$$3=="tohost"{print $$1}')
 
 compare: sim
-	-$(SPIKE) --isa=rv64im -m0x80000000:0x100000 --log-commits $(BUILD)/$(PROG).elf 2> $(BUILD)/$(PROG).spike.log
+	-$(SPIKE) --isa=rv64ima -m0x80000000:0x100000 --log-commits $(BUILD)/$(PROG).elf 2> $(BUILD)/$(PROG).spike.log
 	$(PYTHON) scripts/compare.py $(BUILD)/$(PROG).$(CORE).log $(BUILD)/$(PROG).spike.log
 
 regress:
 	@mkdir -p $(BUILD)
-	@for p in $(PROGS); do \
+	@for p in $(PROGS_CORE); do \
 	  echo "== compare $$p"; \
 	  $(MAKE) --no-print-directory compare PROG=$$p CORE=$(CORE) > $(BUILD)/$$p.$(CORE).regress.log 2>&1 || { tail -15 $(BUILD)/$$p.$(CORE).regress.log; exit 1; }; \
 	  tail -1 $(BUILD)/$$p.$(CORE).regress.log; \
@@ -205,7 +213,7 @@ fuzz:
 # riscv-tests (git submodule, with its env submodule): self-checking ISA tests; the core takes their
 # exceptions itself (TRAP_STOP=0 in the script). MEM_STALL works here too
 RISCV_TESTS ?= third_party/riscv-tests
-RT_SUITES   ?= rv64ui rv64um
+RT_SUITES   ?= rv64ui rv64um rv64ua
 riscv-tests: $(PIPE_SIM)
 	$(PYTHON) scripts/riscv_tests.py --sim $(PIPE_SIM) --src $(RISCV_TESTS) --cross $(CROSS) \
 	  --suites $(RT_SUITES) --out $(BUILD)/riscv-tests

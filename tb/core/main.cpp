@@ -86,6 +86,58 @@ static uint64_t log_store(FILE *log, uint64_t addr, uint64_t wdata, unsigned str
 	return value;
 }
 
+#ifdef PIPE
+// A extension (ADR 019): the memory side executes the atomics, as the L2 will. The lanes of the
+// access come in the strobes (LR included); the response is the old word (LR, AMOs) or the SC result
+// in the lane (0 = stored, 1 = failed). One reservation, at the exact address of the LR, as in Spike;
+// every SC clears it
+static bool resv_valid = false;
+static uint64_t resv_addr = 0;
+static uint64_t amo_value = 0;   // the value the last AMO stored, for the commit log
+static bool sc_ok = false;       // whether the last SC stored
+
+static uint64_t amo_execute(uint64_t addr, unsigned atop, uint64_t wdata, unsigned strb)
+{
+	unsigned off = 0, n = 0;
+	while (off < 8 && !((strb >> off) & 1))
+		off++;
+	for (unsigned i = off; i < 8 && ((strb >> i) & 1); i++)
+		n++;
+	uint64_t word = read_le(addr, 8);
+	uint64_t mask = n == 8 ? ~0ull : ((1ull << (8 * n)) - 1);
+	uint64_t a = (word >> (8 * off)) & mask, b = (wdata >> (8 * off)) & mask;
+	int64_t sa = n == 8 ? (int64_t)a : (int64_t)(int32_t)a, sb = n == 8 ? (int64_t)b : (int64_t)(int32_t)b;
+	uint64_t r = a;
+	switch (atop) {
+	case 0x02:  // LR
+		resv_valid = true;
+		resv_addr = addr + off;
+		return word;
+	case 0x03:  // SC
+		sc_ok = resv_valid && resv_addr == addr + off;
+		resv_valid = false;
+		if (sc_ok)
+			write_strb(addr, wdata, strb);
+		return (uint64_t)(sc_ok ? 0 : 1) << (8 * off);
+	case 0x00: r = a + b; break;
+	case 0x01: r = b; break;
+	case 0x04: r = a ^ b; break;
+	case 0x08: r = a | b; break;
+	case 0x0c: r = a & b; break;
+	case 0x10: r = sa < sb ? a : b; break;
+	case 0x14: r = sa > sb ? a : b; break;
+	case 0x18: r = a < b ? a : b; break;
+	case 0x1c: r = a > b ? a : b; break;
+	default:
+		fprintf(stderr, "unknown atomic operation %u\n", atop);
+		break;
+	}
+	amo_value = r & mask;
+	write_strb(addr, (r & mask) << (8 * off), strb);
+	return word;
+}
+#endif
+
 static void tick(Vtop *top)
 {
 	top->clk_i = 1;
@@ -235,7 +287,10 @@ int main(int argc, char **argv)
 				break;
 			}
 			uint64_t addr = top->dmem_req_addr_o;
-			if (top->dmem_req_we_o) {
+			if (top->dmem_req_amo_o) {
+				pd = {true, cycle + latency(),
+				      amo_execute(addr, top->dmem_req_atop_o, top->dmem_req_wdata_o, top->dmem_req_wstrb_o)};
+			} else if (top->dmem_req_we_o) {
 				write_strb(addr, top->dmem_req_wdata_o, top->dmem_req_wstrb_o);
 				uart_store(addr, top->dmem_req_wdata_o, top->dmem_req_wstrb_o);
 				pd = {true, cycle + latency(), 0};
@@ -263,9 +318,20 @@ int main(int argc, char **argv)
 
 		bool done = false;
 #ifdef PIPE
-		if (top->commit_mem_re_o)
+		// atomics are logged as Spike does: LR a load, an AMO a load and a store of the new value, an SC
+		// a store if it succeeded and nothing if it failed
+		bool is_amo = (top->commit_inst_o & 0x7f) == 0x2f;
+		unsigned funct5 = top->commit_inst_o >> 27;
+		if (is_amo && funct5 != 0x02 && funct5 != 0x03) {
+			unsigned n = ((top->commit_inst_o >> 12) & 7) == 3 ? 8 : 4;
+			fprintf(log, " mem 0x%016llx mem 0x%016llx 0x%0*llx", (unsigned long long)top->commit_mem_addr_o,
+				(unsigned long long)top->commit_mem_addr_o, (int)(2 * n), (unsigned long long)amo_value);
+		} else if (is_amo && funct5 == 0x03) {
+			if (sc_ok)
+				log_store(log, top->commit_mem_addr_o, top->commit_mem_wdata_o, top->commit_mem_wstrb_o);
+		} else if (top->commit_mem_re_o)
 			fprintf(log, " mem 0x%016llx", (unsigned long long)top->commit_mem_addr_o);
-		if (top->commit_mem_we_o && top->commit_mem_wstrb_o) {
+		if (!is_amo && top->commit_mem_we_o && top->commit_mem_wstrb_o) {
 			uint64_t addr = top->commit_mem_addr_o;
 			uint64_t value = log_store(log, addr, top->commit_mem_wdata_o, top->commit_mem_wstrb_o);
 			if (addr == tohost) {

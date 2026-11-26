@@ -3,8 +3,8 @@
 """Mutants of rtl/sol/core_pipe.sv for the pipeline tests (see scripts/mutate.py); XLEN = 64 only, to save time"""
 
 RTL = "rtl/sol/core_pipe.sv"
-TEST = ["tb/unit/test_pipeline.py", "tb/unit/test_core.py", "tb/unit/test_csr.py"]
-KEXPR = "(pipe or csr) and 64"
+TEST = ["tb/unit/test_pipeline.py", "tb/unit/test_core.py", "tb/unit/test_csr.py", "tb/unit/test_atomic.py"]
+KEXPR = "(pipe or csr or atomic) and 64"
 
 MUTANTS = [
     # forwarding
@@ -72,13 +72,13 @@ MUTANTS = [
     ("ECALL does not trap", "assign ex_trap             = ex_illegal_q | ex_fetch_misaligned | ex_ecall_q | ex_ebreak_q;",
      "assign ex_trap             = ex_illegal_q | ex_fetch_misaligned | ex_ebreak_q;"),
     ("wrong cause for EBREAK", "else if (ex_ebreak_q) ex_cause = 4'd3;", "else if (ex_ebreak_q) ex_cause = 4'd11;"),
-    ("store misaligned reported as load", "(mem_mem_re_q ? 4'd4 : 4'd6)", "(4'd4)"),
+    ("store misaligned reported as load", "(mem_mem_we_q ? 4'd6 : 4'd4)", "(4'd4)"),
     ("mtval of illegal instruction is 0", "if (ex_illegal_q)                           ex_result = ex_imm_q;",
      "if (ex_illegal_q)                           ex_result = '0;"),
     ("mtval of misaligned jump is pc", "else if (ex_fetch_misaligned)               ex_result = redirect_pc;",
      "else if (ex_fetch_misaligned)               ex_result = ex_pc_q;"),
     ("illegal CSR mtval without rd", "X'({wb_sys_q, wb_funct3_q, wb_rd_q, 7'b1110011})", "X'({wb_sys_q, wb_funct3_q, 5'd0, 7'b1110011})"),
-    ("instruction bits not carried", "ex_imm_q      <= (id_illegal | id_csr) ? X'(id_inst) : id_imm;", "ex_imm_q      <= id_illegal ? X'(id_inst) : id_imm;"),
+    ("instruction bits not carried", "ex_imm_q      <= (id_illegal | id_csr | id_amo) ? X'(id_inst) : id_imm;", "ex_imm_q      <= (id_illegal | id_amo) ? X'(id_inst) : id_imm;"),
     ("MRET does not redirect", "assign wb_redirect   = wb_exc | (wb_advance & (wb_mret_q | wb_fence_i_q));",
      "assign wb_redirect   = wb_exc | (wb_advance & wb_fence_i_q);"),
     ("FENCE.I does not refetch", "assign wb_redirect   = wb_exc | (wb_advance & (wb_mret_q | wb_fence_i_q));",
@@ -109,6 +109,15 @@ MUTANTS = [
     ("calls never recognised", "                  rd_link ? 2'd2 :", "                  1'b0 ? 2'd2 :"),
     ("returns never recognised", "(ex_jalr_q & rs1_link & (ex_rd_q == 5'd0)) ? 2'd3", "1'b0 ? 2'd3"),
     ("only x1 is a link register", "assign rd_link  = (ex_rd_q == 5'd1) | (ex_rd_q == 5'd5);", "assign rd_link  = (ex_rd_q == 5'd1);"),
+    # A extension (ADR 019)
+    ("AMO address is rs1 + rs2", "else if (ex_amo_q)                          ex_result = ex_rs1;\n", ""),
+    ("atomic sent as a plain access", "assign dmem_req_amo_o   = mem_amo_q;", "assign dmem_req_amo_o   = 1'b0;"),
+    ("wrong operation bits", "assign dmem_req_atop_o  = mem_sys_q[16:12];", "assign dmem_req_atop_o  = mem_sys_q[15:11];"),
+    ("LR without lanes", "(mem_mem_we_q | mem_amo_q) ? mem_wstrb", "mem_mem_we_q ? mem_wstrb"),
+    ("misaligned AMO is a load exception", "(mem_mem_we_q ? 4'd6 : 4'd4)", "(mem_mem_re_q ? 4'd4 : 4'd6)"),
+    ("AMO operation taken from the immediate", "(id_illegal | id_csr | id_amo) ? X'(id_inst)", "(id_illegal | id_csr) ? X'(id_inst)"),
+    ("amo flag lost before MEM", "ex_amo_q      <= id_amo;", "ex_amo_q      <= 1'b0;"),
+    ("HART_ID not passed to the CSRs", "csr #(.HART_ID(HART_ID)) u_csr (", "csr u_csr ("),
 ]
 
 EQUIVALENT = {

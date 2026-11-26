@@ -3,10 +3,12 @@
 """Mutants of rtl/common/csr.sv, checked by the CSR and exception tests of the pipelined core (see scripts/mutate.py)"""
 
 RTL = "rtl/common/csr.sv"
-TEST = ["tb/unit/test_csr.py"]
+TEST = ["tb/unit/test_csr.py", "tb/unit/test_atomic.py"]
 KEXPR = "64"
 
 MUTANTS = [
+    ("misa without A", "26'h0001101", "26'h0001100"),
+    ("mhartid reads 0", "12'hF14: old = X'(HART_ID);", "12'hF14: old = '0;"),
     ("set acts as write", "2'b10:   new_val = old | wdata_i;", "2'b10:   new_val = wdata_i;"),
     ("clear keeps the bits", "2'b11:   new_val = old & ~wdata_i;", "2'b11:   new_val = old & wdata_i;"),
     ("read-only CSRs writable", "assign writable  = (addr_i[11:10] != 2'b11);", "assign writable  = 1'b1;"),
@@ -21,7 +23,7 @@ MUTANTS = [
     ("mtvec keeps bits 1:0", "12'h305: mtvec_q    <= {new_val[X-1:2], 2'b00};", "12'h305: mtvec_q    <= new_val;"),
     ("mepc keeps bits 1:0", "12'h341: mepc_q     <= {new_val[X-1:2], 2'b00};", "12'h341: mepc_q     <= new_val;"),
     ("mtval not written on trap", "			mtval_q  <= tval_i;\n", ""),
-    ("misa without M", "26'h0001100", "26'h0000100"),
+    ("misa without M", "26'h0001101", "26'h0000101"),
     ("mie bits shuffled", "12'h304: mie_bits_q <= {new_val[11], new_val[7], new_val[3]};",
      "12'h304: mie_bits_q <= {new_val[7], new_val[11], new_val[3]};"),
     ("instret reads cycles", "12'hB02, 12'hC02: old = instret_i[X-1:0];", "12'hB02, 12'hC02: old = cycle_i[X-1:0];"),

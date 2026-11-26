@@ -32,6 +32,18 @@ MUTANTS = [
     ("OP: funct7[6] ignored for M", "if (funct7 == 7'b0000001) begin\n\t\t\t\t\talu_op_o  = riscv_pkg::ALU_ADD;\n\t\t\t\t\twb_sel_o  = riscv_pkg::WB_MD;\n\t\t\t\t\tmuldiv_o  = 1'b1;\n\t\t\t\t\tillegal_o = 1'b0;\n\t\t\t\tend\n\t\t\tend\n\n\t\t\t// RV64 only: ADDW",
      "if (funct7[5:0] == 6'b000001) begin\n\t\t\t\t\talu_op_o  = riscv_pkg::ALU_ADD;\n\t\t\t\t\twb_sel_o  = riscv_pkg::WB_MD;\n\t\t\t\t\tmuldiv_o  = 1'b1;\n\t\t\t\t\tillegal_o = 1'b0;\n\t\t\t\tend\n\t\t\tend\n\n\t\t\t// RV64 only: ADDW"),
     ("illegal instruction keeps muldiv", "muldiv_o = 1'b0;", ""),
+    # A extension (ADR 019)
+    ("AMO not flagged", "amo_o    = 1'b1;", "amo_o    = 1'b0;"),
+    ("LR writes memory", "mem_we_o = (inst_i[31:27] != riscv_pkg::AMO_LR);", "mem_we_o = 1'b1;"),
+    ("LR reads rs2", "b_sel_o  = (inst_i[31:27] == riscv_pkg::AMO_LR) ? riscv_pkg::B_IMM : riscv_pkg::B_RS2;",
+     "b_sel_o  = riscv_pkg::B_RS2;"),
+    ("LR with rs2 != 0 accepted", "riscv_pkg::AMO_LR:  illegal_o = (inst_i[24:20] != 5'd0);",
+     "riscv_pkg::AMO_LR:  illegal_o = 1'b0;"),
+    ("AMOMAXU not decoded", "riscv_pkg::AMO_MINU, riscv_pkg::AMO_MAXU: illegal_o", "riscv_pkg::AMO_MINU: illegal_o"),
+    (".D accepted at XLEN = 32", "(RV64 && funct3 == 3'b011)", "(funct3 == 3'b011)"),
+    ("AMO with any funct3", "if (!(funct3 == 3'b010 || (RV64 && funct3 == 3'b011)))", "if (1'b0)"),
+    ("AMO result from the ALU", "amo_o    = 1'b1;\n\t\t\t\twb_sel_o = riscv_pkg::WB_MEM;", "amo_o    = 1'b1;"),
+    ("illegal instruction keeps amo", "csr_o    = 1'b0;\n\t\t\tamo_o    = 1'b0;", "csr_o    = 1'b0;"),
 ]
 
 EQUIVALENT = {

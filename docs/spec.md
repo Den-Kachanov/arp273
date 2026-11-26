@@ -19,7 +19,8 @@ Everything below describes `core_pipe` unless stated otherwise.
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `XLEN` (package `riscv_pkg`, macro `XLEN`) | 64 | 64: RV64IM; 32: RV32IM. Every width in the RTL follows it |
+| `XLEN` (package `riscv_pkg`, macro `XLEN`) | 64 | 64: RV64IMA; 32: RV32IMA. Every width in the RTL follows it |
+| `HART_ID` | 0 | Value of `mhartid` ([ADR 019](adr/019-soc-architecture.md): several harts on one memory) |
 | `RESET_PC` | `0x8000_0000` | First instruction fetched after reset |
 | `DEBUG` | 1 | 0: release build without the commit trace and the stall and flush counters; same behaviour on all functional outputs (`make release-check`) |
 | `MUL_BITS` | 4 | Multiplier bits per cycle (1, 2, 4, 8; [ADR 017](adr/017-multiplier-bits-per-cycle.md)); 1 is Sol 1 |
@@ -27,17 +28,18 @@ Everything below describes `core_pipe` unless stated otherwise.
 
 ## Instruction set
 
-ISA string: `rv64im_zicsr_zifencei` (`rv32im_zicsr_zifencei` for XLEN = 32), machine mode only.
+ISA string: `rv64ima_zicsr_zifencei` (`rv32ima_zicsr_zifencei` for XLEN = 32), machine mode only.
 
 | Group | Instructions |
 |---|---|
 | RV64I | All (RV32I for XLEN = 32): LUI, AUIPC, JAL, JALR, 6 branches, 7 loads (LD and LWU RV64 only), 4 stores (SD RV64 only), OP-IMM, OP, OP-IMM-32 and OP-32 (RV64 only), FENCE (a no-op: one hart, no caches) |
 | M | All 13 (RV32: 8), iterative unit: see [Timing](#timing) |
+| A | LR, SC and the 9 AMOs, `.W` and `.D` (RV32: `.W`), executed by the memory side of the data port ([ADR 019](adr/019-soc-architecture.md)); `aq` and `rl` are accepted and need nothing (one data request at a time, in order) |
 | Zicsr | CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI |
 | Zifencei | FENCE.I: the instructions after it are fetched again |
 | Privileged | ECALL, EBREAK, MRET; WFI is a no-op (no interrupts yet) |
 
-Anything else is an illegal instruction: the C extension, A, F/D, URET, SRET, SFENCE.VMA, reserved
+Anything else is an illegal instruction: the C extension, F/D, URET, SRET, SFENCE.VMA, reserved
 encodings, and system instructions with nonzero reserved fields.
 
 Behaviour the specification leaves to the implementation, and the choice made here:
@@ -45,6 +47,8 @@ Behaviour the specification leaves to the implementation, and the choice made he
 | Case | Behaviour |
 |---|---|
 | Misaligned load or store | Exception (cause 4 or 6), no hardware support |
+| Misaligned LR, SC or AMO | Exception: LR cause 4, SC and AMOs cause 6 (as Spike) |
+| LR/SC reservation | Kept by the memory side: one per hart, at the exact address of the LR; every SC clears it, a failed one too. An SC to another address fails |
 | Jump or taken branch to an address with bit 1 set | Exception (cause 0) on the jump; no link register write |
 | Division by zero, overflow (MIN / −1) | The results the M extension defines (−1 or the dividend; MIN and 0) |
 | Register values after reset | Undefined: the register file has no reset ([ADR 005](adr/005-regfile-no-reset-no-x0-storage.md)); `sw/crt0.S` clears them |
@@ -55,7 +59,7 @@ Behaviour the specification leaves to the implementation, and the choice made he
 The CSR set, their fields and the write rules are in [modules/csr.md](modules/csr.md). In short:
 `mstatus` (MIE, MPIE; MPP reads M), `misa`, `mie`, `mtvec` (direct mode), `mscratch`, `mepc`, `mcause`,
 `mtval`, `mip` (reads 0), `mcycle`, `minstret` (read-only in this core), `cycle`, `instret`, the ID registers
-(read 0). Any other CSR address is an illegal instruction.
+(read 0, except `mhartid` = `HART_ID`). `misa` shows I, M and A. Any other CSR address is an illegal instruction.
 
 | Exception | `mcause` | `mtval` |
 |---|---|---|
@@ -63,7 +67,7 @@ The CSR set, their fields and the write rules are in [modules/csr.md](modules/cs
 | Illegal instruction | 2 | instruction bits |
 | Breakpoint | 3 | pc |
 | Load address misaligned | 4 | address |
-| Store address misaligned | 6 | address |
+| Store/AMO address misaligned | 6 | address |
 | Environment call from M-mode | 11 | 0 |
 
 Exceptions are precise: every older instruction has completed, the trapping one and every younger one
@@ -105,6 +109,12 @@ Two memory ports, one for instructions and one for data, with the same protocol
   response arrives.
 - **Data addresses** are aligned to `XLEN/8` bytes; the core selects and extends the bytes itself.
   **Instruction addresses** are 4-byte aligned; an instruction is 32 bits.
+- **Atomics** (A extension, [ADR 019](adr/019-soc-architecture.md)): the data port also has `req_amo` and
+  `req_atop` (5 bits: `funct5` of the instruction, `riscv_pkg::amo_op_t`). An atomic is one request with
+  `req_amo` = 1: `req_we` = 1 except for LR, `req_wstrb` gives the lanes of the access (LR included),
+  `req_wdata` the operand in its lane. The memory side executes it and responds with the old word (LR,
+  AMOs) or, for SC, 0 (stored) or 1 (failed) in the lane. Today the simulation models do this; in the
+  SoC it is the L2.
 
 A synchronous BRAM (always ready, response in the next cycle) gives one access per cycle on each port.
 
@@ -136,7 +146,8 @@ until place-and-route on the FPGA.
 
 ## Not implemented
 
-Planned in later stages: interrupts and the timer, caches, the SoC bus, the vector unit, the GPU
-interface. Not planned this year (see the project plan): supervisor and user modes, virtual memory,
-PMP, the A, C, F and D extensions, misaligned access in hardware, a debug module. Out-of-order cores
-(Spica, Naos) are a later part of the family ([ADR 015](adr/015-core-family.md)).
+Planned ([ADR 019](adr/019-soc-architecture.md)): interrupts and the timer (CLINT, PLIC), the A, C,
+Zba, Zbb, Zicbom and Zicboz extensions, user mode and PMP, write-back L1 caches with a coherent L2
+(MSI), the SoC bus, the GPU, the out-of-order cores Spica and Naos (F and D for Naos are to be
+evaluated). In the reserve: the vector unit, supervisor mode and virtual memory (Linux), a debug
+module. Not planned: misaligned access in hardware.

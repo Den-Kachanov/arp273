@@ -19,8 +19,10 @@ B_RS2, B_IMM = 0, 1
 WB_ALU, WB_MEM, WB_PC4, WB_MD = 0b00, 0b01, 0b10, 0b11
 
 SIDE_EFFECTS = ("reg_we", "mem_re", "mem_we", "branch", "jal", "jalr", "muldiv",
-                "csr", "ecall", "ebreak", "mret", "fence_i")
-SYSTEM_KEYS = ("csr", "ecall", "ebreak", "mret", "fence_i")
+                "csr", "ecall", "ebreak", "mret", "fence_i", "amo")
+SYSTEM_KEYS = ("csr", "ecall", "ebreak", "mret", "fence_i", "amo")
+AMO_FUNCT5 = {"ADD": 0b00000, "SWAP": 0b00001, "LR": 0b00010, "SC": 0b00011, "XOR": 0b00100, "OR": 0b01000,
+              "AND": 0b01100, "MIN": 0b10000, "MAX": 0b10100, "MINU": 0b11000, "MAXU": 0b11100}
 
 
 # Expected outputs. Only the listed signals are checked: a missing key means "don't care"
@@ -112,6 +114,18 @@ def build_instructions(r, xlen):
         out.append((name, lambda f3=f3: s_type(imm12(), reg(), reg(), f3, OPC["STORE"]),
                     dict(mem, reg_we=0, mem_re=0, mem_we=1, imm_sel=IMM["S"], funct3=f3), rv64))
 
+    # A extension (ADR 019): address rs1; rd gets the old value (WB_MEM); LR reads only, needs rs2 = 0;
+    # aq and rl are random
+    for name, f5 in AMO_FUNCT5.items():
+        for width, f3, rv64 in (("W", 2, False), ("D", 3, True)):
+            is_lr = name == "LR"
+            out.append((f"{name}.{width}",
+                        lambda f5=f5, f3=f3, is_lr=is_lr: r_type((f5 << 2) | r.getrandbits(2),
+                                                                 0 if is_lr else reg(), reg(), f3, reg(), OPC["AMO"]),
+                        {"amo": 1, "reg_we": 1, "mem_re": 1, "mem_we": 0 if is_lr else 1, "wb_sel": WB_MEM,
+                         "a_sel": A_RS1, "b_sel": B_IMM if is_lr else B_RS2, "branch": 0, "jal": 0, "jalr": 0,
+                         "funct3": f3, "illegal": 0}, rv64))
+
     # branches: the ALU computes pc + imm
     br = {"alu_op": ALU["ADD"], "word": 0, "a_sel": A_PC, "b_sel": B_IMM, "imm_sel": IMM["B"],
           "reg_we": 0, "mem_re": 0, "mem_we": 0, "branch": 1, "jal": 0, "jalr": 0, "illegal": 0}
@@ -164,7 +178,7 @@ async def apply(dut, inst):
         "jal": int(dut.jal_o.value), "jalr": int(dut.jalr_o.value),
         "muldiv": int(dut.muldiv_o.value), "csr": int(dut.csr_o.value), "ecall": int(dut.ecall_o.value),
         "ebreak": int(dut.ebreak_o.value), "mret": int(dut.mret_o.value), "fence_i": int(dut.fence_i_o.value),
-        "funct3": int(dut.funct3_o.value), "illegal": int(dut.illegal_o.value),
+        "amo": int(dut.amo_o.value), "funct3": int(dut.funct3_o.value), "illegal": int(dut.illegal_o.value),
     }
 
 
@@ -241,6 +255,11 @@ async def test_illegal_encodings(dut):
             else r_type(0, 3, 2, 2, 1, OPC["OP_32"]),
         "OP-IMM-32 funct3 = 1 with funct7 = 0100000": r_type(0b0100000, 3, 2, 1, 1, OPC["OP_IMM_32"]),
         "OP-32 funct3 = 4": r_type(0, 3, 2, 4, 1, OPC["OP_32"]),
+        "LR.W with rs2 != 0": r_type(0b00010 << 2, 3, 2, 2, 1, OPC["AMO"]),
+        "AMO with funct5 = 00101": r_type(0b00101 << 2, 3, 2, 2, 1, OPC["AMO"]),
+        "AMO with funct5 = 11111": r_type(0b11111 << 2, 3, 2, 3, 1, OPC["AMO"]),
+        "AMO with funct3 = 0 (no byte atomics)": r_type(0, 3, 2, 0, 1, OPC["AMO"]),
+        "AMO with funct3 = 4": r_type(0, 3, 2, 4, 1, OPC["AMO"]),
     }
     for name, inst in cases.items():
         check_illegal(name, inst, await apply(dut, inst))
@@ -260,6 +279,12 @@ async def test_random_words_invariants(dut):
         if got["word"]:
             assert got["alu_op"] in word_ops, f"{inst:#010x}: word with alu_op {got['alu_op']:#06b}"
         actions = ("mem_re", "mem_we", "branch", "jal", "jalr", "muldiv") + SYSTEM_KEYS
+        if got["amo"]:
+            # an atomic reads, and (but for LR) writes, as one access; nothing else
+            assert (inst & 0x7F) == OPC["AMO"] and got["mem_re"] == 1 and got["reg_we"] == 1, f"{inst:#010x}: bad AMO"
+            assert got["mem_we"] == int(((inst >> 27) & 0x1F) != 0b00010), f"{inst:#010x}: AMO store flag"
+            assert sum(got[k] for k in actions) == 2 + got["mem_we"], f"{inst:#010x}: AMO with another action"
+            continue
         assert sum(got[k] for k in actions) <= 1, f"{inst:#010x}: several actions at once"
         if got["csr"]:
             assert got["reg_we"] == 1 and got["b_sel"] == B_IMM and (inst & 0x7F) == OPC["SYSTEM"], \

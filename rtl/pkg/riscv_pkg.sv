@@ -22,6 +22,7 @@ package riscv_pkg;
 		OPC_JAL       = 7'b1101111,
 		OPC_JALR      = 7'b1100111,
 		OPC_MISC_MEM  = 7'b0001111,
+		OPC_AMO       = 7'b0101111,
 		OPC_SYSTEM    = 7'b1110011
 	} opcode_t;
 
@@ -63,5 +64,21 @@ package riscv_pkg;
 		WB_PC4 = 2'b10,
 		WB_MD  = 2'b11
 	} wb_sel_t;
+
+	// atomic operation on the data port (ADR 019): funct5 of the A extension, sent as it is; the
+	// memory side (the model, later L2) executes it. Only meaningful with the request's amo bit set
+	typedef enum logic [4:0] {
+		AMO_ADD  = 5'b00000,
+		AMO_SWAP = 5'b00001,
+		AMO_LR   = 5'b00010,
+		AMO_SC   = 5'b00011,
+		AMO_XOR  = 5'b00100,
+		AMO_OR   = 5'b01000,
+		AMO_AND  = 5'b01100,
+		AMO_MIN  = 5'b10000,
+		AMO_MAX  = 5'b10100,
+		AMO_MINU = 5'b11000,
+		AMO_MAXU = 5'b11100
+	} amo_op_t;
 
 endpackage

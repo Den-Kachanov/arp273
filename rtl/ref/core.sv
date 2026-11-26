@@ -58,7 +58,11 @@ module core #(
 	logic                jal;
 	logic                jalr;
 	logic                muldiv;
-	logic                sys_csr, sys_ecall, sys_ebreak, sys_mret, sys_fence_i;
+	logic                sys_csr, sys_ecall, sys_ebreak, sys_mret, sys_fence_i, amo;
+	logic                sys_wfi;            // a no-op here: the reference core has no interrupts
+	logic                unused_wfi;
+
+	assign unused_wfi = sys_wfi;
 	logic [2:0]          funct3;
 	logic                illegal;
 
@@ -110,7 +114,9 @@ module core #(
 		.ecall_o   (sys_ecall),
 		.ebreak_o  (sys_ebreak),
 		.mret_o    (sys_mret),
+		.wfi_o     (sys_wfi),
 		.fence_i_o (sys_fence_i),
+		.amo_o     (amo),
 		.funct3_o  (funct3),
 		.illegal_o (illegal)
 	);
@@ -122,9 +128,10 @@ module core #(
 
 	// a trapping instruction changes nothing: no register write, no store, pc stays. The reference
 	// core has no CSRs and no exception entry (the pipelined core has, ADR 014): CSR instructions,
-	// ECALL, EBREAK, MRET and FENCE.I stop it like an illegal instruction
+	// ECALL, EBREAK, MRET and FENCE.I stop it like an illegal instruction, and so do the atomics
+	// of the A extension (they are executed by the memory side of the pipelined core, ADR 019)
 	assign trap_o     = illegal | (misaligned & (mem_re | mem_we)) | fetch_misaligned |
-	                    sys_csr | sys_ecall | sys_ebreak | sys_mret | sys_fence_i;
+	                    sys_csr | sys_ecall | sys_ebreak | sys_mret | sys_fence_i | amo;
 
 	// a waiting instruction changes nothing either: it is committed in the cycle when the unit is done
 	assign stall      = muldiv & ~md_done;

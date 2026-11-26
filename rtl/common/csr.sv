@@ -11,24 +11,32 @@
 //
 // Implemented:
 //   mstatus  0x300  MIE (bit 3), MPIE (bit 7); MPP (12:11) reads 11 (only M-mode); other bits read 0
-//   misa     0x301  read-only value: MXL and the I and M extensions; writes are ignored (WARL)
-//   mie      0x304  MSIE, MTIE, MEIE writable (no interrupt sources yet)
+//   misa     0x301  read-only value: MXL and the I, M and A extensions; writes are ignored (WARL)
+//   mie      0x304  MSIE, MTIE, MEIE writable
 //   mtvec    0x305  direct mode only: bits 1:0 read 0
 //   mscratch 0x340
 //   mepc     0x341  bits 1:0 read 0 (no C extension)
 //   mcause   0x342
 //   mtval    0x343
-//   mip      0x344  reads 0, writes ignored
+//   mip      0x344  MSIP, MTIP, MEIP: the interrupt lines (CLINT, PLIC), registered here; writes ignored
 //   mcycle 0xB00, minstret 0xB02 (and mcycleh/minstreth for XLEN = 32): read the performance
 //   counters; writes are ignored (a simplification, ADR 014)
 //   cycle 0xC00, instret 0xC02 (and cycleh/instreth): read-only copies
-//   mvendorid 0xF11, marchid 0xF12, mimpid 0xF13, mhartid 0xF14, mconfigptr 0xF15: read 0
+//   mvendorid 0xF11, marchid 0xF12, mimpid 0xF13, mconfigptr 0xF15: read 0; mhartid 0xF14: HART_ID
 // Anything else (satp, pmp*, medeleg, mideleg, stvec...) does not exist: illegal instruction
 //
 // Trap entry (trap_i): mepc <= epc_i, mcause <= cause_i, mtval <= tval_i, MPIE <= MIE, MIE <= 0.
 // MRET (mret_i): MIE <= MPIE, MPIE <= 1
+//
+// Interrupts (ADR 019): irq_i = {MEIP, MTIP, MSIP} are levels from the CLINT and the PLIC, registered
+// once here so that the decision in WB starts from flip-flops. irq_pending_o: an interrupt is pending
+// and enabled in mie (this wakes WFI whatever MIE is); irq_take_o: also MIE is set, the core takes it.
+// irq_code_o: the highest priority one, MEI (11) > MSI (3) > MTI (7), as the specification orders them
 
-module csr (
+module csr #(
+	// this hart's number, read from mhartid (ADR 019: several harts share the memory)
+	parameter int HART_ID = 0
+) (
 	input  logic                       clk_i,
 	input  logic                       rst_ni,
 
@@ -49,17 +57,25 @@ module csr (
 	output logic [riscv_pkg::XLEN-1:0] mtvec_o,
 	output logic [riscv_pkg::XLEN-1:0] mepc_o,
 
+	input  logic [2:0]                 irq_i,
+	output logic                       irq_pending_o,
+	output logic                       irq_take_o,
+	output logic [3:0]                 irq_code_o,
+
 	input  logic [63:0]                cycle_i,
 	input  logic [63:0]                instret_i
 );
 
 	localparam int X = riscv_pkg::XLEN;
 
-	// misa: MXL in the two top bits (1 = 32, 2 = 64), extension bits I (8) and M (12)
-	localparam logic [X-1:0] MISA = {(X == 64) ? 2'b10 : 2'b01, {(X - 28){1'b0}}, 26'h0001100};
+	// misa: MXL in the two top bits (1 = 32, 2 = 64), extension bits A (0), I (8) and M (12)
+	localparam logic [X-1:0] MISA = {(X == 64) ? 2'b10 : 2'b01, {(X - 28){1'b0}}, 26'h0001101};
 
 	logic         mie_q, mpie_q;
 	logic [2:0]   mie_bits_q;                  // MEIE, MTIE, MSIE
+	logic [2:0]   irq_q;                       // MEIP, MTIP, MSIP
+	logic [2:0]   irq_en;
+	logic [X-1:0] mip_reg;
 	logic [X-1:0] mtvec_q, mscratch_q, mepc_q, mcause_q, mtval_q;
 
 	logic [X-1:0] mstatus, mie_reg;
@@ -79,7 +95,16 @@ module csr (
 		mie_reg[3]  = mie_bits_q[0];
 		mie_reg[7]  = mie_bits_q[1];
 		mie_reg[11] = mie_bits_q[2];
+		mip_reg     = '0;
+		mip_reg[3]  = irq_q[0];
+		mip_reg[7]  = irq_q[1];
+		mip_reg[11] = irq_q[2];
 	end
+
+	assign irq_en        = irq_q & mie_bits_q;
+	assign irq_pending_o = |irq_en;
+	assign irq_take_o    = mie_q & irq_pending_o;
+	assign irq_code_o    = irq_en[2] ? 4'd11 : (irq_en[0] ? 4'd3 : 4'd7);
 
 	// read mux and existence
 	always_comb begin
@@ -94,10 +119,11 @@ module csr (
 			12'h341: old = mepc_q;
 			12'h342: old = mcause_q;
 			12'h343: old = mtval_q;
-			12'h344: old = '0;
+			12'h344: old = mip_reg;
 			12'hB00, 12'hC00: old = cycle_i[X-1:0];
 			12'hB02, 12'hC02: old = instret_i[X-1:0];
-			12'hF11, 12'hF12, 12'hF13, 12'hF14, 12'hF15: old = '0;
+			12'hF11, 12'hF12, 12'hF13, 12'hF15: old = '0;
+			12'hF14: old = X'(HART_ID);
 			default: begin
 				exists = 1'b0;
 				// the high halves of the counters exist only for XLEN = 32
@@ -126,6 +152,11 @@ module csr (
 	end
 
 	assign do_write = access_i & write_i & ~illegal_o & ~trap_i;
+
+	always_ff @(posedge clk_i) begin
+		if (!rst_ni) irq_q <= '0;
+		else         irq_q <= irq_i;
+	end
 
 	always_ff @(posedge clk_i) begin
 		if (!rst_ni) begin
