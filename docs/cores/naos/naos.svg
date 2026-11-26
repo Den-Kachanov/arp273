@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 360" width="900" height="360" font-family="DejaVu Sans, sans-serif" font-size="12">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
+<rect width="900" height="360" fill="#ffffff"/>
+<text x="450" y="24" text-anchor="middle" font-size="16" font-weight="bold" fill="#222">Naos 1 (plan): wide out-of-order</text>
+<text x="450" y="42" text-anchor="middle" font-size="11" fill="#555">the same RTL as Spica, larger parameters</text>
+<g fill="#eef0fd" stroke="#2a3a9a">
+<rect x="20" y="70" width="110" height="80" rx="6"/><rect x="150" y="70" width="110" height="80" rx="6"/><rect x="280" y="70" width="110" height="80" rx="6"/>
+<rect x="410" y="60" width="130" height="100" rx="6"/><rect x="560" y="60" width="160" height="100" rx="6"/><rect x="740" y="70" width="140" height="80" rx="6"/>
+<rect x="410" y="200" width="310" height="60" rx="6"/><rect x="20" y="200" width="240" height="60" rx="6"/><rect x="740" y="200" width="140" height="60" rx="6"/>
+</g>
+<g text-anchor="middle" fill="#222">
+<text x="75" y="92" font-weight="bold">Fetch</text><text x="75" y="110" font-size="11">4 per cycle</text><text x="75" y="126" font-size="11">from L1I</text><text x="75" y="142" font-size="11">BTB, BHT, RAS</text>
+<text x="205" y="92" font-weight="bold">Decode</text><text x="205" y="110" font-size="11">4 per cycle</text><text x="205" y="126" font-size="11">Sol's decoder</text><text x="205" y="142" font-size="11">× 4</text>
+<text x="335" y="92" font-weight="bold">Rename</text><text x="335" y="110" font-size="11">RAT + free list</text><text x="335" y="126" font-size="11">128 physical regs</text><text x="335" y="142" font-size="11">checkpoint/branch</text>
+<text x="475" y="82" font-weight="bold">Issue</text><text x="475" y="100" font-size="11">3 queues: ALU, memory, M</text><text x="475" y="118" font-size="11">wake-up, select</text><text x="475" y="136" font-size="11">oldest ready first</text>
+<text x="640" y="82" font-weight="bold">Execute</text><text x="640" y="100" font-size="11">3 ALU</text><text x="640" y="118" font-size="11">MUL (pipelined)</text><text x="640" y="136" font-size="11">DIV (iterative)</text><text x="640" y="152" font-size="11">branch resolve</text>
+<text x="810" y="92" font-weight="bold">Commit</text><text x="810" y="110" font-size="11">4 per cycle,</text><text x="810" y="126" font-size="11">in order</text><text x="810" y="142" font-size="11">precise traps</text>
+<text x="565" y="222" font-weight="bold">Load/store unit</text><text x="565" y="240" font-size="11">2 ports; load queue 16, store queue 16</text><text x="565" y="254" font-size="11">store-to-load forwarding, stores leave at commit</text>
+<text x="140" y="222" font-weight="bold">Reorder buffer</text><text x="140" y="240" font-size="11">96 entries: program order,</text><text x="140" y="254" font-size="11">one place for every in-flight instruction</text>
+<text x="810" y="222" font-weight="bold">L1D</text><text x="810" y="240" font-size="11">cache, valid/ready</text><text x="810" y="254" font-size="11">to the SoC bus</text>
+</g>
+<g stroke="#333">
+<line x1="130" y1="110" x2="150" y2="110" marker-end="url(#a)"/><line x1="260" y1="110" x2="280" y2="110" marker-end="url(#a)"/><line x1="390" y1="110" x2="410" y2="110" marker-end="url(#a)"/>
+<line x1="540" y1="110" x2="560" y2="110" marker-end="url(#a)"/><line x1="720" y1="110" x2="740" y2="110" marker-end="url(#a)"/>
+<line x1="335" y1="150" x2="200" y2="200" marker-end="url(#a)"/><line x1="640" y1="160" x2="640" y2="200" marker-end="url(#a)"/><line x1="720" y1="230" x2="740" y2="230" marker-end="url(#a)"/>
+<line x1="260" y1="245" x2="410" y2="245" stroke-dasharray="4,3"/><line x1="200" y1="200" x2="780" y2="150" stroke="#888" stroke-dasharray="4,3" marker-end="url(#a)"/>
+</g>
+<text x="450" y="300" text-anchor="middle" font-size="11" fill="#555">every guess (branch, target) is checked in Execute; a wrong one squashes the younger instructions and restores the rename map</text>
+<text x="450" y="318" text-anchor="middle" font-size="11" fill="#555">the commit order makes the Spike commit-log comparison work unchanged</text>
+<text x="450" y="342" text-anchor="middle" font-size="11" fill="#8a4a23">a plan: sizes are starting points, nothing here is measured</text>
+</svg>
