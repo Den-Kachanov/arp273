@@ -24,7 +24,7 @@
 <rect x="240" y="60" width="200" height="380" rx="8" fill="#eaf1fb" stroke="#23518a"/>
 <text x="340" y="82" text-anchor="middle" font-size="15" font-weight="bold" fill="#12305e">Spica (B)</text>
 <text x="340" y="100" text-anchor="middle" fill="#333">out-of-order, 2-wide, RV64</text>
-<text x="340" y="116" text-anchor="middle" fill="#8a4a23" font-weight="bold">planned (stage 5a)</text>
+<text x="340" y="116" text-anchor="middle" fill="#8a4a23" font-weight="bold">planned (stage 5)</text>
 <g font-size="11" fill="#333">
 <rect x="260" y="130" width="160" height="22" fill="#d6e4f5" stroke="#999"/><text x="340" y="145" text-anchor="middle">fetch 2, predict</text>
 <rect x="260" y="156" width="160" height="22" fill="#d6e4f5" stroke="#999"/><text x="340" y="171" text-anchor="middle">decode 2, rename</text>
@@ -41,7 +41,7 @@
 <rect x="460" y="60" width="200" height="380" rx="8" fill="#eef0fd" stroke="#2a3a9a"/>
 <text x="560" y="82" text-anchor="middle" font-size="15" font-weight="bold" fill="#1a2470">Naos (O)</text>
 <text x="560" y="100" text-anchor="middle" fill="#333">out-of-order, 4-wide, RV64</text>
-<text x="560" y="116" text-anchor="middle" fill="#8a4a23" font-weight="bold">planned (after 09.2027)</text>
+<text x="560" y="116" text-anchor="middle" fill="#8a4a23" font-weight="bold">planned (stage 5+)</text>
 <g font-size="11" fill="#333">
 <rect x="480" y="130" width="160" height="22" fill="#dde1fb" stroke="#999"/><text x="560" y="145" text-anchor="middle">fetch 4, predict</text>
 <rect x="480" y="156" width="160" height="22" fill="#dde1fb" stroke="#999"/><text x="560" y="171" text-anchor="middle">decode 4, rename</text>
@@ -58,7 +58,7 @@
 <rect x="680" y="60" width="200" height="380" rx="8" fill="#fbeaea" stroke="#8a2323"/>
 <text x="780" y="82" text-anchor="middle" font-size="15" font-weight="bold" fill="#5e1212">Proxima (M)</text>
 <text x="780" y="100" text-anchor="middle" fill="#333">SIMT core of the GPU, RV32</text>
-<text x="780" y="116" text-anchor="middle" fill="#8a4a23" font-weight="bold">planned (stage 4)</text>
+<text x="780" y="116" text-anchor="middle" fill="#8a4a23" font-weight="bold">planned (stage 3)</text>
 <g font-size="11" fill="#333">
 <rect x="700" y="130" width="160" height="22" fill="#f5d6d6" stroke="#999"/><text x="780" y="145" text-anchor="middle">warp scheduler</text>
 <rect x="700" y="156" width="160" height="22" fill="#f5d6d6" stroke="#999"/><text x="780" y="171" text-anchor="middle">one fetch, one decode</text>

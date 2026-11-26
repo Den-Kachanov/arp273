@@ -50,7 +50,7 @@ from newlib 4.5.0, built from the release archives pinned by SHA-256, plus our g
 (`sw/softfp/libm_shim.c`). They measure floating point emulated in software, which is what a core
 without an FPU does; a core with one (Naos, Spica) will be compared on the same programs. `SOFTFP=0`
 runs only the integer benchmarks. Left out: the multi-thread and vector riscv-tests benchmarks (the
-vector ones return with the vector unit, stage 3). The programs are built without the toolchain's C library headers (`-nostdinc`): `sw/lib/include`
+vector ones return with the vector unit, now in the reserve, ADR 019). The programs are built without the toolchain's C library headers (`-nostdinc`): `sw/lib/include`
 declares what `sw/lib` and the soft-float library provide, so a toolchain without newlib (the Ubuntu
 package in CI) builds the same programs. The small C library (`sw/lib`) uses plain byte
 loops, so string-heavy results (Dhrystone) are lower than published figures that use an optimized

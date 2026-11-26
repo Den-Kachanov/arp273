@@ -2,7 +2,7 @@
 
 Proxima (class M, after Proxima Centauri, a red dwarf) is the smallest core of the family
 ([ADR 015](../../adr/015-core-family.md)): the core of the GPU **Hyades**, of which there are many copies.
-It is **not built**: it is designed in stage 4 together with the GPU specification. In the style of
+It is **not built**: it is designed in stage 3 together with the GPU specification ([ADR 019](../../adr/019-soc-architecture.md)), with IEEE 754 FP32 in every lane. In the style of
 Vortex (a RISC-V core per thread group with thread-control instructions); inspired by it, no code reused.
 
 ![Proxima 1, plan](proxima.svg)

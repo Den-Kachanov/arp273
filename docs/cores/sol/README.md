@@ -57,4 +57,4 @@ configuration, the run of ADR 017). Not official CoreMark scores; no Fmax before
 
 - `-32`: RV32IM, `XLEN = 32` (built and tested in every unit test).
 - `s` (small): planned; would leave out the stall and flush counters and the predictor.
-- `v`: with the vector unit (stage 3).
+- `v`: with the vector unit (in the reserve, ADR 019).

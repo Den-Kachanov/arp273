@@ -2,7 +2,7 @@
 
 Spica (class B, after α Virginis) is the efficient out-of-order core of the family
 ([ADR 015](../../adr/015-core-family.md)): two instructions per cycle, RV64. It is **not built**: planned for
-stage 5a (July–August 2027), if the GPU is ready in time. It is the RTL of [Naos](../naos/README.md)
+stage 5 (mid-June – mid-August 2027), after the GPU, in the `full` SoC configuration ([ADR 019](../../adr/019-soc-architecture.md)). It is the RTL of [Naos](../naos/README.md)
 (`rtl/spica-naos`) with smaller parameters, so it is built and verified first, and Naos follows by
 raising the parameters.
 

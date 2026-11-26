@@ -2,7 +2,7 @@
 
 Naos (class O, after ζ Puppis, a blue supergiant) is the performance core of the family
 ([ADR 015](../../adr/015-core-family.md)): out of order, four instructions per cycle, RV64. It is **not
-built**: planned after September 2027. Naos and [Spica](../spica/README.md) are one RTL (`rtl/spica-naos`)
+built**: Spica 1 comes first (stage 5, mid-June – mid-August 2027); Naos 1 is the same RTL widened if time is left, otherwise after September 2027 ([ADR 019](../../adr/019-soc-architecture.md)). Naos and [Spica](../spica/README.md) are one RTL (`rtl/spica-naos`)
 with different parameters. This page is the starting point for that design; nothing in it is measured.
 
 ![Naos 1, plan](naos.svg)

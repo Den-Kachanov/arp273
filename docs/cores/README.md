@@ -10,9 +10,9 @@ others, and a diagram.
 | Core | Class | Microarchitecture | ISA | Goal | State | RTL | Page |
 |---|---|---|---|---|---|---|---|
 | **Sol** | G | in-order, 5 stages | RV64IM, M-mode | lowest energy per operation at its performance | **built**: Sol 1, Sol 2 | `rtl/sol` | [sol/](sol/README.md) |
-| **Spica** | B | out-of-order, 2-wide | RV64 | performance at lower energy | planned (stage 5a) | `rtl/spica-naos` (later) | [spica/](spica/README.md) |
-| **Naos** | O | out-of-order, 4-wide | RV64 | highest performance | planned (after 09.2027) | `rtl/spica-naos` (later) | [naos/](naos/README.md) |
-| **Proxima** | M | SIMT, one front end, several lanes | RV32 + GPU instructions | throughput per area and per joule | planned (stage 4) | `rtl/proxima` (later) | [proxima/](proxima/README.md) |
+| **Spica** | B | out-of-order, 2-wide | RV64 | performance at lower energy | planned (stage 5, ADR 019) | `rtl/spica-naos` (later) | [spica/](spica/README.md) |
+| **Naos** | O | out-of-order, 4-wide | RV64 | highest performance | planned (stage 5 if time is left, ADR 019) | `rtl/spica-naos` (later) | [naos/](naos/README.md) |
+| **Proxima** | M | SIMT, one front end, several lanes | RV32 + GPU instructions | throughput per area and per joule | planned (stage 3, ADR 019) | `rtl/proxima` (later) | [proxima/](proxima/README.md) |
 
 The GPU as a whole is **Hyades**: many Proxima cores ([proxima/](proxima/README.md)).
 

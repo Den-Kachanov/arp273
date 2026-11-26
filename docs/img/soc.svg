@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" font-family="DejaVu Sans, sans-serif" font-size="12">
+<rect width="960" height="640" fill="#ffffff"/>
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker>
+<marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b03a2e"/></marker>
+</defs>
+<text x="480" y="24" text-anchor="middle" font-size="16" font-weight="bold" fill="#222">arp273 SoC (ADR 019): one RTL, two configurations</text>
+<text x="480" y="42" text-anchor="middle" font-size="11" fill="#555">full = simulation (everything); fpga = without the dashed red blocks; boxes are not to scale</text>
+
+<!-- Naos / Spica: full only -->
+<rect x="20" y="60" width="190" height="150" rx="8" fill="#eaf1fb" stroke="#b03a2e" stroke-dasharray="6 4" stroke-width="1.5"/>
+<text x="115" y="80" text-anchor="middle" font-weight="bold" fill="#12305e">Spica 1 → Naos 1</text>
+<text x="115" y="96" text-anchor="middle" font-size="11" fill="#333">out-of-order, RV64IMAC</text>
+<text x="115" y="111" text-anchor="middle" font-size="11" fill="#8a4a23">planned, stage 5; full only</text>
+<rect x="35" y="122" width="76" height="34" fill="#d6e4f5" stroke="#777"/><text x="73" y="137" text-anchor="middle" font-size="11">L1I</text><text x="73" y="150" text-anchor="middle" font-size="10">16–32 KB</text>
+<rect x="119" y="122" width="76" height="34" fill="#d6e4f5" stroke="#777"/><text x="157" y="137" text-anchor="middle" font-size="11">L1D WB</text><text x="157" y="150" text-anchor="middle" font-size="10">MSI, MSHRs</text>
+<text x="115" y="180" text-anchor="middle" font-size="10" fill="#555">rename, ROB, queues,</text>
+<text x="115" y="194" text-anchor="middle" font-size="10" fill="#555">F/D to be evaluated</text>
+
+<!-- Sol 0 -->
+<rect x="230" y="60" width="160" height="150" rx="8" fill="#fdf6e3" stroke="#b58900" stroke-width="1.5"/>
+<text x="310" y="80" text-anchor="middle" font-weight="bold" fill="#7a5c00">Sol, hart 0</text>
+<text x="310" y="96" text-anchor="middle" font-size="11" fill="#333">in-order, 5 stages</text>
+<text x="310" y="111" text-anchor="middle" font-size="11" fill="#2a7a2a">core built: RV64IMA</text>
+<rect x="242" y="122" width="66" height="34" fill="#eee8d5" stroke="#777"/><text x="275" y="137" text-anchor="middle" font-size="11">L1I</text><text x="275" y="150" text-anchor="middle" font-size="10">4 KB</text>
+<rect x="314" y="122" width="66" height="34" fill="#eee8d5" stroke="#777"/><text x="347" y="137" text-anchor="middle" font-size="11">L1D WB</text><text x="347" y="150" text-anchor="middle" font-size="10">4 KB, MSI</text>
+<text x="310" y="180" text-anchor="middle" font-size="10" fill="#555">caches: stage 2</text>
+<text x="310" y="194" text-anchor="middle" font-size="10" fill="#555">+ C, Zba/Zbb, U, PMP: 2b</text>
+
+<!-- Sol 1 -->
+<rect x="410" y="60" width="160" height="150" rx="8" fill="#fdf6e3" stroke="#b58900" stroke-width="1.5"/>
+<text x="490" y="80" text-anchor="middle" font-weight="bold" fill="#7a5c00">Sol, hart 1</text>
+<text x="490" y="96" text-anchor="middle" font-size="11" fill="#333">same RTL, HART_ID = 1</text>
+<text x="490" y="111" text-anchor="middle" font-size="11" fill="#2a7a2a">core built: RV64IMA</text>
+<rect x="422" y="122" width="66" height="34" fill="#eee8d5" stroke="#777"/><text x="455" y="137" text-anchor="middle" font-size="11">L1I</text><text x="455" y="150" text-anchor="middle" font-size="10">4 KB</text>
+<rect x="494" y="122" width="66" height="34" fill="#eee8d5" stroke="#777"/><text x="527" y="137" text-anchor="middle" font-size="11">L1D WB</text><text x="527" y="150" text-anchor="middle" font-size="10">4 KB, MSI</text>
+
+<!-- Hyades -->
+<rect x="590" y="60" width="350" height="150" rx="8" fill="#fbeaea" stroke="#8a2323" stroke-width="1.5"/>
+<text x="765" y="80" text-anchor="middle" font-weight="bold" fill="#5e1212">Hyades (GPU)</text>
+<text x="765" y="96" text-anchor="middle" font-size="11" fill="#333">Proxima cores: RV32IM + FP32 lanes, SIMT</text>
+<text x="765" y="111" text-anchor="middle" font-size="11" fill="#8a4a23">planned, stage 3; fpga: from 1 × 4 lanes</text>
+<rect x="604" y="122" width="100" height="56" fill="#f5d6d6" stroke="#777"/><text x="654" y="140" text-anchor="middle" font-size="11">Proxima 0</text><text x="654" y="155" text-anchor="middle" font-size="10">warps, lanes</text><text x="654" y="169" text-anchor="middle" font-size="10">L1 + shared mem</text>
+<rect x="714" y="122" width="100" height="56" fill="#f5d6d6" stroke="#b03a2e" stroke-dasharray="5 3"/><text x="764" y="140" text-anchor="middle" font-size="11">Proxima 1…N</text><text x="764" y="155" text-anchor="middle" font-size="10">if it fits /</text><text x="764" y="169" text-anchor="middle" font-size="10">full only</text>
+<rect x="824" y="122" width="104" height="56" fill="#f5d6d6" stroke="#777"/><text x="876" y="140" text-anchor="middle" font-size="11">command</text><text x="876" y="155" text-anchor="middle" font-size="11">processor</text><text x="876" y="169" text-anchor="middle" font-size="10">IRQ "done"</text>
+
+<!-- ports to the crossbar -->
+<g stroke="#444" stroke-width="1.5" marker-end="url(#a)">
+<line x1="115" y1="210" x2="115" y2="246"/>
+<line x1="310" y1="210" x2="310" y2="246"/>
+<line x1="490" y1="210" x2="490" y2="246"/>
+<line x1="700" y1="210" x2="700" y2="246"/>
+</g>
+<g stroke="#b03a2e" stroke-width="1.5" marker-end="url(#r)">
+<line x1="140" y1="246" x2="140" y2="212"/>
+<line x1="335" y1="246" x2="335" y2="212"/>
+<line x1="515" y1="246" x2="515" y2="212"/>
+<line x1="725" y1="246" x2="725" y2="212"/>
+</g>
+<text x="745" y="226" font-size="10" fill="#444">core port: valid/ready,</text><text x="745" y="240" font-size="10" fill="#444">id, size, err, amo</text>
+<text x="160" y="234" font-size="10" fill="#b03a2e">invalidate / recall</text>
+
+<!-- crossbar -->
+<rect x="20" y="248" width="920" height="40" rx="6" fill="#efefef" stroke="#555" stroke-width="1.5"/>
+<text x="480" y="266" text-anchor="middle" font-weight="bold" fill="#222">Crossbar: round-robin arbitration, address decode (PMA: cacheable or not)</text>
+<text x="480" y="281" text-anchor="middle" font-size="11" fill="#444">request channel down, response and coherence channel up</text>
+
+<!-- L2 -->
+<line x1="330" y1="288" x2="330" y2="318" stroke="#444" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="20" y="320" width="620" height="110" rx="8" fill="#eaf6ea" stroke="#2a7a2a" stroke-width="1.5"/>
+<text x="330" y="342" text-anchor="middle" font-weight="bold" fill="#1d5a1d">L2, shared and inclusive (planned, stage 2)</text>
+<rect x="36" y="354" width="180" height="62" fill="#d4ecd4" stroke="#777"/><text x="126" y="374" text-anchor="middle" font-size="11">data + tags</text><text x="126" y="390" text-anchor="middle" font-size="10">fpga: 1 bank</text><text x="126" y="404" text-anchor="middle" font-size="10">full: several banks</text>
+<rect x="226" y="354" width="200" height="62" fill="#d4ecd4" stroke="#777"/><text x="326" y="374" text-anchor="middle" font-size="11">directory (MSI)</text><text x="326" y="390" text-anchor="middle" font-size="10">sharers + owner per line,</text><text x="326" y="404" text-anchor="middle" font-size="10">one request per line at a time</text>
+<rect x="436" y="354" width="190" height="62" fill="#c3e6c3" stroke="#2a7a2a" stroke-width="1.5"/><text x="531" y="374" text-anchor="middle" font-size="11" font-weight="bold">atomics unit</text><text x="531" y="390" text-anchor="middle" font-size="10">AMOs, LR/SC reservations;</text><text x="531" y="404" text-anchor="middle" font-size="10">today: the memory model</text>
+
+<!-- uncached path -->
+<line x1="790" y1="288" x2="790" y2="318" stroke="#444" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="660" y="320" width="280" height="300" rx="8" fill="#f4f0fa" stroke="#5b3a8a" stroke-width="1.5"/>
+<text x="800" y="342" text-anchor="middle" font-weight="bold" fill="#3a2360">AXI-Lite peripherals (uncached)</text>
+<g font-size="11">
+<rect x="676" y="354" width="248" height="28" fill="#e6dcf5" stroke="#777"/><text x="686" y="373">0x0000_0000  Boot ROM, UART loader</text>
+<rect x="676" y="388" width="248" height="28" fill="#e6dcf5" stroke="#777"/><text x="686" y="407">0x0200_0000  CLINT (timer, msip)</text>
+<rect x="676" y="422" width="248" height="28" fill="#e6dcf5" stroke="#777"/><text x="686" y="441">0x0C00_0000  PLIC (UART, GPU done)</text>
+<rect x="676" y="456" width="248" height="28" fill="#e6dcf5" stroke="#777"/><text x="686" y="475">0x1000_0000  UART</text>
+<rect x="676" y="490" width="248" height="28" fill="#e6dcf5" stroke="#777"/><text x="686" y="509">0x1000_1000  GPIO</text>
+<rect x="676" y="524" width="248" height="28" fill="#e6dcf5" stroke="#777"/><text x="686" y="543">0x2000_0000  GPU registers</text>
+<rect x="676" y="558" width="248" height="28" fill="#e6dcf5" stroke="#b03a2e" stroke-dasharray="5 3"/><text x="686" y="577">display: HDMI (after simulation)</text>
+</g>
+<text x="800" y="606" text-anchor="middle" font-size="10" fill="#555">interrupts go to every hart: MTIP, MSIP, MEIP</text>
+
+<!-- DRAM -->
+<line x1="330" y1="430" x2="330" y2="470" stroke="#444" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="340" y="455" font-size="11" fill="#444">AXI4, bursts for line fills and write-backs</text>
+<rect x="20" y="472" width="620" height="58" rx="8" fill="#f3f3f3" stroke="#555" stroke-width="1.5"/>
+<text x="330" y="494" text-anchor="middle" font-weight="bold" fill="#222">0x8000_0000  RAM, shared by the CPUs and the GPU</text>
+<text x="330" y="512" text-anchor="middle" font-size="11" fill="#444">fpga: DDR through the board's controller (own clock: async FIFOs); full: DRAM model</text>
+
+<!-- legend -->
+<g font-size="11">
+<rect x="20" y="552" width="18" height="12" fill="#fdf6e3" stroke="#b58900" stroke-width="1.5"/><text x="46" y="562">built (the Sol core, now RV64IMA)</text>
+<rect x="20" y="572" width="18" height="12" fill="#ffffff" stroke="#555"/><text x="46" y="582">planned, in both configurations</text>
+<rect x="20" y="592" width="18" height="12" fill="#ffffff" stroke="#b03a2e" stroke-dasharray="5 3" stroke-width="1.5"/><text x="46" y="602">full configuration only (simulation)</text>
+<text x="330" y="562" fill="#444">one clock for cores, caches and GPU;</text>
+<text x="330" y="578" fill="#444">clock enables on registers (with the caches);</text>
+<text x="330" y="594" fill="#444">coherence: write-back L1 + MSI directory in L2</text>
+</g>
+</svg>

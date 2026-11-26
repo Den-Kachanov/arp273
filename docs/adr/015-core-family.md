@@ -1,5 +1,7 @@
 # ADR 015: A family of cores named after classes of stars
 
+Update: the order changes in [ADR 019](019-soc-architecture.md): after the SoC platform and the GPU, Spica 1 is built in stage 5 (mid-June – mid-August 2027) as part of the main plan, then widened to Naos 1 if time is left; the vector unit moves to the reserve.
+
 Update: the code is kept per core (`rtl/common`, `rtl/sol`, `rtl/ref`, later `rtl/spica-naos` and `rtl/proxima`), generations of one core are configurations of one RTL (`rtl/sol/configs.json`), and every core has a page in [docs/cores](../cores/README.md).
 
 ## Context
