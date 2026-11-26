@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
-"""Mutants of rtl/core/bpred.sv for tb/unit/test_bpred.py (see scripts/mutate.py)"""
+"""Mutants of rtl/sol/bpred.sv for tb/unit/test_bpred.py (see scripts/mutate.py)"""
 
-RTL = "rtl/core/bpred.sv"
+RTL = "rtl/sol/bpred.sv"
 TEST = "tb/unit/test_bpred.py"
 KEXPR = "64"
 

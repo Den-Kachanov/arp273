@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
-"""Mutants of rtl/core/core_pipe.sv for the pipeline tests (see scripts/mutate.py); XLEN = 64 only, to save time"""
+"""Mutants of rtl/sol/core_pipe.sv for the pipeline tests (see scripts/mutate.py); XLEN = 64 only, to save time"""
 
-RTL = "rtl/core/core_pipe.sv"
+RTL = "rtl/sol/core_pipe.sv"
 TEST = ["tb/unit/test_pipeline.py", "tb/unit/test_core.py", "tb/unit/test_csr.py"]
 KEXPR = "(pipe or csr) and 64"
 

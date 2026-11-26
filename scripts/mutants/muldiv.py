@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
-"""Mutants of rtl/core/muldiv.sv for tb/unit/test_muldiv.py (see scripts/mutate.py)"""
+"""Mutants of rtl/common/muldiv.sv for tb/unit/test_muldiv.py (see scripts/mutate.py)"""
 
-RTL = "rtl/core/muldiv.sv"
+RTL = "rtl/common/muldiv.sv"
 TEST = "tb/unit/test_muldiv.py"
 # XLEN = 64 for every MUL_BITS (1, 4, 8): the mutants of the multi-bit branch need MUL_BITS > 1
 KEXPR = "64"

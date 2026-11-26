@@ -61,6 +61,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+import rtl_files
+
 REPO = Path(__file__).resolve().parents[1]
 VENV_PYTHON = REPO / ".venv" / "bin" / "python"
 NETLISTSVG_DIR = REPO / "tools" / "node_modules" / "netlistsvg"
@@ -88,7 +90,7 @@ COMPACT = {
 
 def sources():
     """RTL files relative to the repository root"""
-    files = sorted((REPO / "rtl" / "pkg").glob("*.sv")) + sorted((REPO / "rtl" / "core").glob("*.sv"))
+    files = rtl_files.files(REPO, with_pkg=True)
     return [str(f.relative_to(REPO)) for f in files]
 
 
@@ -470,7 +472,7 @@ def draw_one(module, level, args, tmp, skins):
 def all_jobs(known):
     """Every module at every level that applies to it (see --all in the description)"""
     instantiates = {}
-    for f in sorted((REPO / "rtl" / "core").glob("*.sv")):
+    for f in rtl_files.files(REPO):
         text = f.read_text()
         for m in re.findall(r"^\s*module\s+(\w+)", text, re.M):
             instantiates[m] = any(re.search(rf"^\s*{other}\s+(#\s*\(|\w+\s*\()", text, re.M)
@@ -508,7 +510,7 @@ def main():
     if not NETLISTSVG.exists():
         sys.exit("schematic: netlistsvg is not installed; run `npm --prefix tools ci`")
     known = set()
-    for f in sorted((REPO / "rtl" / "core").glob("*.sv")):
+    for f in rtl_files.files(REPO):
         known |= set(re.findall(r"^\s*module\s+(\w+)", f.read_text(), re.M))
     if args.all:
         jobs = all_jobs(known)

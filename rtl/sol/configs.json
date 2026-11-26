@@ -1,0 +1,5 @@
+{
+ "sol1": {"MUL_BITS": 1, "BP": 0},
+ "sol2": {"MUL_BITS": 4, "BP": 0},
+ "sol2-bp": {"MUL_BITS": 4, "BP": 1}
+}

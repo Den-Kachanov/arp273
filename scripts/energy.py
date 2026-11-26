@@ -32,6 +32,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+import rtl_files
+
 CLOCK_WEIGHT = 2
 # the clock and reset distribution: counted by the clock term, not as logic (their nets reach every
 # flip-flop, so as logic they would count the clock a second time)
@@ -47,7 +49,7 @@ COV_RE = re.compile(r"\x01o\x02(.*?):(?:0->1|1->0)\x01.*' (\d+)$")
 
 def netlist(params, out):
     """gate netlist of the release core; returns (verilog path, transistors, flip-flops, load, bit_of)"""
-    rtl = ["rtl/pkg/riscv_pkg.sv"] + sorted(str(p) for p in Path("rtl/core").glob("*.sv"))
+    rtl = [str(p.relative_to(rtl_files.REPO)) for p in rtl_files.files(with_pkg=True)]
     chparam = " ".join(f"-chparam {k} {v}" for k, v in params.items())
     script = (f"read_verilog -sv -DXLEN=64 {' '.join(rtl)}; "
               f"hierarchy -top core_pipe -chparam DEBUG 0 {chparam}; synth -top core_pipe -flatten; "

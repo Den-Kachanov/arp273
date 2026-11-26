@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
 """
-Branch predictor (rtl/core/bpred.sv, ADR 018): BHT of 2-bit counters, a direct-mapped BTB, a return stack.
+Branch predictor (rtl/sol/bpred.sv, ADR 018): BHT of 2-bit counters, a direct-mapped BTB, a return stack.
 The lookup is combinational from pc_i; accept_i makes a call push and a return pop; updates come from EX.
 Parameters are the defaults: BHT 64, BTB 16, return stack 8, tag 10 bits, target 20 bits
 """

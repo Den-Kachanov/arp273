@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
-"""Mutants of rtl/core/branch_unit.sv for tb/unit/test_branch_unit.py (see scripts/mutate.py)"""
+"""Mutants of rtl/common/branch_unit.sv for tb/unit/test_branch_unit.py (see scripts/mutate.py)"""
 
-RTL = "rtl/core/branch_unit.sv"
+RTL = "rtl/common/branch_unit.sv"
 TEST = "tb/unit/test_branch_unit.py"
 
 MUTANTS = [

@@ -398,4 +398,4 @@ async def test_returns_to_several_sites(dut):
 @pytest.mark.parametrize("config", CONFIGS)
 def test_pipeline_runner(xlen, config):
     """Build the pipelined core (Sol 1 and Sol 2) for this XLEN and run the hazard tests"""
-    config_run("core_pipe", __file__, xlen, config, [str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])
+    config_run("core_pipe", __file__, xlen, config, [str(common.source(m)) for m in MODULES])

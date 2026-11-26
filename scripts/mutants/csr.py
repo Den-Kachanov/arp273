@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
-"""Mutants of rtl/core/csr.sv, checked by the CSR and exception tests of the pipelined core (see scripts/mutate.py)"""
+"""Mutants of rtl/common/csr.sv, checked by the CSR and exception tests of the pipelined core (see scripts/mutate.py)"""
 
-RTL = "rtl/core/csr.sv"
+RTL = "rtl/common/csr.sv"
 TEST = ["tb/unit/test_csr.py"]
 KEXPR = "64"
 

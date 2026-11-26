@@ -41,6 +41,8 @@ import tempfile
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
+import rtl_files
+
 REPO = Path(__file__).resolve().parents[1]
 TRANSISTORS = {"$_NAND_": 4, "$_NOR_": 4, "$_NOT_": 2, "$_DFF_P_": 16}
 NAND2_UM2 = 3.75          # sky130_fd_sc_hd nand2_1, an assumption for the estimate
@@ -51,7 +53,7 @@ COLORS = ("#4e79a7", "#f28e2b", "#59a14f", "#e15759", "#76b7b2", "#edc948", "#b0
 
 
 def sources():
-    files = sorted((REPO / "rtl" / "pkg").glob("*.sv")) + sorted((REPO / "rtl" / "core").glob("*.sv"))
+    files = rtl_files.files(REPO, with_pkg=True)
     return [str(f.relative_to(REPO)) for f in files]
 
 

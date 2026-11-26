@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
+import json
 import os
 import random
 
@@ -14,11 +15,11 @@ from cocotb.triggers import FallingEdge, RisingEdge, Timer
 BASE = 0x80000000
 MAX_CYCLES = 2000
 
-# configurations of the pipelined core under test: Sol 1 (no branch prediction, one multiplier bit per
-# cycle), Sol 2 (four multiplier bits, ADR 017) and Sol 2 with the branch predictor, which is measured
-# but not enabled by default (ADR 018). Each is built with -G; the values reach the tests through the
+# configurations of the pipelined core under test (rtl/sol/configs.json): Sol 1 (no branch prediction,
+# one multiplier bit per cycle), Sol 2 (four multiplier bits, ADR 017) and Sol 2 with the branch
+# predictor, which is measured but not enabled by default (ADR 018). Each is built with -G; the values reach the tests through the
 # environment, so that the tests whose cycle counts depend on them know which core they run on
-CONFIGS = {"sol1": {"BP": 0, "MUL_BITS": 1}, "sol2": {"BP": 0, "MUL_BITS": 4}, "bp": {"BP": 1, "MUL_BITS": 4}}
+CONFIGS = json.loads((common.REPO / "rtl" / "sol" / "configs.json").read_text())
 
 
 def cfg(name: str) -> int:
@@ -599,11 +600,11 @@ MODULES = ("decoder", "regfile", "imm_gen", "alu", "branch_unit", "lsu", "perf_c
 @pytest.mark.parametrize("xlen", common.XLENS)
 def test_core_runner(xlen):
     """Build the single-cycle core with all its modules for this XLEN and run the cocotb tests"""
-    common.run("core", __file__, xlen, extra_sources=[str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])
+    common.run("core", __file__, xlen, extra_sources=[str(common.source(m)) for m in MODULES])
 
 
 @pytest.mark.parametrize("xlen", common.XLENS)
 @pytest.mark.parametrize("config", CONFIGS)
 def test_core_pipe_runner(xlen, config):
     """The same programs on the pipelined core (Sol 1 and Sol 2), with a slow memory that stalls at random"""
-    config_run("core_pipe", __file__, xlen, config, [str(common.REPO / f"rtl/core/{m}.sv") for m in MODULES])
+    config_run("core_pipe", __file__, xlen, config, [str(common.source(m)) for m in MODULES])

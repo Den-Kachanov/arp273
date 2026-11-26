@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
 """
-Area estimate of every module in rtl/core with Yosys (the numbers quoted in docs/)
+Area estimate of every module of the cores (rtl/common, rtl/sol, rtl/ref) with Yosys (the numbers quoted in docs/)
 
 Usage: area.py [--xlen 64 32] [--xc7] [--commit HASH] [--json FILE] [--svg FILE]
 
@@ -34,6 +34,8 @@ import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+import rtl_files
 
 REPO = Path(__file__).resolve().parents[1]
 # top-level cores: synthesized flattened, listed after the modules
@@ -70,9 +72,9 @@ endmodule
 
 
 def modules():
-    """Names of the modules in rtl/core (the core itself last)"""
+    """Names of the modules of the cores (the cores themselves last)"""
     names = []
-    for f in sorted((REPO / "rtl" / "core").glob("*.sv")):
+    for f in rtl_files.files(REPO):
         names += re.findall(r"^\s*module\s+(\w+)", f.read_text(), re.M)
     return [n for n in names if n not in TOPS] + [t for t in TOPS if t in names]
 
@@ -128,7 +130,7 @@ def measure_xc7(files, xlen, top, flatten, workdir):
 
 def run_xc7(xlens, workdir):
     pkg = sorted((REPO / "rtl" / "pkg").glob("*.sv"))
-    core_files = sorted((REPO / "rtl" / "core").glob("*.sv"))
+    core_files = rtl_files.files(REPO)
     with ThreadPoolExecutor(8) as pool:
         jobs = {(m, x): pool.submit(measure_xc7, pkg + core_files, x, m, m in TOPS, workdir)
                 for x in xlens for m in modules()}
@@ -148,7 +150,7 @@ def table_xc7(results, xlens):
 
 def run_all(xlens, workdir):
     pkg = sorted((REPO / "rtl" / "pkg").glob("*.sv"))
-    core_files = sorted((REPO / "rtl" / "core").glob("*.sv"))
+    core_files = rtl_files.files(REPO)
     stub = workdir / "muldiv_stub.sv"
     stub.write_text(STUB)
     nostub_files = pkg + [f for f in core_files if f.stem != "muldiv"] + [stub]

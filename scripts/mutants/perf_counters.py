@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: CERN-OHL-S-2.0
 # SPDX-FileCopyrightText: 2026 Denys Kachanov
-"""Mutants of rtl/core/perf_counters.sv for tb/unit/test_perf_counters.py (see scripts/mutate.py)"""
+"""Mutants of rtl/common/perf_counters.sv for tb/unit/test_perf_counters.py (see scripts/mutate.py)"""
 
-RTL = "rtl/core/perf_counters.sv"
+RTL = "rtl/common/perf_counters.sv"
 TEST = "tb/unit/test_perf_counters.py"
 
 MUTANTS = [

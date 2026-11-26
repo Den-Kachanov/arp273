@@ -7,7 +7,10 @@ PYTEST  ?= $(PYTHON) -m pytest
 # Package
 PKG_SRC := $(sort $(wildcard rtl/pkg/*.sv))
 
-MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard rtl/core/*.sv rtl/vec/*.sv rtl/gpu/*.sv rtl/soc/*.sv)) 2>/dev/null)
+# the cores (docs/cores/README.md): units shared by the cores, the in-order core Sol, the reference core;
+# scripts/rtl_files.py lists the same folders
+RTL_DIRS := rtl/common rtl/sol rtl/ref
+MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard $(addsuffix /*.sv,$(RTL_DIRS)) rtl/vec/*.sv rtl/gpu/*.sv rtl/soc/*.sv)) 2>/dev/null)
 
 XLENS   := 64 32
 VLINT   := verilator --lint-only -Wall
@@ -83,7 +86,7 @@ CC       := $(CROSS)gcc
 CFLAGS   := -march=rv64im_zicsr -mabi=lp64 -mcmodel=medany -O2 -ffreestanding -nostdlib -nostartfiles
 SPIKE    := spike
 PROGS    := $(basename $(notdir $(wildcard sw/*.c)))
-CORE_SRC := $(sort $(wildcard rtl/core/*.sv))
+CORE_SRC := $(sort $(wildcard $(addsuffix /*.sv,$(RTL_DIRS))))
 
 # keep the ELF: Spike and nm need it after the .bin is built
 .PRECIOUS: $(BUILD)/%.elf $(BUILD)/fuzz_%.S
@@ -110,6 +113,13 @@ $(BUILD)/%.bin: $(BUILD)/%.elf
 empty    :=
 space    := $(empty) $(empty)
 PARAMS   ?=
+# CONFIG=sol1 | sol2 | sol2-bp: a named parameter set of Sol (rtl/sol/configs.json) instead of PARAMS
+ifneq ($(CONFIG),)
+PARAMS   := $(shell python3 scripts/rtl_files.py params $(CONFIG))
+ifeq ($(PARAMS),)
+$(error unknown CONFIG=$(CONFIG); see rtl/sol/configs.json)
+endif
+endif
 PTAG     := $(if $(strip $(PARAMS)),_$(subst =,,$(subst $(space),_,$(strip $(PARAMS)))))
 GPARAMS  := $(addprefix -G,$(PARAMS))
 PIPE_SIM := $(BUILD)/core_pipe$(PTAG)_sim

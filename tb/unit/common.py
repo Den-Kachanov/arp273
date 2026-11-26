@@ -76,6 +76,15 @@ def _find_source(top: str) -> Path:
     return found[0]
 
 
+def source(module: str) -> Path:
+    """
+    The file of a module, wherever it lives under rtl/ (rtl/common, rtl/sol, rtl/ref, ...)
+
+    Dependencies: _find_source
+    """
+    return _find_source(module)
+
+
 def run(top: str, test_file: str, xlen_value: int, extra_sources: list[str] | None = None,
         build_args: list[str] | None = None, extra_env: dict[str, str] | None = None) -> None:
     """
