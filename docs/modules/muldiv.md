@@ -1,4 +1,4 @@
-# Multiply and divide (`rtl/core/muldiv.sv`)
+# Multiply and divide (`rtl/common/muldiv.sv`)
 
 Diagram: [img/muldiv.svg](../img/muldiv.svg). Decisions and measurements: [ADR 009](../adr/009-muldiv-iterative.md), [ADR 011](../adr/011-muldiv-short-path.md) (short path, `last_q`), [ADR 017](../adr/017-multiplier-bits-per-cycle.md) (bits per cycle). Connections between modules and area: [overview.md](overview.md).
 

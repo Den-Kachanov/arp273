@@ -1,4 +1,4 @@
-# Pipelined core (`rtl/core/core_pipe.sv`)
+# Pipelined core (`rtl/sol/core_pipe.sv`)
 
 A five-stage pipelined RV64IM core (RV32IM for XLEN = 32): IF, ID, EX, MEM, WB. Design decisions,
 measurements and verification: [ADR 013](../adr/013-pipeline-and-memory-interface.md); Sol 2 adds the
@@ -74,7 +74,7 @@ prediction (`BP = 1`) was built and measured but is not enabled: it did not lowe
 ## Testing
 
 Every test of the core runs in three configurations (`CONFIGS` in `tb/unit/test_core.py`): `sol1`
-(`MUL_BITS = 1, BP = 0`), `sol2` (the defaults) and `bp` (`BP = 1`), for XLEN = 64 and 32.
+(`MUL_BITS = 1, BP = 0`), `sol2` (the defaults) and `sol2-bp` (`BP = 1`), for XLEN = 64 and 32.
 
 - `tb/unit/test_core.py`: the 14 core tests also run on this core (`test_core_pipe_runner`), against a memory
   that stalls at random.

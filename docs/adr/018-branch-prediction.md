@@ -81,7 +81,7 @@ numbers are the corrected ones of ADR 016; the first version had +12 %, with the
 
 - `tb/unit/test_bpred.py`: the unit alone (10 tests); `make mutate M=bpred`: 17 mutants, all caught.
 - Every core test runs in the configurations `sol1` (`BP = 0`, `MUL_BITS = 1`), `sol2` (`BP = 0`,
-  `MUL_BITS = 4`) and `bp` (`BP = 1`, `MUL_BITS = 4`); the exact-cycle tests of Sol 1 still hold in `sol1`. New tests with exact flush counts: a loop, calls and
+  `MUL_BITS = 4`) and `sol2-bp` (`BP = 1`, `MUL_BITS = 4`); the exact-cycle tests of Sol 1 still hold in `sol1`. New tests with exact flush counts: a loop, calls and
   returns from one site, returns to several sites and through x5, a branch waiting in the full fetch
   queue. New correctness tests: a JALR whose target changes in the low bits, a JALR whose target moves
   by exactly 2^20 (the BTB keeps only 20 bits), a branch overwritten by FENCE.I while the BTB still
@@ -101,7 +101,7 @@ term was removed.
 - Sol 2 runs without prediction: a taken branch costs two cycles, as in Sol 1.
 - With `BP = 1` a correct prediction costs nothing and a misprediction two cycles; `perf_flushes_o`
   counts redirects (mispredictions and WB redirects).
-- The tests run in three configurations: `sol1`, `sol2` (the default) and `bp` (`BP = 1`).
+- The tests run in three configurations: `sol1`, `sol2` (the default) and `sol2-bp` (`BP = 1`).
 - **What would make prediction pay off**, each to be measured the same way:
   - take the target check out of the EX path: branches and JAL have their target `pc + imm` in ID
     already, so ID can compare it with the guess and pass one bit to EX; only JALR needs the EX sum,

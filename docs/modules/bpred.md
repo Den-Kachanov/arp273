@@ -1,4 +1,4 @@
-# Branch predictor (`rtl/core/bpred.sv`)
+# Branch predictor (`rtl/sol/bpred.sv`)
 
 Diagram: [img/bpred.svg](../img/bpred.svg). Decisions and measurements: ADR 018. Used by the fetch stage of
 the pipelined core (Sol 2, parameter `BP`).

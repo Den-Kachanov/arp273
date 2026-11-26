@@ -54,7 +54,7 @@
 ### Task 2: `muldiv` with `MUL_BITS` bits per cycle
 
 **Files:**
-- Modify: `rtl/core/muldiv.sv`, `tb/unit/mext.py`, `tb/unit/test_muldiv.py`, `scripts/mutants/muldiv.py`, `docs/modules/muldiv.md`
+- Modify: `rtl/common/muldiv.sv`, `tb/unit/mext.py`, `tb/unit/test_muldiv.py`, `scripts/mutants/muldiv.py`, `docs/modules/muldiv.md`
 
 **Interfaces:**
 - Produces: `module muldiv #(parameter int MUL_BITS = 1)`, ports unchanged. `MUL_BITS` ∈ {1, 2, 4, 8}, must divide `XLEN / 2`. Multiplication iterations: `N / MUL_BITS` with `N = XLEN / 2` (short path, ADR 011) or `XLEN`; division iterations unchanged (`N` at one bit per cycle). Latency stays iterations + 1 edges.
@@ -72,7 +72,7 @@
 ### Task 3: Choose the multiplier (measure 4 and 8)
 
 **Files:**
-- Modify: `rtl/core/core_pipe.sv` (parameter `MUL_BITS` passed to `u_muldiv`), `rtl/core/core.sv` (`MUL_BITS = 1` fixed), `Makefile` (`PARAMS` passed as `-G` to the simulation builds, and to `area.py`/`energy.py`), `scripts/area.py` (`--param`)
+- Modify: `rtl/sol/core_pipe.sv` (parameter `MUL_BITS` passed to `u_muldiv`), `rtl/ref/core.sv` (`MUL_BITS = 1` fixed), `Makefile` (`PARAMS` passed as `-G` to the simulation builds, and to `area.py`/`energy.py`), `scripts/area.py` (`--param`)
 - Create: `docs/adr/017-multiplier-bits-per-cycle.md`
 
 **Interfaces:**
@@ -88,7 +88,7 @@
 ### Task 4: Branch predictor unit (`bpred`)
 
 **Files:**
-- Create: `rtl/core/bpred.sv`, `tb/unit/test_bpred.py`, `scripts/mutants/bpred.py`, `docs/modules/bpred.md`
+- Create: `rtl/sol/bpred.sv`, `tb/unit/test_bpred.py`, `scripts/mutants/bpred.py`, `docs/modules/bpred.md`
 - Modify: `tb/unit/test_core.py` (`MODULES` gets `bpred`), `scripts/area.py` (module list)
 
 **Interfaces:**
@@ -119,7 +119,7 @@ module bpred #(
 
 - [ ] **Step 1: Tests** in `test_bpred.py` (XLEN 64 and 32): `test_reset_misses` (any pc: `taken_o == 0`); `test_branch_learns` (taken update at P → lookup P taken with target T; two not-taken updates → not taken; one taken → taken); `test_alias` (P and P + 4·BTB_ENTRIES: the second replaces the first, the first misses); `test_jump_always_taken`; `test_call_return` (call at P accepted → return lookup gives P + 4); `test_ras_overflow` (`RAS_DEPTH + 1` nested calls, then returns: the first `RAS_DEPTH` targets right, the last one is what overwrote it); `test_lookup_without_accept_keeps_ras`.
 - [ ] **Step 2: Run, expect failure** (no module): `make unit T=bpred`.
-- [ ] **Step 3: RTL** `rtl/core/bpred.sv` per the interface above.
+- [ ] **Step 3: RTL** `rtl/sol/bpred.sv` per the interface above.
 - [ ] **Step 4: Run** `make unit T=bpred`, `make lint struct`: pass.
 - [ ] **Step 5: Mutants** (wrong index bits, tag not compared, counter saturation off, push/pop swapped, valid not reset): `make mutate M=bpred`, no survivor.
 - [ ] **Step 6: Docs** `docs/modules/bpred.md` (ports, entry format, sizes) and a diagram `docs/img/bpred.svg`; commit (author).
@@ -127,7 +127,7 @@ module bpred #(
 ### Task 5: Prediction in the pipeline
 
 **Files:**
-- Modify: `rtl/core/core_pipe.sv`, `tb/unit/test_pipeline.py`, `tb/unit/test_csr.py`, `tb/unit/test_core.py`, `scripts/mutants/core_pipe.py`, `docs/modules/core_pipe.md`, `docs/img/pipeline.svg`
+- Modify: `rtl/sol/core_pipe.sv`, `tb/unit/test_pipeline.py`, `tb/unit/test_csr.py`, `tb/unit/test_core.py`, `scripts/mutants/core_pipe.py`, `docs/modules/core_pipe.md`, `docs/img/pipeline.svg`
 
 **Interfaces:**
 - Consumes: `bpred` (task 4).

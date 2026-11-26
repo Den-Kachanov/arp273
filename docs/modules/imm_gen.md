@@ -1,4 +1,4 @@
-# Immediate generator (`rtl/core/imm_gen.sv`)
+# Immediate generator (`rtl/common/imm_gen.sv`)
 
 Diagram: [img/imm_gen.svg](../img/imm_gen.svg). Connections between modules and area: [overview.md](overview.md).
 

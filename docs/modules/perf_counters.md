@@ -1,4 +1,4 @@
-# Performance counters (`rtl/core/perf_counters.sv`)
+# Performance counters (`rtl/common/perf_counters.sv`)
 
 Four 64-bit counters of events since reset: cycles (`cycles_o`), retired instructions (`instret_o`), stall cycles (`stalls_o`) and pipeline flushes (`flushes_o`). The inputs `commit_i`, `stall_i`, `flush_i` are the events of the current cycle. Synchronous reset `rst_ni`. The width does not depend on `XLEN`.
 

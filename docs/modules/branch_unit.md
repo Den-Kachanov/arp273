@@ -1,4 +1,4 @@
-# Branch condition unit (`rtl/core/branch_unit.sv`)
+# Branch condition unit (`rtl/common/branch_unit.sv`)
 
 Diagram: [img/branch_unit.svg](../img/branch_unit.svg). Connections between modules and area: [overview.md](overview.md).
 

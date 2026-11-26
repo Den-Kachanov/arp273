@@ -45,7 +45,7 @@ or a small queue that takes the responses whatever the timing.
   response arrives. A synchronous BRAM is always ready and answers in the next cycle: one access per
   cycle.
 
-**Pipeline** (`rtl/core/core_pipe.sv`, description in [modules/core_pipe.md](../modules/core_pipe.md)):
+**Pipeline** (`rtl/sol/core_pipe.sv`, description in [modules/core_pipe.md](../modules/core_pipe.md)):
 - **IF:** requests go out from a fetch address register; responses enter a two-entry fetch queue whose
   head is the ID instruction. A request is only issued when the queue will have room for its response.
   On a taken branch or jump the target is fetched in the same cycle when the port allows it, so the

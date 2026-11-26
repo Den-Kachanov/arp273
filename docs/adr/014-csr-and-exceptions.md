@@ -37,7 +37,7 @@ core stays the reference for user-level code (ADR 008) and does not get them.
 
 ## Decision
 
-Option B, with exceptions and CSR access in WB (`rtl/core/csr.sv`, description in
+Option B, with exceptions and CSR access in WB (`rtl/common/csr.sv`, description in
 [modules/csr.md](../modules/csr.md)).
 
 **Decoder.** It recognizes:

@@ -1,4 +1,4 @@
-# ALU (`rtl/core/alu.sv`)
+# ALU (`rtl/common/alu.sv`)
 
 The combinational ALU of the RV64I core. It performs 10 operations on XLEN-bit operands; five of them have W variants (computed in 32 bits and sign-extended), selected by the `word_i` input and present only for XLEN = 64.
 

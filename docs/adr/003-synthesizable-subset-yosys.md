@@ -12,7 +12,7 @@ While preparing the author's guide, I tested the built-in parser of Yosys 0.66 (
 | Qualified names `pkg::name` and `pkg::type` | works |
 | `return` in a function | not supported; assign the result to the function name |
 | `assert ... else ...` | not supported |
-| `typedef enum`, `packed struct`, `always_comb`, `always_ff`, `generate if`, `$clog2` | work in the examples used (see `rtl/core/alu.sv`; the examples themselves are in the author's guide, kept outside the repository) |
+| `typedef enum`, `packed struct`, `always_comb`, `always_ff`, `generate if`, `$clog2` | work in the examples used (see `rtl/common/alu.sv`; the examples themselves are in the author's guide, kept outside the repository) |
 
 This was checked only on those examples. I did not compile a full list of the constructs Yosys 0.66 supports, so other constructs (interfaces, arrays of structs, `unique case`) must be checked when they are needed.
 

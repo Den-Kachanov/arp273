@@ -1,4 +1,4 @@
-# Decoder (`rtl/core/decoder.sv`)
+# Decoder (`rtl/common/decoder.sv`)
 
 Diagram: [img/decoder.svg](../img/decoder.svg). Connections between modules and area: [overview.md](overview.md).
 

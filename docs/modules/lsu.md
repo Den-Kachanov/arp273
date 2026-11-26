@@ -1,4 +1,4 @@
-# Load/store alignment (`rtl/core/lsu.sv`)
+# Load/store alignment (`rtl/common/lsu.sv`)
 
 Diagram: [img/lsu.svg](../img/lsu.svg). Connections between modules and area: [overview.md](overview.md).
 

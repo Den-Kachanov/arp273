@@ -1,4 +1,4 @@
-# Machine-mode CSRs (`rtl/core/csr.sv`)
+# Machine-mode CSRs (`rtl/common/csr.sv`)
 
 The control and status registers of the pipelined core and its exception state. Only machine mode
 exists. Design decisions: [ADR 014](../adr/014-csr-and-exceptions.md).

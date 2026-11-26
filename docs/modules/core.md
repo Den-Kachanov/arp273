@@ -1,4 +1,4 @@
-# Single-cycle core (`rtl/core/core.sv`)
+# Single-cycle core (`rtl/ref/core.sv`)
 
 The single-cycle reference core; the pipelined core is [core_pipe.md](core_pipe.md). A single-cycle RV64IM core (RV32IM for XLEN = 32): one instruction per cycle, except M instructions, which wait for `muldiv` (XLEN/2 + 1 or XLEN + 1 cycles depending on the operands, ADR 011). It consists of `decoder`, `regfile` (`WRITE_THROUGH = 0`), `imm_gen`, `alu`, `branch_unit`, `lsu`, `muldiv`, `perf_counters`, the PC register, the `a_sel`, `b_sel`, `wb_sel` muxes and the next-PC select. Connections: [overview.md](overview.md); memory interface: [ADR 008](../adr/008-single-cycle-memory-interface.md).
 

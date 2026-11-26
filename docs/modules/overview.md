@@ -5,7 +5,8 @@ The contract of the core (ISA, CSRs, ports, timing) is in [spec.md](../spec.md);
 
 ## How the modules connect
 
-Two cores are built from the same modules in `rtl/core`:
+Two cores are built from the same modules in `rtl/common` (the layout of the code and the family of cores:
+[cores/README.md](../cores/README.md)):
 - **`core_pipe.sv`**, the five-stage pipeline ([core_pipe.md](core_pipe.md),
   [ADR 013](../adr/013-pipeline-and-memory-interface.md), [ADR 014](../adr/014-csr-and-exceptions.md)), is the
   design;

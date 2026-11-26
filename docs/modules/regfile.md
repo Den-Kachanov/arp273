@@ -1,4 +1,4 @@
-# Register file (`rtl/core/regfile.sv`)
+# Register file (`rtl/common/regfile.sv`)
 
 Diagram: [img/regfile.svg](../img/regfile.svg). Connections between modules and area: [overview.md](overview.md).
 

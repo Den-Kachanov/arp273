@@ -2,7 +2,7 @@
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
 <rect width="1140" height="590" fill="#ffffff"/>
 <text x="570" y="24" text-anchor="middle" fill="#222" font-size="16" font-weight="bold">How the modules connect in the single-cycle core</text>
-<text x="570" y="42" text-anchor="middle" fill="#555" font-size="11">solid frame: a separate module in rtl/core; dashed: logic inside core.sv (PC, muxes) or memory outside the core</text>
+<text x="570" y="42" text-anchor="middle" fill="#555" font-size="11">solid frame: a separate module in rtl/common; dashed: logic inside core.sv (PC, muxes) or memory outside the core</text>
 <rect x="20" y="230" width="80" height="50" rx="6" fill="#f5f5f5" stroke="#777777" stroke-dasharray="6,4"/>
 <text x="60.0" y="248" text-anchor="middle" font-weight="bold" fill="#333333">PC</text>
 <text x="60.0" y="266" text-anchor="middle" fill="#555" font-size="11">register</text>

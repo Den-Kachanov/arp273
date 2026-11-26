@@ -69,7 +69,7 @@ signal). A mutant is *killed* when at least one test fails. A mutant is *equival
 behaviour; each such case is explained in its mutant file (`scripts/mutants/`).
 
 Runs of 2026-11-25; `core_pipe`, `muldiv` and `bpred` again on 2026-11-26 with Sol 2 (no commit hash;
-`core_pipe` mutants run in the three configurations `sol1`, `sol2`, `bp`):
+`core_pipe` mutants run in the three configurations `sol1`, `sol2`, `sol2-bp`):
 
 | Module | Mutants | Killed | Equivalent |
 |---|---|---|---|

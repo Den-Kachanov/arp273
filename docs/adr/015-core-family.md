@@ -1,5 +1,7 @@
 # ADR 015: A family of cores named after classes of stars
 
+Update: the code is kept per core (`rtl/common`, `rtl/sol`, `rtl/ref`, later `rtl/spica-naos` and `rtl/proxima`), generations of one core are configurations of one RTL (`rtl/sol/configs.json`), and every core has a page in [docs/cores](../cores/README.md).
+
 ## Context
 
 Stage 1 ended with one core: the in-order five-stage pipeline `core_pipe` (ADR 013, ADR 014). Before

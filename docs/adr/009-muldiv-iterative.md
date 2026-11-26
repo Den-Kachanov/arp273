@@ -19,7 +19,7 @@ The M extension adds 8 instructions (MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, R
 
 ## Decision
 
-Option B, the module `rtl/core/muldiv.sv` ([description](../modules/muldiv.md), diagram [img/muldiv.svg](../img/muldiv.svg)).
+Option B, the module `rtl/common/muldiv.sv` ([description](../modules/muldiv.md), diagram [img/muldiv.svg](../img/muldiv.svg)).
 
 - **Protocol.** The core holds `valid_i`, `funct3_i`, `word_i`, `a_i`, `b_i` stable until `done_o`. The first cycle loads the operands (the unit keeps its own copies), then `XLEN` iteration cycles follow, then `done_o = 1` for one cycle. In that cycle the core commits the instruction and moves on. From `valid_i` to `done_o` there are `XLEN + 1` clock edges, so an instruction takes `XLEN + 2` cycles including the commit (66 for XLEN = 64, 34 for XLEN = 32).
 - **Stall in the core.** `stall = muldiv & ~done`. While `stall = 1`, the PC does not move, no register is written, `commit_valid_o = 0`, and the `stalls` counter increments. This is the first stall in the project, and the counter becomes meaningful for the first time.
