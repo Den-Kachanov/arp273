@@ -1,0 +1,744 @@
+{
+ "meta": {
+  "date": "2026-11-26",
+  "rtl": "3c7be96 + MUL_BITS (uncommitted)",
+  "build": "core_pipe release, BRAM",
+  "tools": "Yosys 0.66, Verilator 5.052, riscv64-elf-gcc 16.2.0 -O2",
+  "energy_model": "ADR 016, clock counted once (corrected after the final review)"
+ },
+ "bench": {
+  "1": {
+   "coremark": {
+    "cycles": 7355100,
+    "iterations": 10,
+    "coremark_per_mhz": 1.359600821198896
+   },
+   "rt-dhrystone": {
+    "cycles": 403018,
+    "instret": 267016,
+    "cpi": 1.5093402642538274,
+    "dmips_per_mhz": 0.7057484348321001
+   },
+   "rt-median": {
+    "cycles": 6611,
+    "instret": 4653,
+    "cpi": 1.42080378250591
+   },
+   "rt-memcpy": {
+    "cycles": 112026,
+    "instret": 80020,
+    "cpi": 1.399975006248438
+   },
+   "rt-multiply": {
+    "cycles": 33613,
+    "instret": 26811,
+    "cpi": 1.2537018387975085
+   },
+   "rt-qsort": {
+    "cycles": 172170,
+    "instret": 122899,
+    "cpi": 1.4009064353656255
+   },
+   "rt-rsort": {
+    "cycles": 182404,
+    "instret": 171146,
+    "cpi": 1.0657800941885875
+   },
+   "rt-towers": {
+    "cycles": 3916,
+    "instret": 3492,
+    "cpi": 1.1214203894616266
+   },
+   "rt-vvadd": {
+    "cycles": 3013,
+    "instret": 2411,
+    "cpi": 1.2496889257569472
+   },
+   "rt-spmv": {
+    "cycles": 846397,
+    "instret": 432233,
+    "cpi": 1.9581961580906595
+   },
+   "eb-aha-mont64": {
+    "cycles": 3073762,
+    "instret": 1910730,
+    "cpi": 1.6086846388553067
+   },
+   "eb-crc32": {
+    "cycles": 10969636,
+    "instret": 4179826,
+    "cpi": 2.6244240788970643
+   },
+   "eb-edn": {
+    "cycles": 23620925,
+    "instret": 3396110,
+    "cpi": 6.955288550724211
+   },
+   "eb-huffbench": {
+    "cycles": 3609844,
+    "instret": 2585611,
+    "cpi": 1.396128033180552
+   },
+   "eb-matmult-int": {
+    "cycles": 18021230,
+    "instret": 4552050,
+    "cpi": 3.9589261980865764
+   },
+   "eb-nettle-aes": {
+    "cycles": 5046643,
+    "instret": 4681123,
+    "cpi": 1.0780838273209228
+   },
+   "eb-nettle-sha256": {
+    "cycles": 4496865,
+    "instret": 4214703,
+    "cpi": 1.066947066021022
+   },
+   "eb-nsichneu": {
+    "cycles": 4198981,
+    "instret": 2569121,
+    "cpi": 1.6344037513219503
+   },
+   "eb-picojpeg": {
+    "cycles": 7687171,
+    "instret": 3523081,
+    "cpi": 2.1819455754778274
+   },
+   "eb-qrduino": {
+    "cycles": 6170330,
+    "instret": 2988133,
+    "cpi": 2.0649449003775935
+   },
+   "eb-sglib-combined": {
+    "cycles": 3856284,
+    "instret": 2498088,
+    "cpi": 1.5436942173374197
+   },
+   "eb-slre": {
+    "cycles": 3233711,
+    "instret": 2616491,
+    "cpi": 1.235896091368172
+   },
+   "eb-cubic": {
+    "cycles": 10059020,
+    "instret": 4603678,
+    "cpi": 2.1849964311144263
+   },
+   "eb-minver": {
+    "cycles": 7816684,
+    "instret": 4144792,
+    "cpi": 1.8859050104323691
+   },
+   "eb-nbody": {
+    "cycles": 4602815,
+    "instret": 2591988,
+    "cpi": 1.7757856132049994
+   },
+   "eb-st": {
+    "cycles": 6441514,
+    "instret": 3242111,
+    "cpi": 1.9868271012312657
+   },
+   "eb-statemate": {
+    "cycles": 2435400,
+    "instret": 1991524,
+    "cpi": 1.2228825763586078
+   },
+   "eb-ud": {
+    "cycles": 13705549,
+    "instret": 6019939,
+    "cpi": 2.2766923385768525
+   },
+   "eb-wikisort": {
+    "cycles": 3144115,
+    "instret": 1755277,
+    "cpi": 1.791235799249919
+   }
+  },
+  "4": {
+   "coremark": {
+    "cycles": 5100060,
+    "iterations": 10,
+    "coremark_per_mhz": 1.960761245946126
+   },
+   "rt-dhrystone": {
+    "cycles": 391018,
+    "instret": 267016,
+    "cpi": 1.4643991371303593,
+    "dmips_per_mhz": 0.7273762094479226
+   },
+   "rt-median": {
+    "cycles": 6611,
+    "instret": 4653,
+    "cpi": 1.42080378250591
+   },
+   "rt-memcpy": {
+    "cycles": 112026,
+    "instret": 80020,
+    "cpi": 1.399975006248438
+   },
+   "rt-multiply": {
+    "cycles": 33613,
+    "instret": 26811,
+    "cpi": 1.2537018387975085
+   },
+   "rt-qsort": {
+    "cycles": 172170,
+    "instret": 122899,
+    "cpi": 1.4009064353656255
+   },
+   "rt-rsort": {
+    "cycles": 182404,
+    "instret": 171146,
+    "cpi": 1.0657800941885875
+   },
+   "rt-towers": {
+    "cycles": 3916,
+    "instret": 3492,
+    "cpi": 1.1214203894616266
+   },
+   "rt-vvadd": {
+    "cycles": 3013,
+    "instret": 2411,
+    "cpi": 1.2496889257569472
+   },
+   "rt-spmv": {
+    "cycles": 616573,
+    "instret": 432233,
+    "cpi": 1.4264829386002458
+   },
+   "eb-aha-mont64": {
+    "cycles": 2647234,
+    "instret": 1910730,
+    "cpi": 1.3854568672706242
+   },
+   "eb-crc32": {
+    "cycles": 6791716,
+    "instret": 4179826,
+    "cpi": 1.6248800787401199
+   },
+   "eb-edn": {
+    "cycles": 9391205,
+    "instret": 3396110,
+    "cpi": 2.765282926642541
+   },
+   "eb-huffbench": {
+    "cycles": 3609844,
+    "instret": 2585611,
+    "cpi": 1.396128033180552
+   },
+   "eb-matmult-int": {
+    "cycles": 9189230,
+    "instret": 4552050,
+    "cpi": 2.0187014641754812
+   },
+   "eb-nettle-aes": {
+    "cycles": 5046643,
+    "instret": 4681123,
+    "cpi": 1.0780838273209228
+   },
+   "eb-nettle-sha256": {
+    "cycles": 4496865,
+    "instret": 4214703,
+    "cpi": 1.066947066021022
+   },
+   "eb-nsichneu": {
+    "cycles": 4198981,
+    "instret": 2569121,
+    "cpi": 1.6344037513219503
+   },
+   "eb-picojpeg": {
+    "cycles": 5154499,
+    "instret": 3523081,
+    "cpi": 1.46306570867942
+   },
+   "eb-qrduino": {
+    "cycles": 4280930,
+    "instret": 2988133,
+    "cpi": 1.4326437277055606
+   },
+   "eb-sglib-combined": {
+    "cycles": 3508284,
+    "instret": 2498088,
+    "cpi": 1.404387675694371
+   },
+   "eb-slre": {
+    "cycles": 3233711,
+    "instret": 2616491,
+    "cpi": 1.235896091368172
+   },
+   "eb-cubic": {
+    "cycles": 6807260,
+    "instret": 4603678,
+    "cpi": 1.4786568478507836
+   },
+   "eb-minver": {
+    "cycles": 5778724,
+    "instret": 4144792,
+    "cpi": 1.3942132681205714
+   },
+   "eb-nbody": {
+    "cycles": 3587615,
+    "instret": 2591988,
+    "cpi": 1.384117133258333
+   },
+   "eb-st": {
+    "cycles": 4668106,
+    "instret": 3242111,
+    "cpi": 1.4398353418498009
+   },
+   "eb-statemate": {
+    "cycles": 2435400,
+    "instret": 1991524,
+    "cpi": 1.2228825763586078
+   },
+   "eb-ud": {
+    "cycles": 9768157,
+    "instret": 6019939,
+    "cpi": 1.6226338838317131
+   },
+   "eb-wikisort": {
+    "cycles": 2478259,
+    "instret": 1755277,
+    "cpi": 1.4118905449111452
+   }
+  },
+  "8": {
+   "coremark": {
+    "cycles": 4724220,
+    "iterations": 10,
+    "coremark_per_mhz": 2.116751548403758
+   },
+   "rt-dhrystone": {
+    "cycles": 389018,
+    "instret": 267016,
+    "cpi": 1.4569089492764478,
+    "dmips_per_mhz": 0.7313602731929425
+   },
+   "rt-median": {
+    "cycles": 6611,
+    "instret": 4653,
+    "cpi": 1.42080378250591
+   },
+   "rt-memcpy": {
+    "cycles": 112026,
+    "instret": 80020,
+    "cpi": 1.399975006248438
+   },
+   "rt-multiply": {
+    "cycles": 33613,
+    "instret": 26811,
+    "cpi": 1.2537018387975085
+   },
+   "rt-qsort": {
+    "cycles": 172170,
+    "instret": 122899,
+    "cpi": 1.4009064353656255
+   },
+   "rt-rsort": {
+    "cycles": 182404,
+    "instret": 171146,
+    "cpi": 1.0657800941885875
+   },
+   "rt-towers": {
+    "cycles": 3916,
+    "instret": 3492,
+    "cpi": 1.1214203894616266
+   },
+   "rt-vvadd": {
+    "cycles": 3013,
+    "instret": 2411,
+    "cpi": 1.2496889257569472
+   },
+   "rt-spmv": {
+    "cycles": 578269,
+    "instret": 432233,
+    "cpi": 1.3378640686851768
+   },
+   "eb-aha-mont64": {
+    "cycles": 2576146,
+    "instret": 1910730,
+    "cpi": 1.3482522386731772
+   },
+   "eb-crc32": {
+    "cycles": 6095396,
+    "instret": 4179826,
+    "cpi": 1.4582894120472958
+   },
+   "eb-edn": {
+    "cycles": 7019585,
+    "instret": 3396110,
+    "cpi": 2.0669486559622627
+   },
+   "eb-huffbench": {
+    "cycles": 3609844,
+    "instret": 2585611,
+    "cpi": 1.396128033180552
+   },
+   "eb-matmult-int": {
+    "cycles": 7717230,
+    "instret": 4552050,
+    "cpi": 1.6953306751902988
+   },
+   "eb-nettle-aes": {
+    "cycles": 5046643,
+    "instret": 4681123,
+    "cpi": 1.0780838273209228
+   },
+   "eb-nettle-sha256": {
+    "cycles": 4496865,
+    "instret": 4214703,
+    "cpi": 1.066947066021022
+   },
+   "eb-nsichneu": {
+    "cycles": 4198981,
+    "instret": 2569121,
+    "cpi": 1.6344037513219503
+   },
+   "eb-picojpeg": {
+    "cycles": 4732387,
+    "instret": 3523081,
+    "cpi": 1.3432523975463522
+   },
+   "eb-qrduino": {
+    "cycles": 3966030,
+    "instret": 2988133,
+    "cpi": 1.3272601989268884
+   },
+   "eb-sglib-combined": {
+    "cycles": 3450284,
+    "instret": 2498088,
+    "cpi": 1.3811699187538629
+   },
+   "eb-slre": {
+    "cycles": 3233711,
+    "instret": 2616491,
+    "cpi": 1.235896091368172
+   },
+   "eb-cubic": {
+    "cycles": 6265300,
+    "instret": 4603678,
+    "cpi": 1.36093358397351
+   },
+   "eb-minver": {
+    "cycles": 5439064,
+    "instret": 4144792,
+    "cpi": 1.3122646444019386
+   },
+   "eb-nbody": {
+    "cycles": 3418415,
+    "instret": 2591988,
+    "cpi": 1.3188390532672218
+   },
+   "eb-st": {
+    "cycles": 4372538,
+    "instret": 3242111,
+    "cpi": 1.3486700486195569
+   },
+   "eb-statemate": {
+    "cycles": 2435400,
+    "instret": 1991524,
+    "cpi": 1.2228825763586078
+   },
+   "eb-ud": {
+    "cycles": 9111925,
+    "instret": 6019939,
+    "cpi": 1.51362414137419
+   },
+   "eb-wikisort": {
+    "cycles": 2367283,
+    "instret": 1755277,
+    "cpi": 1.3486663358546829
+   }
+  }
+ },
+ "energy": {
+  "1": {
+   "coremark1": {
+    "cycles": 765176,
+    "toggle_load": 6065294977,
+    "clock": 5725046832,
+    "energy": 11790341809,
+    "covered_bits": 37339,
+    "instret": 0
+   },
+   "coremark2": {
+    "cycles": 1501383,
+    "toggle_load": 11830556715,
+    "clock": 11233347606,
+    "energy": 23063904321,
+    "covered_bits": 37339,
+    "instret": 0
+   },
+   "rt-qsort": {
+    "cycles": 321786,
+    "toggle_load": 4076630028,
+    "clock": 2407602852,
+    "energy": 6484232880,
+    "covered_bits": 37339,
+    "instret": 0
+   },
+   "rt-dhrystone": {
+    "cycles": 407874,
+    "toggle_load": 4674095098,
+    "clock": 3051713268,
+    "energy": 7725808366,
+    "covered_bits": 37339,
+    "instret": 0
+   },
+   "coremark_iteration": {
+    "cycles": 736207,
+    "toggle_load": 5765261738,
+    "clock": 5508300774,
+    "energy": 11273562512,
+    "edp": 8299675636271984
+   }
+  },
+  "4": {
+   "coremark1": {
+    "cycles": 537176,
+    "toggle_load": 5889376730,
+    "clock": 4018076480,
+    "energy": 9907453210,
+    "covered_bits": 42390,
+    "instret": 0
+   },
+   "coremark2": {
+    "cycles": 1047807,
+    "toggle_load": 11480112907,
+    "clock": 7837596360,
+    "energy": 19317709267,
+    "covered_bits": 42390,
+    "instret": 0
+   },
+   "rt-qsort": {
+    "cycles": 321786,
+    "toggle_load": 3909928421,
+    "clock": 2406959280,
+    "energy": 6316887701,
+    "covered_bits": 42390,
+    "instret": 0
+   },
+   "rt-dhrystone": {
+    "cycles": 395874,
+    "toggle_load": 4652053955,
+    "clock": 2961137520,
+    "energy": 7613191475,
+    "covered_bits": 42390,
+    "instret": 0
+   },
+   "coremark_iteration": {
+    "cycles": 510631,
+    "toggle_load": 5590736177,
+    "clock": 3819519880,
+    "energy": 9410256057,
+    "edp": 4805168460641967
+   }
+  },
+  "8": {
+   "coremark1": {
+    "cycles": 499176,
+    "toggle_load": 6102450226,
+    "clock": 3733836480,
+    "energy": 9836286706,
+    "covered_bits": 47032,
+    "instret": 0
+   },
+   "coremark2": {
+    "cycles": 971642,
+    "toggle_load": 11890926771,
+    "clock": 7267882160,
+    "energy": 19158808931,
+    "covered_bits": 47032,
+    "instret": 0
+   },
+   "rt-qsort": {
+    "cycles": 321786,
+    "toggle_load": 4144887949,
+    "clock": 2406959280,
+    "energy": 6551847229,
+    "covered_bits": 47032,
+    "instret": 0
+   },
+   "rt-dhrystone": {
+    "cycles": 393874,
+    "toggle_load": 4816423484,
+    "clock": 2946177520,
+    "energy": 7762601004,
+    "covered_bits": 47032,
+    "instret": 0
+   },
+   "coremark_iteration": {
+    "cycles": 472466,
+    "toggle_load": 5788476545,
+    "clock": 3534045680,
+    "energy": 9322522225,
+    "edp": 4404574785556850
+   }
+  }
+ },
+ "area": {
+  "1": {
+   "generic": {
+    "muldiv_64": {
+     "lut": 953,
+     "ff": 211,
+     "cells": 2664
+    },
+    "core_pipe_64": {
+     "lut": 5802,
+     "ff": 3741,
+     "cells": 23290
+    },
+    "muldiv_32": {
+     "lut": 452,
+     "ff": 113,
+     "cells": 1272
+    },
+    "core_pipe_32": {
+     "lut": 3097,
+     "ff": 2073,
+     "cells": 12095
+    }
+   },
+   "xc7": {
+    "muldiv_64": {
+     "lut": 756,
+     "lutram": 0,
+     "carry4": 67,
+     "muxf": 0,
+     "ps": 3885
+    },
+    "core_pipe_64": {
+     "lut": 4238,
+     "lutram": 88,
+     "carry4": 184,
+     "muxf": 166,
+     "ps": 5650
+    },
+    "muldiv_32": {
+     "lut": 338,
+     "lutram": 0,
+     "carry4": 35,
+     "muxf": 0,
+     "ps": 2973
+    },
+    "core_pipe_32": {
+     "lut": 2306,
+     "lutram": 48,
+     "carry4": 114,
+     "muxf": 17,
+     "ps": 4829
+    }
+   }
+  },
+  "4": {
+   "generic": {
+    "muldiv_64": {
+     "lut": 1738,
+     "ff": 210,
+     "cells": 4633
+    },
+    "core_pipe_64": {
+     "lut": 6572,
+     "ff": 3740,
+     "cells": 25231
+    },
+    "muldiv_32": {
+     "lut": 807,
+     "ff": 112,
+     "cells": 2256
+    },
+    "core_pipe_32": {
+     "lut": 3496,
+     "ff": 2072,
+     "cells": 12987
+    }
+   },
+   "xc7": {
+    "muldiv_64": {
+     "lut": 1291,
+     "lutram": 0,
+     "carry4": 152,
+     "muxf": 0,
+     "ps": 5919
+    },
+    "core_pipe_64": {
+     "lut": 4612,
+     "lutram": 88,
+     "carry4": 269,
+     "muxf": 58,
+     "ps": 6155
+    },
+    "muldiv_32": {
+     "lut": 615,
+     "lutram": 0,
+     "carry4": 80,
+     "muxf": 0,
+     "ps": 5007
+    },
+    "core_pipe_32": {
+     "lut": 2546,
+     "lutram": 48,
+     "carry4": 159,
+     "muxf": 34,
+     "ps": 5243
+    }
+   }
+  },
+  "8": {
+   "generic": {
+    "muldiv_64": {
+     "lut": 2347,
+     "ff": 210,
+     "cells": 6260
+    },
+    "core_pipe_64": {
+     "lut": 7229,
+     "ff": 3740,
+     "cells": 26808
+    },
+    "muldiv_32": {
+     "lut": 1082,
+     "ff": 112,
+     "cells": 3087
+    },
+    "core_pipe_32": {
+     "lut": 3618,
+     "ff": 2072,
+     "cells": 13964
+    }
+   },
+   "xc7": {
+    "muldiv_64": {
+     "lut": 1681,
+     "lutram": 0,
+     "carry4": 220,
+     "muxf": 0,
+     "ps": 9339
+    },
+    "core_pipe_64": {
+     "lut": 4840,
+     "lutram": 88,
+     "carry4": 337,
+     "muxf": 0,
+     "ps": 9339
+    },
+    "muldiv_32": {
+     "lut": 825,
+     "lutram": 0,
+     "carry4": 116,
+     "muxf": 0,
+     "ps": 8427
+    },
+    "core_pipe_32": {
+     "lut": 2493,
+     "lutram": 48,
+     "carry4": 195,
+     "muxf": 0,
+     "ps": 8427
+    }
+   }
+  }
+ }
+}

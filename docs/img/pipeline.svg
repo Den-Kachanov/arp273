@@ -18,7 +18,7 @@
   <text x="480" y="22" text-anchor="middle" fill="#c0392b">WB redirect: exception → mtvec, MRET → mepc, FENCE.I → pc + 4 (flushes all younger)</text>
   <!-- redirect from EX (taken branch or jump) -->
   <path d="M 480 112 V 62 H 112 V 112" fill="none" stroke="#c0392b" stroke-width="1.8" marker-end="url(#r)"/>
-  <text x="300" y="56" text-anchor="middle" fill="#c0392b">EX redirect: taken branch / jump (2 cycles)</text>
+  <text x="300" y="56" text-anchor="middle" fill="#c0392b">EX redirect: misprediction, or taken branch / jump without BP (2 cycles)</text>
 
   <!-- stages -->
   <g stroke="#333" stroke-width="1.5">
@@ -32,8 +32,8 @@
     <text x="105" y="134" font-weight="bold" font-size="15">IF</text>
     <text x="105" y="156">fetch address</text>
     <text x="105" y="174">fetch queue (2)</text>
-    <text x="105" y="192">drops stale</text>
-    <text x="105" y="208">responses</text>
+    <text x="105" y="192">bpred: BHT, BTB,</text>
+    <text x="105" y="208">return stack (BP)</text>
 
     <text x="295" y="134" font-weight="bold" font-size="15">ID</text>
     <text x="295" y="156">decoder</text>
@@ -43,8 +43,8 @@
 
     <text x="485" y="134" font-weight="bold" font-size="15">EX</text>
     <text x="485" y="156">ALU, branch_unit</text>
-    <text x="485" y="174">muldiv (holds EX)</text>
-    <text x="485" y="192">jump targets</text>
+    <text x="485" y="174">muldiv, 4 bits/cycle</text>
+    <text x="485" y="192">checks predictions</text>
     <text x="485" y="208">ECALL, illegal</text>
 
     <text x="675" y="134" font-weight="bold" font-size="15">MEM</text>

@@ -1,5 +1,7 @@
 # ADR 013: Five-stage pipeline and a valid/ready memory interface
 
+Update: Sol 2 multiplies four bits per cycle ([ADR 017](017-multiplier-bits-per-cycle.md)); branch prediction in fetch was built and measured but is not enabled by default ([ADR 018](018-branch-prediction.md)). With `MUL_BITS = 1` the core is the one described here.
+
 ## Context
 
 Stage 1 of the plan replaces the single-cycle core with a classic five-stage pipeline (IF, ID, EX, MEM,

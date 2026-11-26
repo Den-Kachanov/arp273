@@ -1,5 +1,7 @@
 # ADR 011: `muldiv` — a short path of XLEN/2 iterations and a last-step register
 
+Update: with several multiplier bits per cycle ([ADR 017](017-multiplier-bits-per-cycle.md)) the short path takes XLEN/2 / `MUL_BITS` iterations for a multiplication.
+
 ## Context
 
 `muldiv` (ADR 009) computes every M instruction in XLEN iterations: 66 cycles per instruction for XLEN = 64. On a program with ordinary numbers (`sw/mbench.c`: an `int` matrix product, hashing, decimal conversion, GCD, division of small `int`s), 91% of the single-cycle core's cycles were spent waiting for M. The author asked to speed the unit up: fewer cycles and a shorter critical path, keeping in mind that the design is later to be taken to silicon.

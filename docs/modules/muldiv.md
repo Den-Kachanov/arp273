@@ -1,8 +1,14 @@
 # Multiply and divide (`rtl/core/muldiv.sv`)
 
-Diagram: [img/muldiv.svg](../img/muldiv.svg). Decisions and measurements: [ADR 009](../adr/009-muldiv-iterative.md), [ADR 011](../adr/011-muldiv-short-path.md) (short path, `last_q`). Connections between modules and area: [overview.md](overview.md).
+Diagram: [img/muldiv.svg](../img/muldiv.svg). Decisions and measurements: [ADR 009](../adr/009-muldiv-iterative.md), [ADR 011](../adr/011-muldiv-short-path.md) (short path, `last_q`), [ADR 017](../adr/017-multiplier-bits-per-cycle.md) (bits per cycle). Connections between modules and area: [overview.md](overview.md).
 
-The iterative unit of the M extension: MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU and (RV64) MULW, DIVW, DIVUW, REMW, REMUW. One state machine, one adder, `XLEN` iterations, or `XLEN / 2` on the short path.
+The iterative unit of the M extension: MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU and (RV64) MULW, DIVW, DIVUW, REMW, REMUW. One state machine, `XLEN` iterations, or `XLEN / 2` on the short path; a multiplication handles `MUL_BITS` multiplier bits per iteration.
+
+## Parameter
+
+| Parameter | Values | Default | Meaning |
+|---|---|---|---|
+| `MUL_BITS` | 1, 2, 4, 8 (must divide `XLEN / 2`) | 1 | Multiplier bits per iteration. 1 is the unit of Sol 1: one adder shared with the divider. Above 1 the multiplier has its own sum of `MUL_BITS` partial products; the divider always takes one bit per iteration |
 
 ## Ports
 
@@ -20,10 +26,17 @@ The iterative unit of the M extension: MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM,
 ## Protocol and latency
 
 1. First cycle (state `IDLE`, `valid_i = 1`): the unit copies the operands into its own registers.
-2. `N` cycles in state `RUN`, one iteration per cycle: `N = XLEN / 2` on the short path, otherwise `N = XLEN`.
+2. `N` cycles in state `RUN`, one iteration per cycle: `N = XLEN / 2` on the short path, otherwise `N = XLEN`; for a multiplication `N` is divided by `MUL_BITS`.
 3. State `DONE`: `done_o = 1`, `result_o` is valid. The core commits the instruction in this cycle. The unit then returns to `IDLE` by itself, so the next M instruction can raise `valid_i` in the following cycle.
 
-From `valid_i` to `done_o` there are `N + 1` clock edges. An instruction takes `N + 2` cycles including the commit, of which `N + 1` are stall cycles: 34 or 66 cycles for XLEN = 64, 18 or 34 for XLEN = 32. The operands may change after the first edge: the unit works on its own copies (a test checks this).
+From `valid_i` to `done_o` there are `N + 1` clock edges. An instruction takes `N + 2` cycles including the commit, of which `N + 1` are stall cycles. Cycles per instruction (`N + 2`):
+
+| Instruction, XLEN = 64 (XLEN = 32) | `MUL_BITS = 1` | 4 | 8 |
+|---|---|---|---|
+| Multiplication, short path (MUL with a small multiplier, MULW) | 34 (18) | 10 (6) | 6 (4) |
+| Multiplication, full path (MULH, MULHSU, MULHU, MUL) | 66 (34) | 18 (10) | 10 (6) |
+| Division, short / full path | 34 / 66 (18 / 34) | the same | the same |
+ The operands may change after the first edge: the unit works on its own copies (a test checks this).
 
 **Short path** (`N = XLEN / 2`, ADR 011):
 - MUL and MULW when the upper half of the multiplier `b` is zero (MULW always);
@@ -48,13 +61,17 @@ MULH, MULHSU, MULHU and division by zero always take the full path. The latency 
 
 **Short path.** For MUL, after `XLEN / 2` steps the low half of the product is `{hi[XLEN/2−1:0], lo[XLEN−1:XLEN/2]}`. For division the dividend is loaded shifted up by `XLEN / 2`, and the quotient and remainder end up where they do on the full path. The "fits" condition is read from the operand bits (without the 64-bit negation). The last-step flag `last_q` is a register, not a counter compare in front of the adder.
 
-**The adder** is shared by both operations: `hi ± y` in `XLEN + 1` bits, where `y = opa` always for division, and for multiplication only when `lo[0] = 1`. In division `sum[XLEN]` is the borrow (the reasoning is in ADR 009).
+**Several multiplier bits per iteration** (`MUL_BITS = K > 1`). Each iteration adds `K` partial products at once: `acc = hi + Σ lo[j] · opa · 2^j` for `j < K`, in `XLEN + K + 1` bits, then `{hi, lo}` shifts right by `K` (`hi = acc >> K`, the low `K` bits of `acc` enter the top of `lo`). In the last iteration of a signed multiplier the partial product of its top bit is subtracted. The sum is one expression, so Yosys turns it into one `$macc` cell with a carry-save tree. The sign extensions copy the top bit without looking at the signedness: `opa[XLEN]` already holds it, and for an unsigned multiplicand `hi` stays below 2^XLEN (the reasoning is in the RTL). The short path works as before: after `XLEN / 2` multiplier bits the low half is `{hi[XLEN/2−1:0], lo[XLEN−1:XLEN/2]}`.
+
+**The adder** (with `MUL_BITS = 1`) is shared by both operations: `hi ± y` in `XLEN + 1` bits, where `y = opa` always for division, and for multiplication only when `lo[0] = 1`. In division `sum[XLEN]` is the borrow (the reasoning is in ADR 009).
 
 ## Testing
 
 `tb/unit/test_muldiv.py`, `make unit T=muldiv`, XLEN = 64 and 32. The models in `tb/unit/mext.py` are written from the specification. Tests: known results (including `MIN / -1`, division by 0, `MULH(-1, -1)`, `MULHSU`, W cases); all pairs of edge operands for every operation; random operands with varied divisor lengths; the latency cycle by cycle; the protocol; independence from input changes after loading.
 
 After ADR 011: the latency model `mext.iterations()` (every operation checks both the result and the exact number of cycles), short-path boundaries from both sides, random operand lengths, garbage in every register without reset before the first operation. Mutation check: `make mutate M=muldiv`, 34 mutants, all caught.
+
+After ADR 017: every test runs for `MUL_BITS` = 1, 4 and 8 (6 builds with XLEN = 64 and 32); `test_signed_multiplier_groups` (MULH, MULHSU and MUL with multipliers around the top bit and the short-path boundary, against edge multiplicands); `test_abort` also aborts a MULH after 1, 2 and all but one iteration. `make mutate M=muldiv`: 43 mutants, all caught. Two mutants of the first version survived (a sign extension that looked at the signedness); they showed the check was redundant, and it was removed from the RTL.
 
 In the core: `tb/unit/test_core.py` (all 13 M instructions, `rd = x0`, the same register as source and destination, a loop with `MUL`, stall counters from the latency model) and the Spike comparison on `sw/muldiv.c` (edge values) and `sw/mbench.c` (ordinary numbers).
 
@@ -64,4 +81,4 @@ Measured 2026-11-25, Yosys 0.66, `make area`, no commit hash (estimate): XLEN = 
 
 ## Status
 
-`make lint` and `make struct` are clean, `make unit` passes, Yosys synthesizes the module. Not done: radix-4, multiplication on DSPs (board-dependent), a registered result (for frequency), a constant-time mode (disables the short path).
+`make lint` and `make struct` are clean, `make unit` passes, Yosys synthesizes the module. Not done: multiplication on DSPs (board-dependent), a faster divider, a registered result (for frequency), a constant-time mode (disables the short path).

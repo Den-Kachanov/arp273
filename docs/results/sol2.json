@@ -1,0 +1,164 @@
+{
+ "meta": {
+  "core": "Sol 2",
+  "commit": "3c7be96 + Sol 2 (uncommitted)",
+  "date": "2026-11-26",
+  "sim": "build/core_pipe_rel_BP0_sim",
+  "memory": "BRAM (1-cycle)",
+  "gcc": "riscv64-elf-gcc (Arch Linux Repositories) 16.2.0",
+  "cflags": "-march=rv64im_zicsr -mabi=lp64 -mcmodel=medany -O2 -ffreestanding -nostdlib -nostartfiles -fno-common",
+  "softfp": true,
+  "params": {
+   "MUL_BITS": "4",
+   "BP": "0"
+  }
+ },
+ "results": {
+  "coremark": {
+   "cycles": 5100060,
+   "iterations": 10,
+   "coremark_per_mhz": 1.960761245946126
+  },
+  "rt-dhrystone": {
+   "cycles": 391018,
+   "instret": 267016,
+   "cpi": 1.4643991371303593,
+   "dmips_per_mhz": 0.7273762094479226
+  },
+  "rt-median": {
+   "cycles": 6611,
+   "instret": 4653,
+   "cpi": 1.42080378250591
+  },
+  "rt-memcpy": {
+   "cycles": 112026,
+   "instret": 80020,
+   "cpi": 1.399975006248438
+  },
+  "rt-multiply": {
+   "cycles": 33613,
+   "instret": 26811,
+   "cpi": 1.2537018387975085
+  },
+  "rt-qsort": {
+   "cycles": 172170,
+   "instret": 122899,
+   "cpi": 1.4009064353656255
+  },
+  "rt-rsort": {
+   "cycles": 182404,
+   "instret": 171146,
+   "cpi": 1.0657800941885875
+  },
+  "rt-towers": {
+   "cycles": 3916,
+   "instret": 3492,
+   "cpi": 1.1214203894616266
+  },
+  "rt-vvadd": {
+   "cycles": 3013,
+   "instret": 2411,
+   "cpi": 1.2496889257569472
+  },
+  "rt-spmv": {
+   "cycles": 616573,
+   "instret": 432233,
+   "cpi": 1.4264829386002458
+  },
+  "eb-aha-mont64": {
+   "cycles": 2647234,
+   "instret": 1910730,
+   "cpi": 1.3854568672706242
+  },
+  "eb-crc32": {
+   "cycles": 6791716,
+   "instret": 4179826,
+   "cpi": 1.6248800787401199
+  },
+  "eb-edn": {
+   "cycles": 9391205,
+   "instret": 3396110,
+   "cpi": 2.765282926642541
+  },
+  "eb-huffbench": {
+   "cycles": 3609844,
+   "instret": 2585611,
+   "cpi": 1.396128033180552
+  },
+  "eb-matmult-int": {
+   "cycles": 9189230,
+   "instret": 4552050,
+   "cpi": 2.0187014641754812
+  },
+  "eb-nettle-aes": {
+   "cycles": 5046643,
+   "instret": 4681123,
+   "cpi": 1.0780838273209228
+  },
+  "eb-nettle-sha256": {
+   "cycles": 4496865,
+   "instret": 4214703,
+   "cpi": 1.066947066021022
+  },
+  "eb-nsichneu": {
+   "cycles": 4198981,
+   "instret": 2569121,
+   "cpi": 1.6344037513219503
+  },
+  "eb-picojpeg": {
+   "cycles": 5154499,
+   "instret": 3523081,
+   "cpi": 1.46306570867942
+  },
+  "eb-qrduino": {
+   "cycles": 4280930,
+   "instret": 2988133,
+   "cpi": 1.4326437277055606
+  },
+  "eb-sglib-combined": {
+   "cycles": 3508284,
+   "instret": 2498088,
+   "cpi": 1.404387675694371
+  },
+  "eb-slre": {
+   "cycles": 3233711,
+   "instret": 2616491,
+   "cpi": 1.235896091368172
+  },
+  "eb-cubic": {
+   "cycles": 6807260,
+   "instret": 4603678,
+   "cpi": 1.4786568478507836
+  },
+  "eb-minver": {
+   "cycles": 5778724,
+   "instret": 4144792,
+   "cpi": 1.3942132681205714
+  },
+  "eb-nbody": {
+   "cycles": 3587615,
+   "instret": 2591988,
+   "cpi": 1.384117133258333
+  },
+  "eb-st": {
+   "cycles": 4668106,
+   "instret": 3242111,
+   "cpi": 1.4398353418498009
+  },
+  "eb-statemate": {
+   "cycles": 2435400,
+   "instret": 1991524,
+   "cpi": 1.2228825763586078
+  },
+  "eb-ud": {
+   "cycles": 9768157,
+   "instret": 6019939,
+   "cpi": 1.6226338838317131
+  },
+  "eb-wikisort": {
+   "cycles": 2478259,
+   "instret": 1755277,
+   "cpi": 1.4118905449111452
+  }
+ }
+}

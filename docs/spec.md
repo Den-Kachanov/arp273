@@ -6,7 +6,7 @@ states the contract. The reasons and the measurements are in the [ADRs](adr/), t
 
 There are two cores built from the same units:
 
-| | `core_pipe` (the core) | `core` (reference) |
+| | `core_pipe` (the core: Sol 2, [ADR 015](adr/015-core-family.md)) | `core` (reference) |
 |---|---|---|
 | Purpose | The design that goes to the FPGA and later to silicon | A simple model to compare against in simulation |
 | Structure | 5-stage pipeline ([ADR 013](adr/013-pipeline-and-memory-interface.md)) | Single cycle ([ADR 008](adr/008-single-cycle-memory-interface.md)) |
@@ -22,6 +22,8 @@ Everything below describes `core_pipe` unless stated otherwise.
 | `XLEN` (package `riscv_pkg`, macro `XLEN`) | 64 | 64: RV64IM; 32: RV32IM. Every width in the RTL follows it |
 | `RESET_PC` | `0x8000_0000` | First instruction fetched after reset |
 | `DEBUG` | 1 | 0: release build without the commit trace and the stall and flush counters; same behaviour on all functional outputs (`make release-check`) |
+| `MUL_BITS` | 4 | Multiplier bits per cycle (1, 2, 4, 8; [ADR 017](adr/017-multiplier-bits-per-cycle.md)); 1 is Sol 1 |
+| `BP` | 0 | Branch prediction in fetch ([ADR 018](adr/018-branch-prediction.md)): built and measured, not enabled by default. Sizes: `BHT_ENTRIES`, `BTB_ENTRIES`, `RAS_DEPTH`, `BTB_TAG_BITS`, `BTB_TARGET_BITS` ([modules/bpred.md](modules/bpred.md)) |
 
 ## Instruction set
 
@@ -120,19 +122,21 @@ Cycles on a BRAM (always ready, one-cycle response):
 | Any instruction without a hazard | 1 cycle (one per cycle in steady state) |
 | Result used by the next instruction (ALU, jump link, M result) | 0: forwarded |
 | Load or CSR read used by the next instruction | +1 cycle |
-| Taken branch, JAL, JALR | +2 cycles (decided in EX, no prediction) |
+| Taken branch, JAL, JALR | +2 cycles (decided in EX; with the optional predictor, `BP = 1`: 0 when predicted right, +2 when wrong) |
 | Not-taken branch | 0 |
-| M instruction (holds EX) | `XLEN/2 + 2` cycles when the operands fit in `XLEN/2` bits ([ADR 011](adr/011-muldiv-short-path.md)), otherwise `XLEN + 2` |
+| Multiplication (holds EX) | `N / MUL_BITS + 2` cycles, `N = XLEN/2` when the multiplier fits in `XLEN/2` bits ([ADR 011](adr/011-muldiv-short-path.md)), otherwise `N = XLEN`; with `MUL_BITS = 4`: 10 or 18 cycles for XLEN = 64 |
+| Division (holds EX) | `XLEN/2 + 2` cycles when the dividend fits in `XLEN/2` bits, otherwise `XLEN + 2` |
 | Exception, MRET, FENCE.I | Younger instructions dropped; fetch restarts in the next cycle |
 | Pipeline fill after reset | 4 cycles |
 
 Measured CPI and area are in [ADR 013](adr/013-pipeline-and-memory-interface.md),
-[ADR 014](adr/014-csr-and-exceptions.md) and the [README](../README.md). No clock frequency is claimed
+[ADR 014](adr/014-csr-and-exceptions.md), [ADR 017](adr/017-multiplier-bits-per-cycle.md), [ADR 018](adr/018-branch-prediction.md)
+and the [README](../README.md). No clock frequency is claimed
 until place-and-route on the FPGA.
 
 ## Not implemented
 
 Planned in later stages: interrupts and the timer, caches, the SoC bus, the vector unit, the GPU
 interface. Not planned this year (see the project plan): supervisor and user modes, virtual memory,
-PMP, the A, C, F and D extensions, misaligned access in hardware, branch prediction (only after
-CoreMark measurements), a debug module.
+PMP, the A, C, F and D extensions, misaligned access in hardware, a debug module. Out-of-order cores
+(Spica, Naos) are a later part of the family ([ADR 015](adr/015-core-family.md)).

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 330" width="860" height="330" font-family="DejaVu Sans, sans-serif" font-size="13">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
+<rect width="860" height="330" fill="#ffffff"/>
+<text x="430" y="24" text-anchor="middle" fill="#222" font-size="16" font-weight="bold">bpred</text>
+<text x="430" y="42" text-anchor="middle" fill="#555" font-size="11">lookup combinational from the fetch pc; update from EX at the clock edge</text>
+<!-- inputs -->
+<text x="20" y="104" fill="#222">pc_i</text>
+<line x1="60" y1="100" x2="150" y2="100" stroke="#333" marker-end="url(#arr)"/>
+<line x1="100" y1="100" x2="100" y2="190" stroke="#333"/>
+<line x1="100" y1="190" x2="150" y2="190" stroke="#333" marker-end="url(#arr)"/>
+<!-- BTB -->
+<rect x="150" y="60" width="240" height="90" rx="6" fill="#eaf1fb" stroke="#23518a"/>
+<text x="270" y="80" text-anchor="middle" font-weight="bold" fill="#12305e">BTB (16 entries)</text>
+<text x="270" y="98" text-anchor="middle" fill="#333" font-size="11">index pc[5:2]</text>
+<text x="270" y="114" text-anchor="middle" fill="#333" font-size="11">valid | tag (10 bits) | target (20) | kind</text>
+<text x="270" y="130" text-anchor="middle" fill="#333" font-size="11">hit = valid and tag equal</text>
+<!-- BHT -->
+<rect x="150" y="170" width="240" height="56" rx="6" fill="#eafbef" stroke="#238a46"/>
+<text x="270" y="190" text-anchor="middle" font-weight="bold" fill="#125e2c">BHT (64 x 2-bit counters)</text>
+<text x="270" y="208" text-anchor="middle" fill="#333" font-size="11">index pc[7:2]; taken if counter &gt;= 2</text>
+<!-- RAS -->
+<rect x="150" y="246" width="240" height="56" rx="6" fill="#fbf1ea" stroke="#8a4a23"/>
+<text x="270" y="266" text-anchor="middle" font-weight="bold" fill="#5e2f12">return stack (8)</text>
+<text x="270" y="284" text-anchor="middle" fill="#333" font-size="11">call: push pc + 4; return: pop</text>
+<!-- decide -->
+<rect x="470" y="90" width="200" height="150" rx="6" fill="#f5f5f5" stroke="#555"/>
+<text x="570" y="112" text-anchor="middle" font-weight="bold" fill="#222">choose</text>
+<text x="570" y="134" text-anchor="middle" fill="#333" font-size="11">jump, call, return: taken</text>
+<text x="570" y="152" text-anchor="middle" fill="#333" font-size="11">branch: taken if counter &gt;= 2</text>
+<text x="570" y="174" text-anchor="middle" fill="#333" font-size="11">target: BTB, or the stack</text>
+<text x="570" y="190" text-anchor="middle" fill="#333" font-size="11">top for a return</text>
+<text x="570" y="212" text-anchor="middle" fill="#333" font-size="11">upper bits from pc_i</text>
+<line x1="390" y1="105" x2="470" y2="130" stroke="#333" marker-end="url(#arr)"/>
+<line x1="390" y1="198" x2="470" y2="170" stroke="#333" marker-end="url(#arr)"/>
+<line x1="390" y1="274" x2="470" y2="215" stroke="#333" marker-end="url(#arr)"/>
+<line x1="670" y1="140" x2="760" y2="140" stroke="#333" marker-end="url(#arr)"/>
+<text x="768" y="144" fill="#222">taken_o</text>
+<line x1="670" y1="195" x2="760" y2="195" stroke="#333" marker-end="url(#arr)"/>
+<text x="768" y="199" fill="#222">target_o</text>
+<!-- update -->
+<text x="430" y="322" text-anchor="middle" fill="#555" font-size="11">upd_i from EX: a taken transfer writes the BTB (a new branch starts at counter 2); a branch updates its counter; accept_i moves the stack</text>
+</svg>

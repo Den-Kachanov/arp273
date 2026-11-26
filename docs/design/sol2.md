@@ -75,12 +75,13 @@ speedup over Sol 1:
 | 8 bits + BHT 64 + BTB 16 + return stack 8 | 1.40 | 1.02 (`nettle-aes`) to 3.65 (`edn`) |
 
 Half of the benchmarks have no multiplications, so the suite also shows what the predictor alone
-gives. The energy measurement (step 0) runs on CoreMark and on a few benchmarks chosen to cover both
-kinds (for example `edn` and `nettle-aes`).
+gives. The energy measurement (step 0) runs on CoreMark, `rt-qsort` and `rt-dhrystone`: the gate-level
+simulation is too slow for the long Embench programs (ADR 016).
 
 ## Steps
 
-**0. Energy measurement** (`make energy`, new). Sol 1 release netlist from Yosys (`abc -g cmos2`, as
+**0. Energy measurement** (`make energy`, done: ADR 016; Sol 1: 1.657 × 10¹⁰ units and 736 207 cycles
+per CoreMark iteration, energy-delay product 1.22 × 10¹⁶). Sol 1 release netlist from Yosys (`abc -g cmos2`, as
 for the floorplan), simulated with Verilator on CoreMark with toggle counting. Energy per iteration is
 estimated as the sum over nets of transitions × load (fanout of the net, in gate inputs), plus the
 clock: every flip-flop is clocked every cycle (no clock gating yet). The result is in relative units:
@@ -102,6 +103,20 @@ energy-delay product is the default, the other remains a parameter value.
 
 Steps 1 and 2 change the microarchitecture, so the result is **Sol 2**. The `s` variant (ADR 015) may
 leave out the predictor.
+
+## Results (2026-11-26)
+
+- **Step 1, multiplier:** 4 bits per cycle, the default (ADR 017). CoreMark/MHz 1.360 → 1.961,
+  geometric mean over the 29 benchmarks ×1.215, energy per CoreMark iteration −16.5 %, energy × time −37 %.
+  8 bits per cycle needs fewer cycles but makes the multiplier the longest path of the core.
+- **Step 2, prediction:** built, verified and measured, **not enabled** (`BP = 0`, ADR 018). With BTB 16
+  it reaches 2.175 CoreMark/MHz, but its tables add 23 % flip-flops clocked every cycle and its target
+  check lengthens the logic path by about 700 ps, so one iteration takes the same time and 13 % more
+  energy. The ADR lists what would make it pay off.
+- **Sol 2 is therefore Sol 1 with the four-bit multiplier.** Its results: `docs/results/sol2.json`
+  (benchmarks) and `docs/results/sol2-energy.json`.
+- The design's acceptance number, energy × cycles, was replaced by energy × time (cycles × logic
+  delay): energy × cycles would have chosen 8 bits per cycle and BTB 8, both slower in time.
 
 ## Interfaces
 

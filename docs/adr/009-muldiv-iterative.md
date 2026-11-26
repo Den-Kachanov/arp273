@@ -2,6 +2,8 @@
 
 Update: The latency was changed in [ADR 011](011-muldiv-short-path.md): a short path of XLEN/2 iterations and the `last_q` register
 
+Update: Sol 2 multiplies 4 bits per cycle ([ADR 017](017-multiplier-bits-per-cycle.md)); one bit per cycle remains as `MUL_BITS = 1`.
+
 ## Context
 
 The M extension adds 8 instructions (MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU) and 5 W variants for RV64 (MULW, DIVW, DIVUW, REMW, REMUW). The plan places M in stage 2, but it was added now so that ordinary C code (multiplication, division, `%`) builds without `libgcc`. The project rules require division to be multi-cycle. The FPGA board is not chosen yet, so it is unknown whether DSP blocks are available. The single-cycle core executes one instruction per cycle, so a multi-cycle operation needs a stall.
