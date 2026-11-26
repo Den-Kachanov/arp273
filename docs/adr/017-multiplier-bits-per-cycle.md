@@ -27,7 +27,7 @@ iteration takes more time than on Sol 1.
 
 ## Measurements
 
-2026-11-26, release build of `core_pipe`, BRAM, RTL of `3c7be96` plus this change (not yet committed).
+2026-11-26, release build of `core_pipe`, BRAM, RTL of commit `ceb1f81` (Sol 1 is its configuration `MUL_BITS = 1`, identical to `3c7be96`).
 Benchmarks: `make bench` (29 programs, GCC 16.2.0 `-O2`); energy: `make energy` (ADR 016); area and
 delay: `scripts/area.py --xc7 --release` (Yosys 0.66, one run per width; the delay is the logic-only
 arrival time of `sta` on xc7, without routing, not Fmax). All numbers: `docs/results/mul-bits.json`.

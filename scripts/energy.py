@@ -32,6 +32,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+import bench
 import rtl_files
 
 CLOCK_WEIGHT = 2
@@ -122,7 +123,7 @@ def tohost(cross, elf):
 
 def coremark(cross, cm, iters, out):
     elf = out / f"coremark{iters}.elf"
-    subprocess.run([f"{cross}gcc", *CFLAGS, "-Isw/coremark", f"-I{cm}", "-DPERFORMANCE_RUN=1",
+    subprocess.run([f"{cross}gcc", *CFLAGS, *bench.libc_flags(cross), "-Isw/coremark", f"-I{cm}", "-DPERFORMANCE_RUN=1",
                     f"-DITERATIONS={iters}", '-DFLAGS_STR="energy"', "-Wl,--no-warn-rwx-segments", "-T",
                     "sw/link.ld", "sw/crt0.S", *(f"{cm}/{f}" for f in CM_FILES), "sw/coremark/core_portme.c",
                     "sw/lib/printf.c", "sw/lib/libc.c", "-o", str(elf)], check=True)

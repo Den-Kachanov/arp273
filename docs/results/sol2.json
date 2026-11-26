@@ -1,9 +1,9 @@
 {
  "meta": {
   "core": "Sol 2",
-  "commit": "3c7be96 + Sol 2 (uncommitted)",
+  "commit": "ceb1f81",
   "date": "2026-11-26",
-  "sim": "build/core_pipe_rel_BP0_sim",
+  "sim": "build/core_pipe_rel_MUL_BITS4_BP0_sim",
   "memory": "BRAM (1-cycle)",
   "gcc": "riscv64-elf-gcc (Arch Linux Repositories) 16.2.0",
   "cflags": "-march=rv64im_zicsr -mabi=lp64 -mcmodel=medany -O2 -ffreestanding -nostdlib -nostartfiles -fno-common",
@@ -121,9 +121,9 @@
    "cpi": 1.404387675694371
   },
   "eb-slre": {
-   "cycles": 3233711,
-   "instret": 2616491,
-   "cpi": 1.235896091368172
+   "cycles": 3204341,
+   "instret": 2610221,
+   "cpi": 1.2276129109374263
   },
   "eb-cubic": {
    "cycles": 6807260,
@@ -156,9 +156,9 @@
    "cpi": 1.6226338838317131
   },
   "eb-wikisort": {
-   "cycles": 2478259,
-   "instret": 1755277,
-   "cpi": 1.4118905449111452
+   "cycles": 2493464,
+   "instret": 1768260,
+   "cpi": 1.4101229457206519
   }
  }
 }

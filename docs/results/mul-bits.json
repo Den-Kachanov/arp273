@@ -1,7 +1,7 @@
 {
  "meta": {
   "date": "2026-11-26",
-  "rtl": "3c7be96 + MUL_BITS (uncommitted)",
+  "rtl": "ceb1f81",
   "build": "core_pipe release, BRAM",
   "tools": "Yosys 0.66, Verilator 5.052, riscv64-elf-gcc 16.2.0 -O2",
   "energy_model": "ADR 016, clock counted once (corrected after the final review)"

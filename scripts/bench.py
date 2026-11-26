@@ -43,12 +43,25 @@ EB_CFLAGS = ["-std=gnu11", "-DHAVE_CONFIG_H", "-DHAVE_BOARDSUPPORT_H"]
 CM_FILES = ["core_list_join.c", "core_main.c", "core_matrix.c", "core_state.c", "core_util.c"]
 
 
+def libc_flags(cross):
+    """
+    Build without the toolchain's C library headers: the compiler's own (stddef.h, stdint.h, stdarg.h)
+    plus sw/lib/include, which declares exactly what sw/lib and the soft-float library provide. The
+    programs then build the same with a toolchain that has newlib (Arch) and one that has none (the
+    gcc-riscv64-unknown-elf of Ubuntu in CI)
+    """
+    gcc_include = subprocess.run([f"{cross}gcc", "-print-file-name=include"], check=True, capture_output=True,
+                                 text=True).stdout.strip()
+    return ["-nostdinc", "-isystem", gcc_include, "-isystem", "sw/lib/include"]
+
+
 def build_commands(args):
     """name -> (suite, gcc arguments without -o)"""
     out = {}
+    base = BASE_CFLAGS + libc_flags(args.cross)
     cm = Path(args.coremark)
     if "coremark" in args.suites:
-        out["coremark"] = ("coremark", BASE_CFLAGS + [
+        out["coremark"] = ("coremark", base + [
             "-Isw/coremark", f"-I{cm}", "-DPERFORMANCE_RUN=1", f"-DITERATIONS={args.cm_iter}",
             f'-DFLAGS_STR="{" ".join(BASE_CFLAGS)}"'] + LINK +
             [str(cm / f) for f in CM_FILES] + ["sw/coremark/core_portme.c"] + LIB)
@@ -56,13 +69,13 @@ def build_commands(args):
     fp = [args.softfp] if args.softfp else []
     if "rt" in args.suites:
         for b in RT_BENCH + (RT_BENCH_FP if fp else []):
-            out[f"rt-{b}"] = ("rt", BASE_CFLAGS + RT_CFLAGS + [
+            out[f"rt-{b}"] = ("rt", base + RT_CFLAGS + [
                 f"-I{rt.parent / 'env'}", f"-I{rt / 'common'}", f"-I{rt / b}"] + LINK +
                 sorted(str(p) for p in (rt / b).glob("*.c")) + ["sw/bench/rt_support.c"] + LIB + fp)
     eb = Path(args.embench)
     if "embench" in args.suites:
         for b in EMBENCH + (EMBENCH_FP if fp else []):
-            out[f"eb-{b}"] = ("embench", BASE_CFLAGS + EB_CFLAGS + [
+            out[f"eb-{b}"] = ("embench", base + EB_CFLAGS + [
                 "-Isw/bench/embench", f"-I{eb / 'support'}", f"-I{eb / 'src' / b}"] + LINK +
                 [str(eb / "support" / "main.c"), str(eb / "support" / "beebsc.c")] +
                 sorted(str(p) for p in (eb / "src" / b).glob("*.c")) + ["sw/bench/embench/board.c"] + LIB + fp)
@@ -75,7 +88,9 @@ def run_one(name, suite, gcc_args, args):
     elf, binf = out / f"{name}.elf", out / f"{name}.bin"
     cc = subprocess.run([f"{args.cross}gcc", *gcc_args, "-o", str(elf)], capture_output=True, text=True)
     if cc.returncode != 0:
-        return name, {"error": "build failed: " + cc.stderr.strip().splitlines()[-1]}
+        lines = cc.stderr.strip().splitlines() or ["(no message)"]
+        first = next((ln for ln in lines if "error" in ln), lines[-1])  # the cause, not a trailing warning
+        return name, {"error": "build failed: " + first.strip()}
     subprocess.run([f"{args.cross}objcopy", "-O", "binary", str(elf), str(binf)], check=True)
     if args.build_only:
         return name, {"built": True}

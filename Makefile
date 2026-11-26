@@ -215,7 +215,8 @@ riscv-tests: $(PIPE_SIM)
 # MEM_STALL works here too
 COREMARK  ?= third_party/coremark
 CM_ITER   ?= 10
-CM_CFLAGS := $(CFLAGS)
+# without the toolchain's C library headers, as scripts/bench.py builds (sw/lib/include)
+CM_CFLAGS := $(CFLAGS) -nostdinc -isystem $(shell $(CC) -print-file-name=include) -isystem sw/lib/include
 CM_SRC    := $(addprefix $(COREMARK)/,core_list_join.c core_main.c core_matrix.c core_state.c core_util.c) \
              sw/coremark/core_portme.c sw/lib/printf.c
 CORE_SIM  ?= $(REL_SIM)

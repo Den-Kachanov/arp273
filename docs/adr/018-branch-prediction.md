@@ -41,7 +41,7 @@ path. How it works when enabled ([modules/core_pipe.md](../modules/core_pipe.md)
 
 ## Measurements
 
-2026-11-26, release build, BRAM, `MUL_BITS = 4`, RTL of `3c7be96` plus Sol 2 (not yet committed).
+2026-11-26, release build, BRAM, `MUL_BITS = 4`, RTL of commit `ceb1f81`.
 Cycles: `make bench` (29 programs); energy: `make energy` (ADR 016); delay: `scripts/area.py --xc7`
 (Yosys 0.66, logic-only arrival time on xc7, no routing, not Fmax; one synthesis per configuration,
 and ABC moves such numbers by several percent between runs).

@@ -83,11 +83,18 @@ char *strchr(const char *s, int c)
 /* exit from anywhere: the same report through tohost as a return from main (sw/crt0.S) */
 extern volatile unsigned long tohost;
 
+void exit(int code) __attribute__((noreturn));
 void exit(int code)
 {
 	tohost = ((unsigned long)code << 1) | 1;
 	for (;;)
 		;
+}
+
+/* abort: the exit code of a program killed by SIGABRT */
+void abort(void)
+{
+	exit(134);
 }
 
 /* The character class table that the ctype.h macros of the toolchain's headers (newlib) read: entry 0

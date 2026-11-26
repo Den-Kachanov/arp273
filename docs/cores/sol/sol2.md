@@ -22,7 +22,7 @@ CoreMark iteration takes longer than on Sol 1. The choice is made on energy × t
 
 ## Measurements
 
-2026-11-26, release build, simulation on a one-cycle BRAM, RTL `3c7be96` plus Sol 2 (results:
+2026-11-26, release build, simulation on a one-cycle BRAM, RTL of commit `ceb1f81` (results:
 `docs/results/sol2.json`, `docs/results/sol2-energy.json`, `docs/results/mul-bits.json`).
 
 | | Sol 1 | Sol 2 | Change |
