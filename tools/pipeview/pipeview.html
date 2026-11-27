@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sol Pipeline Viewer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- SPDX-License-Identifier: CERN-OHL-S-2.0 -->
+<!-- SPDX-FileCopyrightText: 2026 Denys Kachanov -->
+<!-- The page of scripts/pipeview.py: the trace of one run is inlined below in place of the marker -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a control bar, then the five-stage diagram as the hero, the pipeline chart under it, and a side
+   column with the register file, CSRs, memory traffic and the program listing */
+:root {
+  --bg: #f3f5f4;
+  --panel: #ffffff;
+  --ink: #17201d;
+  --muted: #5d6b66;
+  --line: #d3dbd8;
+  --grid: #e6ebe9;
+  --accent: #0f6c5c;
+  --if: #2a8f8a; --id: #3b63b8; --ex: #c27a12; --mem: #7c4fb3; --wb: #2e8a46;
+  --stall: #c27a12;
+  --bad: #c0392b;
+  --hi: #fff3c4;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1413; --panel: #171e1c; --ink: #e3ebe8; --muted: #93a39e; --line: #2c3834; --grid: #222b28;
+    --accent: #43c2a6; --if: #45b8b1; --id: #7d9cf0; --ex: #e8a33a; --mem: #ad86e3; --wb: #5cc276;
+    --stall: #e8a33a; --bad: #ef6f61; --hi: #3d3820; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1413; --panel: #171e1c; --ink: #e3ebe8; --muted: #93a39e; --line: #2c3834; --grid: #222b28;
+  --accent: #43c2a6; --if: #45b8b1; --id: #7d9cf0; --ex: #e8a33a; --mem: #ad86e3; --wb: #5cc276;
+  --stall: #e8a33a; --bad: #ef6f61; --hi: #3d3820; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 24px;
+}
+* { box-sizing: border-box; }
+.mono { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+header.bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  padding-block: 8px; border-bottom: 1px solid var(--line);
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.brand { display: flex; flex-direction: column; min-width: 0; }
+.brand b { font-size: 16px; letter-spacing: .01em; }
+.brand span { color: var(--muted); font-size: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button {
+  font: 500 13px var(--font-data); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 5px 9px; cursor: pointer; min-width: 38px;
+}
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.play { background: var(--accent); color: var(--panel); border-color: var(--accent); min-width: 64px; }
+input[type="number"] { width: 84px; font: 13px var(--font-data); padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+input[type="range"] { width: 110px; accent-color: var(--accent); }
+.counter { display: flex; gap: 14px; font-size: 13px; }
+.counter div { display: flex; flex-direction: column; }
+.counter small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.counter strong { font: 600 15px var(--font-data); font-variant-numeric: tabular-nums; }
+.scrub { flex: 1 1 260px; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.scrub input { flex: 1; width: auto; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; margin-top: 14px; }
+@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } }
+section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+section.panel h2 { font: 600 11px var(--font-ui); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0 0 8px; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.scroll { overflow-x: auto; }
+svg text { font-family: var(--font-data); }
+.stagebox { fill: var(--panel); stroke: var(--line); stroke-width: 1.2; }
+.stagebox.busy { stroke-width: 2.2; }
+.stagebox.stall { stroke-dasharray: 6 4; }
+.wire { stroke: var(--line); stroke-width: 2; fill: none; }
+.wire.on { stroke-width: 3; }
+.lbl { fill: var(--muted); font-size: 11px; }
+.txt { fill: var(--ink); font-size: 12.5px; }
+.big { fill: var(--ink); font-size: 14px; font-weight: 600; }
+.why { fill: var(--stall); font-size: 11.5px; }
+.chart { font: 11px var(--font-data); border-collapse: collapse; }
+.chart td { border: 1px solid var(--grid); width: 34px; height: 20px; text-align: center; padding: 0; }
+.chart td.name { width: auto; text-align: left; padding: 0 8px 0 2px; white-space: nowrap; border: none; color: var(--ink); max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.chart th { font-weight: 500; color: var(--muted); padding: 0 0 2px; }
+.chart th.now, .chart td.now { outline: 2px solid var(--accent); outline-offset: -2px; }
+.chart td.s { color: #fff; font-weight: 600; }
+.chart td.s.st { background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(0,0,0,.22) 4px 7px); }
+.chart td.end { color: var(--muted); }
+.chart tr.flushed td.name { color: var(--muted); text-decoration: line-through; }
+.regs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; font: 11.5px var(--font-data); }
+.reg { display: flex; justify-content: space-between; gap: 6px; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }
+.reg span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.reg span:first-child { color: var(--muted); }
+.reg.w { background: var(--hi); }
+.reg.r { box-shadow: inset 2px 0 0 var(--ex); }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; font: 12px var(--font-data); }
+.kv span:nth-child(odd) { color: var(--muted); }
+.kv .chg { background: var(--hi); border-radius: 3px; }
+.log { font: 12px var(--font-data); max-height: 170px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.log div.now { background: var(--hi); }
+.listing { font: 12px var(--font-data); max-height: 380px; overflow-y: auto; }
+.listing div { display: grid; grid-template-columns: 64px 36px minmax(0, 1fr); gap: 6px; padding: 0 4px; white-space: nowrap; }
+.listing .label { color: var(--accent); grid-template-columns: 1fr; padding-top: 4px; }
+.listing .chips { display: flex; gap: 2px; }
+.chip { font-size: 9px; font-weight: 600; color: #fff; border-radius: 3px; padding: 0 3px; line-height: 15px; }
+.listing span.t { overflow: hidden; text-overflow: ellipsis; }
+.listing .pc { color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+.note { color: var(--muted); font-size: 12px; }
+.irqs { display: flex; gap: 8px; font: 12px var(--font-data); }
+.irqs span { padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.irqs span.on { border-color: var(--bad); color: var(--bad); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><b>Sol pipeline</b><span id="meta"></span></div>
+  <div class="controls" role="group" aria-label="Step through cycles">
+    <button id="first" title="First cycle (Home)">|&lt;</button>
+    <button id="back10" title="10 cycles back (Shift+Left)">-10</button>
+    <button id="back" title="One cycle back (Left)">-1</button>
+    <button id="play" class="play" title="Play or pause (Space)">Play</button>
+    <button id="fwd" title="One cycle forward (Right)">+1</button>
+    <button id="fwd10" title="10 cycles forward (Shift+Right)">+10</button>
+    <button id="last" title="Last cycle (End)">&gt;|</button>
+    <label class="note" for="speed">speed</label><input id="speed" type="range" min="1" max="40" value="6">
+    <label class="note" for="goto">cycle</label><input id="goto" type="number" min="0" value="0">
+  </div>
+  <div class="counter">
+    <div><small>cycle</small><strong id="cyc">0</strong></div>
+    <div><small>retired</small><strong id="ret">0</strong></div>
+    <div><small>CPI so far</small><strong id="cpi">-</strong></div>
+  </div>
+  <div class="scrub"><input id="scrub" type="range" min="0" value="0" aria-label="Cycle"></div>
+</header>
+
+<main>
+  <div class="col">
+    <section class="panel">
+      <h2>What every stage does in this cycle</h2>
+      <div class="scroll"><svg id="pipe" viewBox="0 0 1200 380" width="100%" style="min-width:820px" role="img" aria-label="The five pipeline stages"></svg></div>
+      <div class="legend">
+        <span><i style="background:var(--if)"></i>IF fetch</span><span><i style="background:var(--id)"></i>ID decode</span>
+        <span><i style="background:var(--ex)"></i>EX execute</span><span><i style="background:var(--mem)"></i>MEM data request</span>
+        <span><i style="background:var(--wb)"></i>WB write back, commit</span>
+        <span>dashed box: the stage holds its instruction this cycle</span><span>thick wire: used this cycle</span>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Pipeline chart: instructions by cycles</h2>
+      <div class="scroll"><table class="chart" id="chart"></table></div>
+      <div class="legend"><span>striped: waiting in that stage</span><span>&#10003; committed</span><span>&#10007; flushed (wrong path)</span><span>! exception or interrupt taken</span></div>
+    </section>
+  </div>
+  <div class="col">
+    <section class="panel">
+      <h2>Register file, as read in this cycle (hex)</h2>
+      <div class="regs" id="regs"></div>
+      <p class="note" id="regnote"></p>
+    </section>
+    <section class="panel">
+      <h2>CSRs and interrupt lines</h2>
+      <div class="irqs" id="irqs"></div>
+      <div class="kv" id="csrs" style="margin-top:8px"></div>
+    </section>
+    <section class="panel">
+      <h2>Data memory traffic</h2>
+      <div class="log" id="memlog"></div>
+    </section>
+    <section class="panel">
+      <h2>Program</h2>
+      <div class="listing" id="listing"></div>
+    </section>
+  </div>
+</main>
+
+<script id="trace" type="application/json">__TRACE__</script>
+<script>
+"use strict";
+const T = JSON.parse(document.getElementById("trace").textContent);
+const C = T.cycles, I = T.inst, N = C.length;
+const STAGES = ["id", "ex", "mem", "wb"];
+const COLOR = { IF: "var(--if)", ID: "var(--id)", EX: "var(--ex)", MEM: "var(--mem)", WB: "var(--wb)" };
+const ABI = ["zero","ra","sp","gp","tp","t0","t1","t2","s0","s1","a0","a1","a2","a3","a4","a5","a6","a7",
+             "s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","t3","t4","t5","t6"];
+const byPc = new Map(T.listing.map(l => [l.pc, l]));
+const $ = id => document.getElementById(id);
+const short = h => h == null ? "-" : "0x" + h;
+const text = pc => (byPc.get(pc) || {}).text || "?";
+
+// register file before each cycle: snapshots every 128 cycles, replayed in between
+const SNAP = 128, snaps = [];
+{
+  const r = Array(32).fill(null); r[0] = "0";
+  for (let c = 0; c < N; c++) {
+    if (c % SNAP === 0) snaps.push(r.slice());
+    const w = C[c].w; if (w) r[w[0]] = w[1];
+  }
+}
+function regsAt(c) {
+  const r = snaps[Math.floor(c / SNAP)].slice();
+  for (let k = c - (c % SNAP); k < c; k++) { const w = C[k].w; if (w) r[w[0]] = w[1]; }
+  return r;
+}
+
+$("meta").textContent = `${T.program} · ${T.params} · ${T.memory} · ${N} cycles`;
+$("scrub").max = N - 1; $("goto").max = N - 1;
+
+// ---- the diagram
+const NS = "http://www.w3.org/2000/svg";
+const svg = $("pipe");
+function el(tag, attrs, parent = svg) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e); return e;
+}
+const BX = [16, 252, 488, 724, 960], BW = 220, BY = 118, BH = 150;
+const names = ["IF", "ID", "EX", "MEM", "WB"];
+const box = [], ttl = [], line = [];
+// memories and the register file
+el("rect", { x: 16, y: 8, width: 220, height: 44, rx: 6, class: "stagebox" });
+el("text", { x: 26, y: 26, class: "lbl" }).textContent = "instruction memory";
+const imemTxt = el("text", { x: 26, y: 43, class: "txt" });
+el("rect", { x: 724, y: 8, width: 456, height: 44, rx: 6, class: "stagebox" });
+el("text", { x: 734, y: 26, class: "lbl" }).textContent = "data memory";
+const dmemTxt = el("text", { x: 734, y: 43, class: "txt" });
+el("rect", { x: 252, y: 324, width: 928, height: 44, rx: 6, class: "stagebox" });
+el("text", { x: 262, y: 342, class: "lbl" }).textContent = "register file: ID reads, WB writes";
+const rfTxt = el("text", { x: 262, y: 359, class: "txt" });
+// wires (drawn first, boxes cover their ends)
+const W = {};
+function wire(id, d, color) { W[id] = el("path", { d, class: "wire", "data-c": color, "marker-end": "" }); }
+wire("ireq", "M 90 118 L 90 52", "var(--if)");
+wire("irsp", "M 160 52 L 160 118", "var(--if)");
+wire("dreq", "M 836 118 L 836 52", "var(--mem)");
+wire("drsp", "M 1070 52 L 1070 118", "var(--wb)");
+wire("rfr", "M 362 324 L 362 268", "var(--id)");
+wire("rfw", "M 1070 268 L 1070 324", "var(--wb)");
+wire("fmem", "M 834 268 C 834 300, 600 300, 600 268", "var(--mem)");
+wire("fwb", "M 1040 268 C 1040 312, 640 312, 640 268", "var(--wb)");
+wire("rex", "M 598 118 L 598 92 L 126 92 L 126 118", "var(--bad)");
+wire("rwb", "M 1110 118 L 1110 74 L 60 74 L 60 118", "var(--bad)");
+for (let k = 0; k < 4; k++) wire("adv" + k, `M ${BX[k] + BW} ${BY + 75} L ${BX[k + 1]} ${BY + 75}`, COLOR[names[k + 1]]);
+const lab = {
+  ireq: el("text", { x: 96, y: 90, class: "lbl" }), dreq: el("text", { x: 842, y: 70, class: "lbl" }),
+  rfw: el("text", { x: 1076, y: 300, class: "lbl" }), fwd: el("text", { x: 600, y: 316, class: "lbl", "text-anchor": "middle" }),
+  rex: el("text", { x: 360, y: 88, class: "lbl", "text-anchor": "middle" }), rwb: el("text", { x: 700, y: 70, class: "lbl", "text-anchor": "middle" }),
+};
+for (let k = 0; k < 5; k++) {
+  box[k] = el("rect", { x: BX[k], y: BY, width: BW, height: BH, rx: 8, class: "stagebox" });
+  el("rect", { x: BX[k], y: BY, width: 6, height: BH, fill: COLOR[names[k]] });
+  el("text", { x: BX[k] + 16, y: BY + 22, class: "big", fill: COLOR[names[k]] }).textContent = names[k];
+  ttl[k] = el("text", { x: BX[k] + 60, y: BY + 22, class: "lbl" });
+  line[k] = [];
+  for (let j = 0; j < 5; j++) line[k][j] = el("text", { x: BX[k] + 16, y: BY + 46 + j * 19, class: j === 4 ? "why" : "txt" });
+}
+function fit(s, n = 27) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+function setWire(id, on) {
+  const w = W[id]; w.classList.toggle("on", !!on); w.style.stroke = on ? w.dataset.c : "";
+}
+
+// ---- the chart
+function chart(c) {
+  const lo = Math.max(0, c - 14), hi = Math.min(N - 1, c + 14);
+  const rows = [];
+  for (let k = 0; k < I.length; k++) {
+    const cells = I[k].cells;
+    let any = false;
+    for (let x = lo; x <= hi && !any; x++) if (cells[x]) any = true;
+    if (any) rows.push(k);
+  }
+  // keep the rows nearest the instructions in flight
+  const inFlight = C[c].i.filter(v => v != null);
+  const centre = inFlight.length ? inFlight[0] : (rows[0] || 0);
+  const shown = rows.filter(k => Math.abs(k - centre) <= 9).slice(0, 16);
+  let h = "<tr><th></th>";
+  for (let x = lo; x <= hi; x++) h += `<th class="${x === c ? "now" : ""}">${x}</th>`;
+  h += "</tr>";
+  for (const k of shown) {
+    const it = I[k], end = it.end;
+    h += `<tr class="${end[0] === "flush" ? "flushed" : ""}"><td class="name" title="${it.pc}: ${it.text}">${it.pc.slice(-5)} ${it.text}</td>`;
+    for (let x = lo; x <= hi; x++) {
+      const v = it.cells[x], now = x === c ? " now" : "";
+      if (v) {
+        const st = v.endsWith("*"), s = v.replace("*", "");
+        h += `<td class="s${st ? " st" : ""}${now}" style="background-color:${COLOR[s]}">${s}</td>`;
+      } else if (x === end[1] + 1) {
+        const m = { commit: "&#10003;", flush: "&#10007;", trap: "!", irq: "!" }[end[0]];
+        h += `<td class="end${now}">${m}</td>`;
+      } else h += `<td class="${now.trim()}"></td>`;
+    }
+    h += "</tr>";
+  }
+  $("chart").innerHTML = h;
+}
+
+// ---- the side panels
+const regEls = [];
+for (let r = 0; r < 32; r++) {
+  const d = document.createElement("div"); d.className = "reg";
+  d.innerHTML = `<span>x${r} ${ABI[r]}</span><span></span>`;
+  $("regs").appendChild(d); regEls.push(d);
+}
+const listEls = new Map();
+{
+  const frag = document.createDocumentFragment();
+  for (const l of T.listing) {
+    if (l.label) { const d = document.createElement("div"); d.className = "label"; d.textContent = `<${l.label}>`; frag.appendChild(d); }
+    const d = document.createElement("div");
+    d.innerHTML = `<span class="pc">${l.pc.slice(-6)}</span><span class="chips"></span><span class="t">${l.text}</span>`;
+    frag.appendChild(d); listEls.set(l.pc, d);
+  }
+  $("listing").appendChild(frag);
+}
+const CAUSE = { 0: "misaligned fetch", 2: "illegal instruction", 3: "breakpoint", 4: "misaligned load", 6: "misaligned store/AMO", 11: "ECALL" };
+const ICAUSE = { 3: "software", 7: "timer", 11: "external" };
+
+let cur = 0;
+function render(c) {
+  cur = c = Math.max(0, Math.min(N - 1, c));
+  const s = C[c];
+  $("cyc").textContent = c; $("scrub").value = c; $("goto").value = c;
+  $("ret").textContent = s.cnt[1];
+  $("cpi").textContent = s.cnt[1] ? (s.cnt[0] / s.cnt[1]).toFixed(3) : "-";
+
+  // IF
+  const f = s.f;
+  ttl[0].textContent = f.q ? `queue: ${f.q}` : "queue empty";
+  line[0][0].textContent = `next pc ${short(f.pc)}`;
+  line[0][1].textContent = f.req ? `request ${short(f.req)}${f.acc ? "" : " (not ready)"}` : "no request";
+  line[0][2].textContent = f.out ? `waiting for ${short(f.out)}${f.drop ? " (to drop)" : ""}` : "";
+  line[0][3].textContent = f.rsp ? (f.drop ? "response dropped" : "response into the queue") : "";
+  line[0][4].textContent = "";
+  box[0].classList.toggle("busy", !!(f.req || f.out));
+  setWire("ireq", f.req); setWire("irsp", f.rsp && !f.drop);
+  lab.ireq.textContent = f.req ? short(f.req).slice(-6) : "";
+  imemTxt.textContent = f.req ? `read ${short(f.req)}` : (f.rsp ? "response" : "idle");
+
+  // ID .. WB
+  for (let k = 0; k < 4; k++) {
+    const stage = STAGES[k], idx = s.i[k], b = k + 1, L = line[b];
+    const it = idx != null ? I[idx] : null;
+    box[b].classList.toggle("busy", !!it);
+    box[b].classList.toggle("stall", !!s.why[stage]);
+    ttl[b].textContent = it ? it.pc : "bubble";
+    L[0].textContent = it ? fit(it.text) : "";
+    L[1].textContent = ""; L[2].textContent = ""; L[3].textContent = "";
+    L[4].textContent = s.why[stage] ? fit(s.why[stage], 31) : "";
+    for (let j = 0; j < 5; j++) L[j].setAttribute("title", "");
+    if (it) box[b].setAttribute("stroke", COLOR[names[b]]); else box[b].removeAttribute("stroke");
+  }
+  // EX details
+  const x = s.x;
+  if (s.i[1] != null) {
+    const src = (r, v, fwd) => fwd ? `x${r} ${fwd === "RF" ? "from RF" : "<- " + fwd} ${short(v).slice(-8)}` : "";
+    line[2][1].textContent = fit(src(x.ra, x.a, x.fa), 30);
+    line[2][2].textContent = fit(src(x.rb, x.b, x.fb), 30);
+    line[2][3].textContent = x.md ? "M unit" : `result ${short(x.r).slice(-12)}`;
+  }
+  setWire("fmem", x.fa === "MEM" || x.fb === "MEM");
+  setWire("fwb", x.fa === "WB" || x.fb === "WB");
+  lab.fwd.textContent = [x.fa, x.fb].some(v => v === "MEM" || v === "WB") ? "forwarding into EX" : "";
+  // MEM
+  const m = s.m;
+  if (m) {
+    line[3][1].textContent = `${m.kind} ${short(m.addr)}`;
+    line[3][2].textContent = m.kind !== "load" ? `data ${short(m.data).slice(-12)}` : "";
+    line[3][3].textContent = m.ok ? "accepted" : "port not ready";
+  }
+  setWire("dreq", m && m.ok);
+  lab.dreq.textContent = m ? `${m.kind} ${short(m.addr).slice(-8)}` : "";
+  dmemTxt.textContent = m ? `${m.kind} ${short(m.addr)}${m.kind !== "load" ? " data " + short(m.data) : ""}`
+                          : (s.rsp != null ? `response ${short(s.rsp)}` : "idle");
+  // WB
+  setWire("drsp", s.rsp != null);
+  if (s.rsp != null) line[4][1].textContent = `response ${short(s.rsp).slice(-12)}`;
+  if (s.w) line[4][2].textContent = fit(`x${s.w[0]} <- ${short(s.w[1])}`, 30);
+  if (s.exc) {
+    const cause = s.exc.irq ? `${ICAUSE[s.exc.cause] || s.exc.cause} interrupt` : (CAUSE[s.exc.cause] || `cause ${s.exc.cause}`);
+    line[4][3].textContent = fit(cause, 30);
+  } else if (s.i[3] != null && !s.why.wb) line[4][3].textContent = "commits";
+  setWire("rfw", s.w); lab.rfw.textContent = s.w ? `x${s.w[0]}` : "";
+  setWire("rfr", s.i[0] != null);
+  rfTxt.textContent = s.w ? `write x${s.w[0]} (${ABI[s.w[0]]}) = ${short(s.w[1])}` : "no write";
+  // advance wires: a stage hands its instruction on
+  const next = c + 1 < N ? C[c + 1] : null;
+  for (let k = 0; k < 4; k++) {
+    let on = false;
+    if (k === 0) on = f.rsp && !f.drop;
+    else on = next && s.i[k - 1] != null && next.i[k] === s.i[k - 1];
+    setWire("adv" + k, on);
+  }
+  // redirects
+  setWire("rex", s.br.ex); lab.rex.textContent = s.br.ex ? `branch/jump: fetch ${short(s.br.ex)}` : "";
+  setWire("rwb", s.br.wb); lab.rwb.textContent = s.br.wb ? `trap, MRET or FENCE.I: fetch ${short(s.br.wb)}` : "";
+
+  // register file
+  const regs = regsAt(c);
+  const reading = new Set();
+  if (s.i[1] != null) { if (x.fa) reading.add(x.ra); if (x.fb) reading.add(x.rb); }
+  for (let r = 0; r < 32; r++) {
+    regEls[r].lastChild.textContent = regs[r] == null ? "?" : regs[r];
+    regEls[r].lastChild.title = regs[r] == null ? "" : "0x" + regs[r];
+    regEls[r].classList.toggle("w", !!(s.w && s.w[0] === r));
+    regEls[r].classList.toggle("r", reading.has(r));
+  }
+  $("regnote").textContent = (s.w ? `Highlighted: written at the end of this cycle (x${s.w[0]}). ` : "") +
+    "A bar on the left: read by the instruction in EX. ? = not written since reset (crt0 clears them).";
+
+  // CSRs and lines
+  $("irqs").innerHTML = ["MSIP software", "MTIP timer", "MEIP external"].map((n, k) =>
+    `<span class="${s.irq[k] ? "on" : ""}">${n}</span>`).join("");
+  const prevCsr = c ? C[c - 1].csr : s.csr;
+  $("csrs").innerHTML = Object.entries(s.csr).map(([k, v]) => {
+    const show = (k === "mie" || k === "mip") ? `MEI ${v >> 2 & 1} MTI ${v >> 1 & 1} MSI ${v & 1}` : (typeof v === "string" || v == null ? short(v) : v);
+    return `<span>${k}</span><span class="${prevCsr[k] !== v ? "chg" : ""}">${show}</span>`;
+  }).join("");
+
+  // memory traffic: accepted data requests up to this cycle
+  const log = [];
+  for (let k = c; k >= 0 && log.length < 14; k--) {
+    const mm = C[k].m;
+    if (mm && mm.ok) log.push(`<div class="${k === c ? "now" : ""}">${String(k).padStart(5)}  ${mm.kind.padEnd(9)} ${short(mm.addr)}${mm.kind !== "load" ? " " + short(mm.data) : ""}</div>`);
+  }
+  $("memlog").innerHTML = log.join("") || '<div class="note">no data access yet</div>';
+
+  // listing chips
+  for (const d of listEls.values()) d.querySelector(".chips").innerHTML = "";
+  const marks = [["IF", f.req], ["ID", s.i[0] != null ? I[s.i[0]].pc : null], ["EX", s.i[1] != null ? I[s.i[1]].pc : null],
+                 ["MEM", s.i[2] != null ? I[s.i[2]].pc : null], ["WB", s.i[3] != null ? I[s.i[3]].pc : null]];
+  for (const [n, pc] of marks) {
+    if (!pc) continue;
+    const d = listEls.get(pc); if (!d) continue;
+    d.querySelector(".chips").insertAdjacentHTML("beforeend", `<span class="chip" style="background:${COLOR[n]}">${n}</span>`);
+  }
+  const focus = listEls.get(marks[2][1] || marks[1][1] || f.pc);
+  if (focus) {
+    const box_ = $("listing"), top = focus.offsetTop - box_.offsetTop;
+    if (top < box_.scrollTop + 40 || top > box_.scrollTop + box_.clientHeight - 60) box_.scrollTop = top - box_.clientHeight / 2;
+  }
+  chart(c);
+}
+
+// ---- controls
+let timer = null;
+function play(on) {
+  if (timer) { clearInterval(timer); timer = null; }
+  $("play").textContent = on ? "Pause" : "Play";
+  if (on) timer = setInterval(() => { if (cur >= N - 1) play(false); else render(cur + 1); }, 1000 / Number($("speed").value));
+}
+$("play").onclick = () => play(!timer);
+$("speed").oninput = () => { if (timer) play(true); };
+$("first").onclick = () => render(0);
+$("last").onclick = () => render(N - 1);
+$("back").onclick = () => render(cur - 1);
+$("fwd").onclick = () => render(cur + 1);
+$("back10").onclick = () => render(cur - 10);
+$("fwd10").onclick = () => render(cur + 10);
+$("scrub").oninput = e => render(Number(e.target.value));
+$("goto").onchange = e => render(Number(e.target.value));
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" && e.target.type === "number") return;
+  const step = e.shiftKey ? 10 : 1;
+  if (e.key === "ArrowRight") { render(cur + step); e.preventDefault(); }
+  else if (e.key === "ArrowLeft") { render(cur - step); e.preventDefault(); }
+  else if (e.key === " ") { play(!timer); e.preventDefault(); }
+  else if (e.key === "Home") render(0);
+  else if (e.key === "End") render(N - 1);
+});
+// a link may open a cycle: #cycle-120
+function fromHash() { const m = /^#cycle-(\d+)$/.exec(location.hash); render(m ? Number(m[1]) : cur); }
+window.addEventListener("hashchange", fromHash);
+render(0);
+fromHash();
+</script>
+</body>
+</html>

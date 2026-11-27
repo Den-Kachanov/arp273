@@ -19,6 +19,8 @@
 //            handler at mtvec (riscv-tests end with ECALL, and their handler writes tohost)
 // A byte stored to 0x1000_0000 (UART transmit register) is printed to stdout (CoreMark's report).
 // Built with --coverage-toggle (scripts/energy.py), it writes the toggle counts to env COVERAGE_FILE.
+// Built with --trace (scripts/pipeview.py), it writes a VCD to env VCD_FILE: one sample per cycle, taken
+// just before the clock edge, so every signal shows the value it has during that cycle.
 
 #include <cstdint>
 #include <cstdio>
@@ -28,6 +30,11 @@
 #include <vector>
 
 #include "Vtop.h"
+#if VM_TRACE
+#include "verilated_vcd_c.h"
+static VerilatedVcdC *tfp = nullptr;
+static uint64_t trace_time = 0;
+#endif
 #include "verilated.h"
 
 static const uint64_t BASE = 0x80000000ull;
@@ -96,6 +103,45 @@ static uint64_t resv_addr = 0;
 static uint64_t amo_value = 0;   // the value the last AMO stored, for the commit log
 static bool sc_ok = false;       // whether the last SC stored
 
+// CLINT of one hart at 0x0200_0000 (as rtl/soc/clint.sv and Spike): msip at +0, mtimecmp at +0x4000,
+// mtime at +0xBFF8, counting cycles. The interrupt lines follow the state one cycle later, as in the RTL
+static const uint64_t CLINT = 0x02000000ull;
+static uint64_t mtime = 0, mtimecmp = ~0ull;
+static unsigned msip = 0;
+
+static bool clint_owns(uint64_t addr)
+{
+	return addr >= CLINT && addr < CLINT + 0x10000;
+}
+
+static uint8_t *clint_byte(uint64_t a)
+{
+	if (a >= CLINT + 0x4000 && a < CLINT + 0x4008)
+		return (uint8_t *)&mtimecmp + (a - CLINT - 0x4000);   // little-endian host
+	if (a >= CLINT + 0xBFF8 && a < CLINT + 0xC000)
+		return (uint8_t *)&mtime + (a - CLINT - 0xBFF8);
+	return nullptr;
+}
+
+static uint64_t clint_access(uint64_t addr, bool we, uint64_t wdata, unsigned strb)
+{
+	uint64_t v = 0;
+	for (unsigned i = 0; i < 8; i++) {
+		uint64_t a = addr + i;
+		uint8_t *b = clint_byte(a);
+		if (we && ((strb >> i) & 1)) {
+			uint8_t d = (wdata >> (8 * i)) & 0xFF;
+			if (a == CLINT)
+				msip = d & 1;
+			else if (b)
+				*b = d;
+		} else if (!we) {
+			v |= (uint64_t)(a == CLINT ? msip : (b ? *b : 0)) << (8 * i);
+		}
+	}
+	return we ? 0 : v;
+}
+
 static uint64_t amo_execute(uint64_t addr, unsigned atop, uint64_t wdata, unsigned strb)
 {
 	unsigned off = 0, n = 0;
@@ -140,6 +186,10 @@ static uint64_t amo_execute(uint64_t addr, unsigned atop, uint64_t wdata, unsign
 
 static void tick(Vtop *top)
 {
+#if VM_TRACE
+	if (tfp)
+		tfp->dump(trace_time++);
+#endif
 	top->clk_i = 1;
 	top->eval();
 	top->clk_i = 0;
@@ -196,7 +246,18 @@ int main(int argc, char **argv)
 	Verilated::randReset(2);
 	Verilated::randSeed(getenv("X_SEED") ? atoi(getenv("X_SEED")) : 1);
 	Verilated::commandArgs(argc, argv);
+#if VM_TRACE
+	if (getenv("VCD_FILE"))
+		Verilated::traceEverOn(true);
+#endif
 	Vtop *top = new Vtop;
+#if VM_TRACE
+	if (getenv("VCD_FILE")) {
+		tfp = new VerilatedVcdC;
+		top->trace(tfp, 99);
+		tfp->open(getenv("VCD_FILE"));
+	}
+#endif
 
 	top->clk_i = 0;
 	top->rst_ni = 0;
@@ -215,6 +276,10 @@ int main(int argc, char **argv)
 	top->imem_rsp_valid_i = 0;
 	top->dmem_req_ready_i = 0;
 	top->dmem_rsp_valid_i = 0;
+	top->irq_msip_i = 0;
+	top->irq_mtip_i = 0;
+	top->irq_meip_i = 0;
+	unsigned line_msip = 0, line_mtip = 0;
 #else
 	top->imem_rdata_i = 0;
 	top->dmem_rdata_i = 0;
@@ -229,6 +294,10 @@ int main(int argc, char **argv)
 
 	for (uint64_t cycle = 0; cycle < max_cycles; cycle++) {
 #ifdef PIPE
+		// the CLINT: lines from the state at the end of the previous cycle, mtime counts this cycle
+		line_msip = msip;
+		line_mtip = mtime >= mtimecmp;
+		mtime++;
 		// ready at random when MEM_STALL is set; responses that are due in this cycle
 		auto ready = [&]() { return stall <= 0.0 || (double)(rng() % 1000000) / 1e6 >= stall; };
 		auto latency = [&]() { return stall <= 0.0 ? 1 : 1 + (int)(rng() % 4); };
@@ -239,6 +308,8 @@ int main(int argc, char **argv)
 		top->imem_rsp_data_i = due_i ? (uint32_t)pi.data : 0;
 		top->dmem_rsp_valid_i = due_d;
 		top->dmem_rsp_data_i = due_d ? pd.data : 0;
+		top->irq_msip_i = line_msip;
+		top->irq_mtip_i = line_mtip;
 		top->eval();
 #else
 		// the memories are combinational: answer in the same cycle
@@ -287,7 +358,10 @@ int main(int argc, char **argv)
 				break;
 			}
 			uint64_t addr = top->dmem_req_addr_o;
-			if (top->dmem_req_amo_o) {
+			if (clint_owns(addr)) {
+				pd = {true, cycle + latency(),
+				      clint_access(addr, top->dmem_req_we_o, top->dmem_req_wdata_o, top->dmem_req_wstrb_o)};
+			} else if (top->dmem_req_amo_o) {
 				pd = {true, cycle + latency(),
 				      amo_execute(addr, top->dmem_req_atop_o, top->dmem_req_wdata_o, top->dmem_req_wstrb_o)};
 			} else if (top->dmem_req_we_o) {
@@ -377,6 +451,10 @@ int main(int argc, char **argv)
 #if VM_COVERAGE
 	// built with --coverage-toggle (scripts/energy.py): the toggle counts of every net, for the energy estimate
 	Verilated::threadContextp()->coveragep()->write(getenv("COVERAGE_FILE") ? getenv("COVERAGE_FILE") : "coverage.dat");
+#endif
+#if VM_TRACE
+	if (tfp)
+		tfp->close();
 #endif
 	delete top;
 	if (status == 3)

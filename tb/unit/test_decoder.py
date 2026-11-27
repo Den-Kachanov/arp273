@@ -19,8 +19,8 @@ B_RS2, B_IMM = 0, 1
 WB_ALU, WB_MEM, WB_PC4, WB_MD = 0b00, 0b01, 0b10, 0b11
 
 SIDE_EFFECTS = ("reg_we", "mem_re", "mem_we", "branch", "jal", "jalr", "muldiv",
-                "csr", "ecall", "ebreak", "mret", "fence_i", "amo")
-SYSTEM_KEYS = ("csr", "ecall", "ebreak", "mret", "fence_i", "amo")
+                "csr", "ecall", "ebreak", "mret", "wfi", "fence_i", "amo")
+SYSTEM_KEYS = ("csr", "ecall", "ebreak", "mret", "wfi", "fence_i", "amo")
 AMO_FUNCT5 = {"ADD": 0b00000, "SWAP": 0b00001, "LR": 0b00010, "SC": 0b00011, "XOR": 0b00100, "OR": 0b01000,
               "AND": 0b01100, "MIN": 0b10000, "MAX": 0b10100, "MINU": 0b11000, "MAXU": 0b11100}
 
@@ -147,9 +147,9 @@ def build_instructions(r, xlen):
     out.append(("FENCE.I", lambda: i_type(r.getrandbits(12), reg(), 1, reg(), OPC["MISC_MEM"]),
                 dict(none, fence_i=1), False))
 
-    # SYSTEM with fixed encodings (ADR 014); WFI is a no-op
+    # SYSTEM with fixed encodings (ADR 014); WFI waits for an interrupt (ADR 019)
     for name, word, key in (("ECALL", 0x00000073, "ecall"), ("EBREAK", 0x00100073, "ebreak"),
-                            ("MRET", 0x30200073, "mret"), ("WFI", 0x10500073, None)):
+                            ("MRET", 0x30200073, "mret"), ("WFI", 0x10500073, "wfi")):
         exp = dict(none)
         if key:
             exp[key] = 1
@@ -177,7 +177,7 @@ async def apply(dut, inst):
         "mem_we": int(dut.mem_we_o.value), "branch": int(dut.branch_o.value),
         "jal": int(dut.jal_o.value), "jalr": int(dut.jalr_o.value),
         "muldiv": int(dut.muldiv_o.value), "csr": int(dut.csr_o.value), "ecall": int(dut.ecall_o.value),
-        "ebreak": int(dut.ebreak_o.value), "mret": int(dut.mret_o.value), "fence_i": int(dut.fence_i_o.value),
+        "ebreak": int(dut.ebreak_o.value), "mret": int(dut.mret_o.value), "wfi": int(dut.wfi_o.value), "fence_i": int(dut.fence_i_o.value),
         "amo": int(dut.amo_o.value), "funct3": int(dut.funct3_o.value), "illegal": int(dut.illegal_o.value),
     }
 
@@ -289,7 +289,7 @@ async def test_random_words_invariants(dut):
         if got["csr"]:
             assert got["reg_we"] == 1 and got["b_sel"] == B_IMM and (inst & 0x7F) == OPC["SYSTEM"], \
                 f"{inst:#010x}: bad CSR instruction"
-        if got["ecall"] or got["ebreak"] or got["mret"] or got["fence_i"]:
+        if got["ecall"] or got["ebreak"] or got["mret"] or got["wfi"] or got["fence_i"]:
             assert got["reg_we"] == 0, f"{inst:#010x}: a system instruction must not write rd"
         if got["mem_re"]:
             assert got["reg_we"] == 1 and got["wb_sel"] == WB_MEM, f"{inst:#010x}: bad load"

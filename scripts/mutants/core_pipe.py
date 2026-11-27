@@ -3,8 +3,9 @@
 """Mutants of rtl/sol/core_pipe.sv for the pipeline tests (see scripts/mutate.py); XLEN = 64 only, to save time"""
 
 RTL = "rtl/sol/core_pipe.sv"
-TEST = ["tb/unit/test_pipeline.py", "tb/unit/test_core.py", "tb/unit/test_csr.py", "tb/unit/test_atomic.py"]
-KEXPR = "(pipe or csr or atomic) and 64"
+TEST = ["tb/unit/test_pipeline.py", "tb/unit/test_core.py", "tb/unit/test_csr.py", "tb/unit/test_atomic.py",
+        "tb/unit/test_irq.py"]
+KEXPR = "(pipe or csr or atomic or irq) and 64"
 
 MUTANTS = [
     # forwarding
@@ -55,8 +56,8 @@ MUTANTS = [
      "assign dmem_req_valid_o = mem_valid_q & mem_access & wb_can_accept & ~flush;"),
     ("store sent while WB redirects", "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept & ~flush;",
      "assign dmem_req_valid_o = mem_valid_q & mem_access & ~mem_trap & wb_can_accept;"),
-    ("stores do not wait for their response", "assign wb_wait       = (wb_mem_re_q | wb_mem_we_q) & ~wb_trap_q & ~dmem_rsp_valid_i;",
-     "assign wb_wait       = wb_mem_re_q & ~wb_trap_q & ~dmem_rsp_valid_i;"),
+    ("stores do not wait for their response", "assign wb_wait       = ((wb_mem_re_q | wb_mem_we_q) & ~wb_trap_q & ~dmem_rsp_valid_i) |",
+     "assign wb_wait       = (wb_mem_re_q & ~wb_trap_q & ~dmem_rsp_valid_i) |"),
     ("exception commits", "assign wb_advance    = wb_valid_q & ~wb_wait & ~wb_exc;", "assign wb_advance    = wb_valid_q & ~wb_wait;"),
     ("trapping jump redirects", "assign ex_redirect    = ex_advance & ex_mispredict & ~ex_trap;", "assign ex_redirect    = ex_advance & ex_mispredict;"),
     ("load data not used", "assign wb_data = wb_mem_re_q ? wb_load_data : (wb_csr_q ? csr_rdata : wb_result_q);",
@@ -67,8 +68,8 @@ MUTANTS = [
      "assign wb_data = wb_mem_re_q ? wb_load_data : wb_result_q;"),
     ("CSRRS x0 writes", "assign id_csr_write = (id_funct3[1:0] == 2'b01) | (id_inst[19:15] != 5'd0);", "assign id_csr_write = 1'b1;"),
     ("CSR immediate from rs1", "ex_result = ex_funct3_q[2] ? X'(ex_imm_q[19:15]) : ex_rs1;", "ex_result = ex_rs1;"),
-    ("illegal CSR access commits", "assign wb_exc   = wb_valid_q & (wb_trap_q | (wb_csr_q & csr_illegal));",
-     "assign wb_exc   = wb_valid_q & wb_trap_q;"),
+    ("illegal CSR access commits", "assign wb_exc   = wb_irq | (wb_valid_q & (wb_trap_q | (wb_csr_q & csr_illegal)));",
+     "assign wb_exc   = wb_irq | (wb_valid_q & wb_trap_q);"),
     ("ECALL does not trap", "assign ex_trap             = ex_illegal_q | ex_fetch_misaligned | ex_ecall_q | ex_ebreak_q;",
      "assign ex_trap             = ex_illegal_q | ex_fetch_misaligned | ex_ebreak_q;"),
     ("wrong cause for EBREAK", "else if (ex_ebreak_q) ex_cause = 4'd3;", "else if (ex_ebreak_q) ex_cause = 4'd11;"),
@@ -118,6 +119,17 @@ MUTANTS = [
     ("AMO operation taken from the immediate", "(id_illegal | id_csr | id_amo) ? X'(id_inst)", "(id_illegal | id_csr) ? X'(id_inst)"),
     ("amo flag lost before MEM", "ex_amo_q      <= id_amo;", "ex_amo_q      <= 1'b0;"),
     ("HART_ID not passed to the CSRs", "csr #(.HART_ID(HART_ID)) u_csr (", "csr u_csr ("),
+    # interrupts (ADR 019)
+    ("interrupt replaces a memory access", "irq_take & ~wb_mem_re_q & ~wb_mem_we_q & ~wb_wfi_q", "irq_take & ~wb_wfi_q"),
+    ("interrupt replaces a store", "irq_take & ~wb_mem_re_q & ~wb_mem_we_q & ~wb_wfi_q", "irq_take & ~wb_mem_re_q & ~wb_wfi_q"),
+    ("interrupt replaces WFI", "irq_take & ~wb_mem_re_q & ~wb_mem_we_q & ~wb_wfi_q", "irq_take & ~wb_mem_re_q & ~wb_mem_we_q"),
+    ("WFI does not wait", "(wb_wfi_q & ~irq_pending);", "1'b0;"),
+    ("interrupt bit of mcause missing", "{wb_irq, (X - 5)'(0), wb_cause}", "{1'b0, (X - 5)'(0), wb_cause}"),
+    ("interrupt code ignored", "assign wb_cause = wb_irq ? irq_code :", "assign wb_cause = wb_irq ? 4'd7 :"),
+    ("interrupt mtval not 0", "assign wb_tval  = wb_irq ? '0 :", "assign wb_tval  = 1'b0 ? '0 :"),
+    ("interrupt lines swapped", ".irq_i         ({irq_meip_i, irq_mtip_i, irq_msip_i}),", ".irq_i         ({irq_msip_i, irq_mtip_i, irq_meip_i}),"),
+    ("wfi flag lost before WB", "wb_wfi_q    <= mem_wfi_q & ~mem_trap;", "wb_wfi_q    <= 1'b0;"),
+    ("interrupt on an empty WB", "assign wb_irq   = wb_valid_q & irq_take", "assign wb_irq   = irq_take"),
 ]
 
 EQUIVALENT = {

@@ -37,7 +37,7 @@ ISA string: `rv64ima_zicsr_zifencei` (`rv32ima_zicsr_zifencei` for XLEN = 32), m
 | A | LR, SC and the 9 AMOs, `.W` and `.D` (RV32: `.W`), executed by the memory side of the data port ([ADR 019](adr/019-soc-architecture.md)); `aq` and `rl` are accepted and need nothing (one data request at a time, in order) |
 | Zicsr | CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI |
 | Zifencei | FENCE.I: the instructions after it are fetched again |
-| Privileged | ECALL, EBREAK, MRET; WFI is a no-op (no interrupts yet) |
+| Privileged | ECALL, EBREAK, MRET, WFI (waits until an interrupt is pending and enabled in `mie`) |
 
 Anything else is an illegal instruction: the C extension, F/D, URET, SRET, SFENCE.VMA, reserved
 encodings, and system instructions with nonzero reserved fields.
@@ -75,7 +75,13 @@ have no effect (no register write, no store). On an exception: `mepc` = its pc, 
 `MPIE` = `MIE`, `MIE` = 0, execution continues at `mtvec`. MRET: `MIE` = `MPIE`, `MPIE` = 1, execution
 continues at `mepc`.
 
-Interrupts are not implemented yet (`mie` and `MIE` are writable but nothing raises an interrupt).
+Interrupts ([ADR 020](adr/020-interrupts.md)): machine software (MSI, code 3), timer (MTI, 7) and
+external (MEI, 11), from the inputs `irq_msip_i`, `irq_mtip_i`, `irq_meip_i` (levels; `mip` shows them).
+An interrupt is taken when `mstatus.MIE` is set and its `mie` bit is set; with several pending, MEI
+before MSI before MTI. It is precise: `mepc` = the first instruction that has not completed,
+`mcause` = interrupt bit + code, `mtval` = 0. A load, store or atomic that has reached WB completes
+first. WFI waits until an interrupt is pending and enabled in `mie` (whatever MIE is) and then completes;
+an interrupt taken after it has `mepc` = WFI + 4.
 
 ## Memory map
 
@@ -85,7 +91,8 @@ The core has no address decoder of its own: every address goes out on its ports.
 | Address | Today (simulation) | Plan (SoC, stage 2) |
 |---|---|---|
 | `0x0000_0000` | — | Boot ROM |
-| `0x0200_0000` | — | Timer (`mtime`, `mtimecmp`) |
+| `0x0200_0000` | CLINT, a model in the harness ([modules/clint.md](modules/clint.md)) | CLINT (`rtl/soc/clint.sv`): `msip`, `mtimecmp`, `mtime` |
+| `0x0C00_0000` | — | PLIC |
 | `0x1000_0000` | — | UART |
 | `0x1000_1000` | — | GPIO |
 | `0x2000_0000` | — | GPU registers |
@@ -146,8 +153,9 @@ until place-and-route on the FPGA.
 
 ## Not implemented
 
-Planned ([ADR 019](adr/019-soc-architecture.md)): interrupts and the timer (CLINT, PLIC), the A, C,
+Planned ([ADR 019](adr/019-soc-architecture.md)): the PLIC (external interrupts now come straight from the harness), the C,
 Zba, Zbb, Zicbom and Zicboz extensions, user mode and PMP, write-back L1 caches with a coherent L2
 (MSI), the SoC bus, the GPU, the out-of-order cores Spica and Naos (F and D for Naos are to be
 evaluated). In the reserve: the vector unit, supervisor mode and virtual memory (Linux), a debug
-module. Not planned: misaligned access in hardware.
+module. Not planned: misaligned access in hardware. A known gap: writes to `mcycle` and `minstret` are
+ignored (ADR 014); the specification makes them writable, and this is fixed before RISCOF.

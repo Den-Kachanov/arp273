@@ -9,10 +9,11 @@ Each test is self-checking: it ends with ECALL, its trap handler writes tohost (
 exceptions itself (ADR 014). The tests are compiled from the sources in the riscv-tests git
 submodule; nothing of it is copied into this repository.
 
-Not run: ma_data (misaligned loads and stores must work, in hardware or emulated by a handler;
-the core traps on them, which the specification allows; see ADR 014)
+Not run (SKIP): ma_data (misaligned loads and stores must work, in hardware or emulated by a handler;
+the core traps on them, which the specification allows; see ADR 014), and three rv64mi tests of
+features not built yet: debug triggers, PMP, writable mcycle/minstret
 
-Usage: riscv_tests.py --sim build/core_pipe_sim [--src third_party/riscv-tests] [--suites rv64ui rv64um rv64ua]
+Usage: riscv_tests.py --sim build/core_pipe_sim [--src third_party/riscv-tests] [--suites rv64ui rv64um rv64ua rv64mi]
                       [--cross riscv64-elf-] [-j N]
 """
 
@@ -23,8 +24,12 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-SKIP = {"ma_data": "misaligned data access is not supported (traps)"}
-ARCH = {"rv64ui": "rv64i_zicsr_zifencei", "rv64um": "rv64im_zicsr_zifencei", "rv64ua": "rv64ia_zicsr_zifencei"}
+SKIP = {"ma_data": "misaligned data access is not supported (traps)",
+        "breakpoint": "no debug triggers (tselect, tdata): the debug module is in the reserve (ADR 019)",
+        "pmpaddr": "no PMP yet (stage 2b, ADR 019)",
+        "instret_overflow": "writes to mcycle and minstret are ignored (ADR 014); to be fixed before RISCOF"}
+ARCH = {"rv64ui": "rv64i_zicsr_zifencei", "rv64um": "rv64im_zicsr_zifencei", "rv64ua": "rv64ia_zicsr_zifencei",
+        "rv64mi": "rv64ima_zicsr_zifencei"}
 GCC_OPTS = ["-mabi=lp64", "-static", "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib", "-nostartfiles"]
 
 
@@ -67,7 +72,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("--sim", required=True, type=Path)
     ap.add_argument("--src", default="third_party/riscv-tests", type=Path)
-    ap.add_argument("--suites", nargs="+", default=["rv64ui", "rv64um", "rv64ua"])
+    ap.add_argument("--suites", nargs="+", default=["rv64ui", "rv64um", "rv64ua", "rv64mi"])
     ap.add_argument("--cross", default="riscv64-elf-")
     ap.add_argument("--out", default="build/riscv-tests", type=Path)
     ap.add_argument("-j", type=int, default=os.cpu_count() or 4)

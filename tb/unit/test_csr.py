@@ -223,7 +223,7 @@ async def test_trap_aborts_the_divider(dut):
     ]
     body = [
         asm.addi(1, 0, -1), asm.addi(2, 0, 3),
-        asm.WFI,                         # a no-op
+        asm.NOP,                         # (was WFI, a no-op before interrupts; now WFI waits, ADR 019)
         0x00000000,                      # illegal: reaches WB while the division below runs in EX
         asm.divu(3, 1, 2),
         asm.divu(4, 1, 2),

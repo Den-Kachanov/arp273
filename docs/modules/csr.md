@@ -19,6 +19,9 @@ exists. Design decisions: [ADR 014](../adr/014-csr-and-exceptions.md).
 | `mret_i` | input | 1 | MRET commits |
 | `mtvec_o`, `mepc_o` | output | `XLEN` | Redirect targets |
 | `cycle_i`, `instret_i` | input | 64 | The performance counters (ADR 013) |
+| `irq_i` | input | 3 | Interrupt lines {MEIP, MTIP, MSIP}, levels; registered here ([ADR 020](../adr/020-interrupts.md)) |
+| `irq_pending_o` | output | 1 | A registered line is set with its `mie` bit: wakes WFI (whatever MIE is) |
+| `irq_take_o`, `irq_code_o` | output | 1, 4 | Also `mstatus.MIE` is set: the core takes the interrupt with this code, MEI (11) > MSI (3) > MTI (7) |
 
 All outputs are combinational from the address and the registers; the registers change at the clock edge.
 `trap_i` has priority over `mret_i`, and both over a CSR write (they never come together from the core).
@@ -29,13 +32,13 @@ All outputs are combinational from the address and the registers; the registers 
 |---|---|---|
 | 0x300 | `mstatus` | MIE (bit 3) and MPIE (bit 7) writable; MPP (12:11) reads 11, only M-mode; other bits 0 |
 | 0x301 | `misa` | Reads MXL (2 for XLEN = 64, 1 for 32) and the A, I and M bits; writes ignored (WARL) |
-| 0x304 | `mie` | MSIE, MTIE, MEIE writable; no interrupt sources yet |
+| 0x304 | `mie` | MSIE, MTIE, MEIE writable |
 | 0x305 | `mtvec` | Direct mode only: bits 1:0 read 0 |
 | 0x340 | `mscratch` | Read/write |
 | 0x341 | `mepc` | Bits 1:0 read 0 (no C extension) |
 | 0x342 | `mcause` | Read/write; the exception code |
 | 0x343 | `mtval` | Read/write; the bad address or instruction |
-| 0x344 | `mip` | Reads 0, writes ignored |
+| 0x344 | `mip` | MSIP, MTIP, MEIP: the registered interrupt lines; writes ignored |
 | 0xB00, 0xB02 | `mcycle`, `minstret` | Read the counters; writes ignored (simplification, ADR 014) |
 | 0xC00, 0xC02 | `cycle`, `instret` | Read-only copies |
 | 0xB80, 0xB82, 0xC80, 0xC82 | high halves | XLEN = 32 only |
@@ -56,13 +59,15 @@ startup code of `riscv-tests` relies on this: it points `mtvec` past each option
 | ECALL from M-mode | 11 | 0 | EX |
 
 On an exception: `mepc` = pc of the instruction, `mcause`, `mtval`, `MPIE` = `MIE`, `MIE` = 0. On MRET:
-`MIE` = `MPIE`, `MPIE` = 1.
+`MIE` = `MPIE`, `MPIE` = 1. An interrupt takes the same path with `mcause` = interrupt bit + code and
+`mtval` = 0 ([ADR 020](../adr/020-interrupts.md)).
 
 ## Testing
 
 - `tb/unit/test_csr.py` runs on the pipelined core, XLEN = 64 and 32 (see ADR 014).
-- `make mutate M=csr`: 17 mutants, 16 caught, 1 equivalent.
-- `make riscv-tests`: 66 of 66 tests of `rv64ui-p` and `rv64um-p` pass.
+- `tb/unit/test_atomic.py` (`misa`, `mhartid`) and `tb/unit/test_irq.py` (`mip`, priority, masking) also check it.
+- `make mutate M=csr`: 25 mutants, 24 caught, 1 equivalent.
+- `make riscv-tests`: `rv64ui-p`, `rv64um-p`, `rv64ua-p`, `rv64mi-p` (14 of 17; see [ADR 020](../adr/020-interrupts.md)).
 
 ## Status
 

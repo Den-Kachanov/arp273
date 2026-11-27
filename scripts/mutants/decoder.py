@@ -43,6 +43,8 @@ MUTANTS = [
     (".D accepted at XLEN = 32", "(RV64 && funct3 == 3'b011)", "(funct3 == 3'b011)"),
     ("AMO with any funct3", "if (!(funct3 == 3'b010 || (RV64 && funct3 == 3'b011)))", "if (1'b0)"),
     ("AMO result from the ALU", "amo_o    = 1'b1;\n\t\t\t\twb_sel_o = riscv_pkg::WB_MEM;", "amo_o    = 1'b1;"),
+    ("WFI not flagged", "32'h1050_0073: begin wfi_o    = 1'b1; illegal_o = 1'b0; end",
+     "32'h1050_0073: begin illegal_o = 1'b0; end"),
     ("illegal instruction keeps amo", "csr_o    = 1'b0;\n\t\t\tamo_o    = 1'b0;", "csr_o    = 1'b0;"),
 ]
 

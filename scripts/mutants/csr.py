@@ -3,11 +3,19 @@
 """Mutants of rtl/common/csr.sv, checked by the CSR and exception tests of the pipelined core (see scripts/mutate.py)"""
 
 RTL = "rtl/common/csr.sv"
-TEST = ["tb/unit/test_csr.py", "tb/unit/test_atomic.py"]
+TEST = ["tb/unit/test_csr.py", "tb/unit/test_atomic.py", "tb/unit/test_irq.py"]
 KEXPR = "64"
 
 MUTANTS = [
     ("misa without A", "26'h0001101", "26'h0001100"),
+    ("mip reads 0", "12'h344: old = mip_reg;", "12'h344: old = '0;"),
+    ("MTIP shown as MSIP", "mip_reg[7]  = irq_q[1];", "mip_reg[7]  = irq_q[0];"),
+    ("MIE ignored", "assign irq_take_o    = mie_q & irq_pending_o;", "assign irq_take_o    = irq_pending_o;"),
+    ("mie bits ignored", "assign irq_en        = irq_q & mie_bits_q;", "assign irq_en        = irq_q;"),
+    ("MSI before MEI", "assign irq_code_o    = irq_en[2] ? 4'd11 : (irq_en[0] ? 4'd3 : 4'd7);",
+     "assign irq_code_o    = irq_en[0] ? 4'd3 : (irq_en[2] ? 4'd11 : 4'd7);"),
+    ("MTI before MSI", "assign irq_code_o    = irq_en[2] ? 4'd11 : (irq_en[0] ? 4'd3 : 4'd7);",
+     "assign irq_code_o    = irq_en[2] ? 4'd11 : (irq_en[1] ? 4'd7 : 4'd3);"),
     ("mhartid reads 0", "12'hF14: old = X'(HART_ID);", "12'hF14: old = '0;"),
     ("set acts as write", "2'b10:   new_val = old | wdata_i;", "2'b10:   new_val = wdata_i;"),
     ("clear keeps the bits", "2'b11:   new_val = old & ~wdata_i;", "2'b11:   new_val = old & wdata_i;"),

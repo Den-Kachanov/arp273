@@ -19,7 +19,7 @@ A combinational decoder for RV64I and the M and A extensions: from a 32-bit inst
 | `muldiv_o` | 1 for the 8 M instructions in OP (`funct7 = 0000001`) and the 5 in OP-32 (MULW, DIVW, DIVUW, REMW, REMUW); the core waits for `muldiv` until it reports `done` |
 | `funct3_o` | `inst[14:12]`: comparison type for `branch_unit`, access size for `lsu`, operation for `muldiv` |
 | `csr_o` | A CSR instruction (CSRRW, CSRRS, CSRRC and the immediate forms): `reg_we_o = 1`, `b_sel_o = B_IMM`, `a_sel_o = A_ZERO` for the immediate forms (rs1 is not read). Whether the CSR exists is decided by `csr` (ADR 014) |
-| `ecall_o`, `ebreak_o`, `mret_o` | The fixed encodings of ECALL, EBREAK and MRET; WFI is legal and does nothing |
+| `ecall_o`, `ebreak_o`, `mret_o`, `wfi_o` | The fixed encodings of ECALL, EBREAK, MRET and WFI (WFI waits for an interrupt in WB, [ADR 020](../adr/020-interrupts.md)) |
 | `fence_i_o` | FENCE.I (its other fields are ignored, as the specification asks) |
 | `amo_o` | LR, SC and the 9 AMOs (`.W`, and `.D` for RV64; [ADR 019](../adr/019-soc-architecture.md)): `reg_we_o = mem_re_o = 1`, `wb_sel_o = WB_MEM`, `a_sel_o = A_RS1`; `mem_we_o = 1` and `b_sel_o = B_RS2` except for LR (which needs `rs2 = 0`). The address is rs1 without an offset (the core takes rs1, not the ALU result); the operation is `inst[31:27]`, which the core sends on the data port. `aq` and `rl` are not decoded. The single-cycle reference core stops on it |
 | `illegal_o` | 1 if the encoding is illegal or not supported |
@@ -33,7 +33,7 @@ Other SYSTEM encodings: URET, SRET, SFENCE.VMA, and ECALL, EBREAK or MRET with n
 
 ## Testing
 
-`tb/unit/test_decoder.py`, `make unit T=decoder`, XLEN = 64 and 32. All 49 RV64I instructions, 13 M instructions and the 22 A encodings (11 operations × `.W`/`.D`) with random registers and immediates, the CSR and system instructions, the OP-IMM contract (ADDI does not become SUB), 28 illegal encodings (among them the M `funct7` in other places and MULH-like encodings in OP-32), invariants on 5000 random words (in particular: `wb_sel = WB_MD` if and only if `muldiv`). Mutation check: `make mutate M=decoder`, 27 mutants (9 for the A extension), 26 caught, 1 equivalent (the clearing of `muldiv_o` for an illegal instruction, which is unreachable anyway).
+`tb/unit/test_decoder.py`, `make unit T=decoder`, XLEN = 64 and 32. All 49 RV64I instructions, 13 M instructions and the 22 A encodings (11 operations × `.W`/`.D`) with random registers and immediates, the CSR and system instructions, the OP-IMM contract (ADDI does not become SUB), 28 illegal encodings (among them the M `funct7` in other places and MULH-like encodings in OP-32), invariants on 5000 random words (in particular: `wb_sel = WB_MD` if and only if `muldiv`). Mutation check: `make mutate M=decoder`, 28 mutants (9 for the A extension, 1 for WFI), 27 caught, 1 equivalent (the clearing of `muldiv_o` for an illegal instruction, which is unreachable anyway).
 
 ## Status
 

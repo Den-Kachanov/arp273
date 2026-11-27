@@ -107,7 +107,7 @@ PIPE_EXTRA_LATENCY = 3
 
 
 async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PIPE_EXTRA_LATENCY, seed=1,
-                   istall=None, dstall=None, skip_traps=0):
+                   istall=None, dstall=None, skip_traps=0, devices=None):
     """
     Reset the pipelined core, run the program until trap_o, return (commit trace, memory, trap pc)
 
@@ -120,6 +120,10 @@ async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PI
     store writes the memory when it is accepted. The model checks the protocol: at most one
     request outstanding per port (a new one may be accepted in the cycle the previous response
     is delivered). With stall = 0 and extra = 0 it behaves like a synchronous BRAM
+
+    `devices` (optional, see test_irq.Devices) owns some addresses (data accesses there go to it, not to
+    the memory) and drives the interrupt lines: devices.lines() -> (msip, mtip, meip) at the start of
+    every cycle, devices.tick() once per cycle. Without it the lines are 0
 
     Dependencies: Memory, common.xlen
     """
@@ -134,6 +138,10 @@ async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PI
     for sig in (dut.imem_req_ready_i, dut.imem_rsp_valid_i, dut.imem_rsp_data_i,
                 dut.dmem_req_ready_i, dut.dmem_rsp_valid_i, dut.dmem_rsp_data_i):
         sig.value = 0
+    irq_lines = [getattr(dut, f"irq_{n}_i", None) for n in ("msip", "mtip", "meip")]
+    for sig in irq_lines:
+        if sig is not None:
+            sig.value = 0
     await RisingEdge(dut.clk_i)
     await RisingEdge(dut.clk_i)
     await FallingEdge(dut.clk_i)
@@ -149,6 +157,9 @@ async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PI
         # inputs of this cycle: ready and the responses that are due
         dut.imem_req_ready_i.value = int(rng.random() >= istall)
         dut.dmem_req_ready_i.value = int(rng.random() >= dstall)
+        if devices is not None:
+            for sig, v in zip(irq_lines, devices.lines(), strict=True):
+                sig.value = int(v)
         due = {}
         for port, valid, data in (("i", dut.imem_rsp_valid_i, dut.imem_rsp_data_i),
                                   ("d", dut.dmem_rsp_valid_i, dut.dmem_rsp_data_i)):
@@ -178,7 +189,11 @@ async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PI
             assert pend["d"] is None or due["d"], "data port: a second request while one is outstanding"
             addr = int(dut.dmem_req_addr_o.value)
             assert addr % nbytes == 0, f"data request not aligned: {addr:#x}"
-            if int(dut.dmem_req_amo_o.value):
+            if devices is not None and devices.owns(addr):
+                pend["d"] = (cycle + latency(dstall),
+                             devices.access(addr, int(dut.dmem_req_we_o.value), int(dut.dmem_req_wdata_o.value),
+                                            int(dut.dmem_req_wstrb_o.value), nbytes))
+            elif int(dut.dmem_req_amo_o.value):
                 pend["d"] = (cycle + latency(dstall),
                              mem.atomic(addr, int(dut.dmem_req_atop_o.value), int(dut.dmem_req_wdata_o.value),
                                         int(dut.dmem_req_wstrb_o.value), nbytes))
@@ -194,6 +209,8 @@ async def run_pipe(dut, words, max_cycles=MAX_CYCLES, stall=PIPE_STALL, extra=PI
             trace.append({"pc": int(dut.commit_pc_o.value), "inst": int(dut.commit_inst_o.value),
                           "we": int(dut.commit_we_o.value), "rd": int(dut.commit_rd_o.value),
                           "data": int(dut.commit_data_o.value)})
+        if devices is not None:
+            devices.tick()
         await FallingEdge(dut.clk_i)
 
     raise AssertionError(f"no trap within {max_cycles} cycles")

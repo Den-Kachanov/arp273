@@ -26,8 +26,9 @@
 // Interrupts (ADR 019): taken in WB in place of the instruction there, which then has not executed
 // (mepc = its pc), like an exception. Not on a load, store or atomic: its request has already gone to
 // memory, so it commits and the next instruction takes the interrupt. WFI waits in WB until an
-// interrupt is pending and enabled in mie; with MIE set that interrupt is taken on the WFI itself
-// (mepc = the WFI, as in Spike), with MIE clear the WFI commits and execution goes on
+// interrupt is pending and enabled in mie, then commits; with MIE set the next instruction takes the
+// interrupt (mepc = WFI + 4, as in Spike when the interrupt arrives during the wait). WFI itself is never
+// replaced: `while (!flag) wfi();` must re-check the flag after the handler
 
 module core_pipe #(
 	parameter logic [riscv_pkg::XLEN-1:0] RESET_PC = riscv_pkg::XLEN'(64'h8000_0000),
@@ -648,8 +649,8 @@ module core_pipe #(
 	);
 
 	// an interrupt replaces the WB instruction unless that one has sent its memory request (a trapping
-	// access has not: its flags are cleared)
-	assign wb_irq   = wb_valid_q & irq_take & ~wb_mem_re_q & ~wb_mem_we_q;
+	// access has not: its flags are cleared), or is a WFI
+	assign wb_irq   = wb_valid_q & irq_take & ~wb_mem_re_q & ~wb_mem_we_q & ~wb_wfi_q;
 	assign wb_exc   = wb_irq | (wb_valid_q & (wb_trap_q | (wb_csr_q & csr_illegal)));
 	assign wb_cause = wb_irq ? irq_code : (wb_trap_q ? wb_cause_q : 4'd2);
 	// mtval of an illegal CSR access: the instruction, rebuilt from the fields WB has; 0 for an interrupt

@@ -23,11 +23,18 @@ SLOW = {"stall": 0.4, "extra": 3}
 SLOW_DATA = {"stall": 0.0, "istall": 0.0, "dstall": 0.6, "extra": 3}
 
 
-async def both(dut, prog, max_cycles=4000, **kw):
-    """Run on BRAM and on the slow memory; the commit traces must be identical. Return the BRAM run"""
+async def both(dut, prog, max_cycles=4000, devices_factory=None, **kw):
+    """
+    Run on BRAM and on the slow memory; the commit traces must be identical. Return the BRAM run.
+    devices_factory: a new model of the devices (test_irq.Devices) for every run
+    """
+    if devices_factory is not None:
+        kw = dict(kw, devices=devices_factory())
     bram = await run_pipe(dut, prog, max_cycles=max_cycles, **BRAM, **kw)
     counters = {k: int(getattr(dut, f"perf_{k}_o").value) for k in ("cycles", "instret", "stalls", "flushes")}
     for seed, mode in ((1, SLOW), (2, SLOW), (3, SLOW_DATA), (4, SLOW_DATA)):
+        if devices_factory is not None:
+            kw = dict(kw, devices=devices_factory())
         slow = await run_pipe(dut, prog, max_cycles=max_cycles * 8, seed=seed, **mode, **kw)
         # commit_data_o means nothing without a register write (e.g. CSRW with rd = x0 shows the old CSR)
         for t in (slow[0], bram[0]):

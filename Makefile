@@ -15,7 +15,7 @@ MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard $(
 XLENS   := 64 32
 VLINT   := verilator --lint-only -Wall
 
-.PHONY: help lint struct unit synth sim compare regress fuzz release-check riscv-tests coremark bench energy area schematics schematics-all floorplan docs-img mutate spdx clean
+.PHONY: help lint struct unit synth sim compare pipeview regress irq fuzz release-check riscv-tests coremark bench energy area schematics schematics-all floorplan docs-img mutate spdx clean
 
 help:
 	@echo "make lint            lint every module for XLEN = 64 and 32"
@@ -28,7 +28,9 @@ help:
 	@echo "make regress           compare every program in sw/ with Spike (CORE=pipe: the pipelined core)"
 	@echo "make fuzz SEEDS='1 2 3'  random programs (scripts/gen_prog.py) against Spike"
 	@echo "make release-check   the release build of the pipeline (DEBUG = 0) behaves like the debug build"
-	@echo "make riscv-tests     riscv-tests rv64ui-p, rv64um-p, rv64ua-p on the pipelined core (git submodule third_party/riscv-tests)"
+	@echo "make pipeview PROG=fib  interactive cycle-by-cycle view of the pipeline: build/pipeview/<PROG>.html"
+	@echo "make irq             programs with interrupts (sw/irq) on the pipelined core and on Spike: exit code 0"
+	@echo "make riscv-tests     riscv-tests rv64ui-p, rv64um-p, rv64ua-p, rv64mi-p on the pipelined core (git submodule third_party/riscv-tests)"
 	@echo "make coremark        CoreMark/MHz on the pipelined core, release build (git submodule third_party/coremark; CM_ITER=10)"
 	@echo "make bench           CoreMark, riscv-tests benchmarks, Embench-IoT: cycles (FP ones in soft-float; SOFTFP=0: integer only); BASELINE=<json> compares"
 	@echo "make energy          switching-energy estimate from the gate netlist (scripts/energy.py, ADR 016); PARAMS='MUL_BITS=4'"
@@ -89,12 +91,19 @@ PROGS    := $(basename $(notdir $(wildcard sw/*.c)))
 # programs with atomics (A extension, ADR 019): only the pipelined core runs them
 PROGS_A  := $(basename $(notdir $(wildcard sw/a/*.c)))
 PROGS_CORE = $(PROGS) $(if $(filter pipe,$(CORE)),$(PROGS_A))
+# self-checking programs with interrupts (ADR 019): timing-dependent, so exit codes are checked, not logs
+PROGS_IRQ := $(basename $(notdir $(wildcard sw/irq/*.c)))
 CORE_SRC := $(sort $(wildcard $(addsuffix /*.sv,$(RTL_DIRS))))
 
 # keep the ELF: Spike and nm need it after the .bin is built
 .PRECIOUS: $(BUILD)/%.elf $(BUILD)/fuzz_%.S
 
 $(BUILD)/%.elf: sw/%.c sw/crt0.S sw/link.ld
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -Wl,--no-warn-rwx-segments -T sw/link.ld sw/crt0.S $< -o $@
+	$(CROSS)objdump -d $@ > $(BUILD)/$*.dis
+
+$(BUILD)/%.elf: sw/irq/%.c sw/crt0.S sw/link.ld
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -Wl,--no-warn-rwx-segments -T sw/link.ld sw/crt0.S $< -o $@
 	$(CROSS)objdump -d $@ > $(BUILD)/$*.dis
@@ -159,6 +168,20 @@ $(PIPE_SIM): $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	  $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	cp $(BUILD)/obj_core_pipe$(PTAG)/core_pipe_sim $@
 
+# the pipeline with waves (--trace): one VCD sample per cycle, for scripts/pipeview.py
+TRACE_SIM := $(BUILD)/core_pipe_trace$(PTAG)_sim
+$(TRACE_SIM): $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+	@mkdir -p $(BUILD)
+	$(VERILATOR_SIM) --trace --top-module core_pipe $(GPARAMS) -CFLAGS -DPIPE --Mdir $(BUILD)/obj_core_pipe_trace$(PTAG) \
+	  -o core_pipe_trace_sim $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
+	cp $(BUILD)/obj_core_pipe_trace$(PTAG)/core_pipe_trace_sim $@
+
+# an interactive cycle-by-cycle view of the pipeline running a program: build/pipeview/<PROG>.html
+PIPEVIEW_CYCLES ?= 4000
+pipeview: $(TRACE_SIM) $(BUILD)/$(PROG).bin
+	$(PYTHON) scripts/pipeview.py --sim $(TRACE_SIM) --elf $(BUILD)/$(PROG).elf --cycles $(PIPEVIEW_CYCLES) \
+	  $(if $(PARAMS),--params "$(PARAMS)") --out $(BUILD)/pipeview/$(PROG).html
+
 # the release build of the pipeline (DEBUG = 0): no commit trace
 $(REL_SIM): $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp
 	@mkdir -p $(BUILD)
@@ -179,7 +202,7 @@ release-check: $(PIPE_SIM) $(REL_SIM)
 	  else echo "  DIFFERENT $$p"; echo "    debug:   $$d"; echo "    release: $$r"; exit 1; fi; \
 	done; echo "release-check: OK"
 
-ifneq ($(filter sim compare,$(MAKECMDGOALS)),)
+ifneq ($(filter sim compare pipeview,$(MAKECMDGOALS)),)
 ifeq ($(PROG),)
 $(error set PROG=<name from sw/>, for example: make compare PROG=fib)
 endif
@@ -201,6 +224,18 @@ regress:
 	  tail -1 $(BUILD)/$$p.$(CORE).regress.log; \
 	done
 
+# programs with interrupts on the pipelined core (TRAP_STOP=0: the core takes them itself) and on Spike:
+# both must exit with 0
+irq: $(PIPE_SIM)
+	@for p in $(PROGS_IRQ); do \
+	  $(MAKE) --no-print-directory -s $(BUILD)/$$p.bin >/dev/null || exit 1; \
+	  th=$$($(CROSS)nm $(BUILD)/$$p.elf | awk '$$3=="tohost"{print $$1}'); \
+	  TRAP_STOP=0 $(PIPE_SIM) $(BUILD)/$$p.bin /dev/null $$th 50000000 > $(BUILD)/$$p.irq.log 2>&1; c=$$?; \
+	  $(SPIKE) --isa=rv64ima -m0x80000000:0x100000 $(BUILD)/$$p.elf; s=$$?; \
+	  if [ $$c -eq 0 ] && [ $$s -eq 0 ]; then echo "  pass  $$p: $$(grep -E '^(cycles|exceptions)' $(BUILD)/$$p.irq.log | tr '\n' ' ')"; \
+	  else echo "  FAIL  $$p: core $$c, Spike $$s"; tail -3 $(BUILD)/$$p.irq.log; exit 1; fi; \
+	done; echo "irq: OK"
+
 SEEDS ?= 1 2 3 4 5 6 7 8
 fuzz:
 	@mkdir -p $(BUILD)
@@ -213,7 +248,7 @@ fuzz:
 # riscv-tests (git submodule, with its env submodule): self-checking ISA tests; the core takes their
 # exceptions itself (TRAP_STOP=0 in the script). MEM_STALL works here too
 RISCV_TESTS ?= third_party/riscv-tests
-RT_SUITES   ?= rv64ui rv64um rv64ua
+RT_SUITES   ?= rv64ui rv64um rv64ua rv64mi
 riscv-tests: $(PIPE_SIM)
 	$(PYTHON) scripts/riscv_tests.py --sim $(PIPE_SIM) --src $(RISCV_TESTS) --cross $(CROSS) \
 	  --suites $(RT_SUITES) --out $(BUILD)/riscv-tests
