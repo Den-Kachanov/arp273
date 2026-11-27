@@ -12,6 +12,8 @@ Nothing below is copied into the repository; these are tools that are installed 
 | Spike (riscv-isa-sim) | reference model | BSD-3-Clause |
 | GNU RISC-V toolchain (gcc, binutils) | software build | GPL-3.0-or-later |
 | gitleaks | secret scanning (pre-commit, CI) | MIT |
+| OpenLane 2 (with OpenROAD, Yosys, Magic, KLayout, Netgen, run in the OpenLane container) | physical implementation of the cores (`openlane-*.json`) | Apache-2.0 (OpenLane); BSD-3-Clause (OpenROAD); ISC (Yosys); MIT-style (Magic); GPL-3.0-or-later (KLayout); each tool keeps its own license |
+| SkyWater sky130 open PDK (`sky130A`, `sky130_fd_sc_hd`), installed by `volare`, not committed | standard cells and rules of the physical runs | Apache-2.0 |
 | netlistsvg (npm, pinned in `tools/package-lock.json`, not committed) | schematics from the Yosys netlist | MIT |
 | elkjs (dependency of netlistsvg) | graph layout for netlistsvg | EPL-1.0 |
 | Graphviz | layout of the flattened core (`make schematics M=core LEVEL=flat`) | EPL-1.0 |
@@ -22,6 +24,3 @@ Nothing below is copied into the repository; these are tools that are installed 
 | Embench-IoT 1.0 (git submodule `third_party/embench-iot`, tag `embench-1.0`, not a copy) | 19 benchmarks, 7 of them in soft-float (`make bench`); our own board support in `sw/bench/embench/` | GPL-3.0-or-later (some benchmarks under their own licenses); compiled locally into test programs, which are not distributed |
 | compiler-rt 19.1.7 (LLVM), release archive pinned by SHA-256, downloaded by `scripts/softfp.py` into `build/`, not committed | soft-float arithmetic for the floating-point benchmarks (`make bench`) | Apache-2.0 WITH LLVM-exception |
 | newlib 4.5.0 (fdlibm part of libm), release archive pinned by SHA-256, downloaded the same way | `pow`, `sqrt`, `acos`, `cos`, `atan` for the floating-point benchmarks | Sun Microsystems permissive notice (fdlibm; `COPYING.NEWLIB`) |
-
-Planned, not yet used: RISCOF and riscv-arch-test.
-Check the license of each before it is added, and add test data (for example MNIST) here too.

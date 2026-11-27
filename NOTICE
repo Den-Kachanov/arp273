@@ -4,4 +4,8 @@ Copyright (c) 2026 Denys Kachanov
 Licensed under the CERN Open Hardware Licence Version 2 - Strongly Reciprocal
 (CERN-OHL-S-2.0). See the LICENSE file.
 
-Commercial licensing: contact the copyright holder.
+Dual licensing: free under CERN-OHL-S-2.0, or under a separate commercial licence for use
+without its conditions. See COMMERCIAL.md.
+
+"RISC-V" is a trademark of RISC-V International. This project implements the RV64 instruction set;
+it does not use the name for a product.

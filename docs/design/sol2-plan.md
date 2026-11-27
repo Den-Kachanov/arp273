@@ -12,13 +12,13 @@
 
 ## Global Constraints
 
-- Rules of `CLAUDE.md` and ADR 003: `always_ff` only `<=`, `always_comb` defaults for every signal, every `case` has `default`, synchronous active-low reset `rst_ni`, `_i`/`_o`/`_q`/`_d` names, no fixed widths (`[XLEN-1:0]`, never `[63:0]`), RV64-only logic under `if (XLEN == 64)`.
+- Project conventions and ADR 003: `always_ff` only `<=`, `always_comb` defaults for every signal, every `case` has `default`, synchronous active-low reset `rst_ni`, `_i`/`_o`/`_q`/`_d` names, no fixed widths (`[XLEN-1:0]`, never `[63:0]`), RV64-only logic under `if (XLEN == 64)`.
 - Both XLEN = 64 and 32 must build, lint (`make lint`) and pass `make unit`; `make struct` clean (no latches, async resets, loops, multiple drivers).
 - Acceptance of a change: the energy-delay product per CoreMark iteration (energy per iteration × cycles per iteration) goes down. Area is reported for every change.
 - Numbers in documents only from measurements, with the date and the RTL commit hash; model estimates are labelled as estimates.
 - Everything in the repository in English; no `Date:` and no `Status` lines in documents; an ADR changed by a later one gets an `Update:` line.
 - New source files start with the two SPDX lines (`make spdx`).
-- Claude never runs git. Every "commit" step means: give the author the exact `git add` / `git commit` commands.
+- The author runs git. Every "commit" step means: give the author the exact `git add` / `git commit` commands.
 - After each task: `make lint struct unit`, `make regress CORE=pipe`, `make riscv-tests`, `make release-check` and `make bench SOFTFP=0` stay green.
 
 ## Review Focus
@@ -144,10 +144,10 @@ module bpred #(
 
 **Files:**
 - Create: `docs/adr/018-branch-prediction.md`, `docs/results/sol2.json`, `docs/results/sol2-energy.json`
-- Modify: `docs/spec.md` (timing table, parameters), `docs/verification.md` (new tests, mutation table), `docs/modules/overview.md` (area), `docs/design/sol2.md` (results), `/home/den/Архів/SoC/CLAUDE.md` (status)
+- Modify: `docs/spec.md` (timing table, parameters), `docs/verification.md` (new tests, mutation table), `docs/modules/overview.md` (area), `docs/design/sol2.md` (results)
 
 - [ ] **Step 1: Measure** `BTB_ENTRIES` ∈ {8, 16, 32} with `BHT_ENTRIES = 64`, and `BP = 0`, with the multiplier chosen in task 3: `make bench`, `make energy`, `make area`. Expected (model): CoreMark/MHz about 2.38, 2.40, 2.41 with 8 bits per cycle.
 - [ ] **Step 2: Decide** by the EDP per CoreMark iteration; set the defaults. If no size lowers the EDP, `BP` defaults to 0 and the ADR says so.
 - [ ] **Step 3: ADR 018** with the table, date and commit; ADR 013 gets an `Update:` line (branches can be predicted).
-- [ ] **Step 4: Record Sol 2.** `make bench CORE_NAME="Sol 2" COMMIT=<hash> BASELINE=docs/results/sol1.json` → `docs/results/sol2.json`; energy → `docs/results/sol2-energy.json`. Update spec, verification, overview, the design doc, CLAUDE.md; give the author the README text (CPI, CoreMark/MHz, area).
+- [ ] **Step 4: Record Sol 2.** `make bench CORE_NAME="Sol 2" COMMIT=<hash> BASELINE=docs/results/sol1.json` → `docs/results/sol2.json`; energy → `docs/results/sol2-energy.json`. Update spec, verification, overview, the design doc; give the author the README text (CPI, CoreMark/MHz, area).
 - [ ] **Step 5: Commit (author)**, then tag `v0.2.0` after CI is green (commands for the author).
