@@ -15,7 +15,7 @@ MOD_SRC := $(shell grep -l '^[[:space:]]*module[[:space:]]' $(sort $(wildcard $(
 XLENS   := 64 32
 VLINT   := verilator --lint-only -Wall
 
-.PHONY: help lint struct unit synth sim compare pipeview regress irq fuzz release-check riscv-tests coremark bench energy area schematics schematics-all floorplan docs-img mutate spdx clean
+.PHONY: help lint struct unit synth sim compare pipeview regress irq smp fuzz release-check riscv-tests coremark bench energy area schematics schematics-all floorplan docs-img mutate spdx clean
 
 help:
 	@echo "make lint            lint every module for XLEN = 64 and 32"
@@ -29,6 +29,7 @@ help:
 	@echo "make fuzz SEEDS='1 2 3'  random programs (scripts/gen_prog.py) against Spike"
 	@echo "make release-check   the release build of the pipeline (DEBUG = 0) behaves like the debug build"
 	@echo "make pipeview PROG=fib  interactive cycle-by-cycle view of the pipeline: build/pipeview/<PROG>.html"
+	@echo "make smp             programs for several harts (sw/smp) on the SoC (NHARTS=2) and on Spike"
 	@echo "make irq             programs with interrupts (sw/irq) on the pipelined core and on Spike: exit code 0"
 	@echo "make riscv-tests     riscv-tests rv64ui-p, rv64um-p, rv64ua-p, rv64mi-p on the pipelined core (git submodule third_party/riscv-tests)"
 	@echo "make coremark        CoreMark/MHz on the pipelined core, release build (git submodule third_party/coremark; CM_ITER=10)"
@@ -101,6 +102,11 @@ CORE_SRC := $(sort $(wildcard $(addsuffix /*.sv,$(RTL_DIRS))))
 $(BUILD)/%.elf: sw/%.c sw/crt0.S sw/link.ld
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -Wl,--no-warn-rwx-segments -T sw/link.ld sw/crt0.S $< -o $@
+	$(CROSS)objdump -d $@ > $(BUILD)/$*.dis
+
+$(BUILD)/%.elf: sw/smp/%.c sw/crt0.S sw/link.ld
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -DSMP -Wl,--no-warn-rwx-segments -T sw/link.ld sw/crt0.S $< -o $@
 	$(CROSS)objdump -d $@ > $(BUILD)/$*.dis
 
 $(BUILD)/%.elf: sw/irq/%.c sw/crt0.S sw/link.ld
@@ -181,6 +187,35 @@ PIPEVIEW_CYCLES ?= 4000
 pipeview: $(TRACE_SIM) $(BUILD)/$(PROG).bin
 	$(PYTHON) scripts/pipeview.py --sim $(TRACE_SIM) --elf $(BUILD)/$(PROG).elf --cycles $(PIPEVIEW_CYCLES) \
 	  $(if $(PARAMS),--params "$(PARAMS)") --out $(BUILD)/pipeview/$(PROG).html
+
+# the SoC (rtl/soc/soc_top.sv, ADR 019): NHARTS cores on one memory, with the CLINT and the atomics unit
+NHARTS  ?= 2
+SOC_SIM := $(BUILD)/soc_n$(NHARTS)$(PTAG)_sim
+SOC_SRC := $(sort $(wildcard rtl/soc/*.sv))
+$(SOC_SIM): $(PKG_SRC) $(CORE_SRC) $(SOC_SRC) tb/soc/main.cpp
+	@mkdir -p $(BUILD)
+	$(VERILATOR_SIM) --top-module soc_top -GNHARTS=$(NHARTS) $(GPARAMS) -CFLAGS -DNHARTS=$(NHARTS) \
+	  --Mdir $(BUILD)/obj_soc_n$(NHARTS)$(PTAG) -o soc_sim $(PKG_SRC) $(CORE_SRC) $(SOC_SRC) tb/soc/main.cpp
+	cp $(BUILD)/obj_soc_n$(NHARTS)$(PTAG)/soc_sim $@
+
+# programs for several harts (sw/smp, crt0 with -DSMP): on the SoC and on spike -p<NHARTS>, both must
+# exit with 0; programs whose harts do not race (sw/smp/*.c with "race-free" in the first lines) are
+# also compared with Spike hart by hart
+PROGS_SMP := $(basename $(notdir $(wildcard sw/smp/*.c)))
+smp: $(SOC_SIM)
+	@for p in $(PROGS_SMP); do \
+	  $(MAKE) --no-print-directory -s $(BUILD)/$$p.bin >/dev/null || exit 1; \
+	  th=$$($(CROSS)nm $(BUILD)/$$p.elf | awk '$$3=="tohost"{print $$1}'); \
+	  TRAP_STOP=0 $(SOC_SIM) $(BUILD)/$$p.bin $(BUILD)/$$p.soc.log $$th 20000000 > $(BUILD)/$$p.smp.out 2>&1; c=$$?; \
+	  $(SPIKE) -p$(NHARTS) --isa=rv64ima -m0x80000000:0x100000 --log-commits $(BUILD)/$$p.elf 2> $(BUILD)/$$p.spike.log; s=$$?; \
+	  if [ $$c -ne 0 ] || [ $$s -ne 0 ]; then echo "  FAIL  $$p: SoC $$c, Spike $$s"; tail -4 $(BUILD)/$$p.smp.out; exit 1; fi; \
+	  cmp=""; if head -5 sw/smp/$$p.c | grep -q race-free; then \
+	    for h in $$(seq 0 $$(($(NHARTS) - 1))); do \
+	      $(PYTHON) scripts/compare.py $(BUILD)/$$p.soc.log $(BUILD)/$$p.spike.log --hart $$h > $(BUILD)/$$p.cmp$$h.log || \
+	        { echo "  FAIL  $$p: hart $$h differs from Spike"; cat $(BUILD)/$$p.cmp$$h.log; exit 1; }; \
+	      cmp="$$cmp, hart $$h: $$(tail -1 $(BUILD)/$$p.cmp$$h.log | sed 's/compare: //')"; done; fi; \
+	  echo "  pass  $$p: $$(grep -E '^hart 0' $(BUILD)/$$p.smp.out)$$cmp"; \
+	done; echo "smp: OK"
 
 # the release build of the pipeline (DEBUG = 0): no commit trace
 $(REL_SIM): $(PKG_SRC) $(CORE_SRC) tb/core/main.cpp

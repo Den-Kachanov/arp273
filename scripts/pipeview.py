@@ -134,6 +134,19 @@ def hx(v):
     return None if v is None else f"{v:x}"
 
 
+def fwd_source(s, rs, use):
+    """where EX takes an operand from in cycle sample s: MEM, WB, RF (register file), or None (not used)"""
+    def g(n):
+        return s.get(n) or 0
+    if not g("ex_valid_q") or not g(use) or g(rs) == 0:
+        return None
+    if g("mem_fwd_ok") and g("mem_rd_q") == g(rs):
+        return "MEM"
+    if g("wb_fwd_ok") and g("wb_rd_q") == g(rs):
+        return "WB"
+    return "RF"
+
+
 def build_trace(samples, by_pc):
     """the cycles the page draws, the instruction instances and their pipeline chart"""
     # drop the reset cycles: cycle 0 is the first with rst_ni = 1
@@ -186,16 +199,6 @@ def build_trace(samples, by_pc):
         if g(s, "id_valid") and not g(s, "id_advance") and not g(s, "redirect"):
             why["id"] = "EX is busy"
 
-        # forwarding into EX
-        def source(rs, use):
-            if not g(s, "ex_valid_q") or not g(s, use) or g(s, rs) == 0:
-                return None
-            if g(s, "mem_fwd_ok") and g(s, "mem_rd_q") == g(s, rs):
-                return "MEM"
-            if g(s, "wb_fwd_ok") and g(s, "wb_rd_q") == g(s, rs):
-                return "WB"
-            return "RF"
-
         # chart cells
         for stage in ("id", "ex", "mem", "wb"):
             k = cur[stage]
@@ -229,7 +232,7 @@ def build_trace(samples, by_pc):
                   "acc": g(s, "fetch_accept"), "out": hx(g(s, "out_pc_q")) if g(s, "out_q") else None,
                   "drop": g(s, "drop_q"), "rsp": g(s, "imem_rsp_valid_i"), "q": g(s, "fq_cnt_q")},
             "x": {"a": hx(g(s, "ex_rs1")), "b": hx(g(s, "ex_rs2")), "r": hx(g(s, "ex_result")),
-                  "fa": source("ex_rs1_q", "ex_use_rs1_q"), "fb": source("ex_rs2_q", "ex_use_rs2_q"),
+                  "fa": fwd_source(s, "ex_rs1_q", "ex_use_rs1_q"), "fb": fwd_source(s, "ex_rs2_q", "ex_use_rs2_q"),
                   "ra": g(s, "ex_rs1_q"), "rb": g(s, "ex_rs2_q"),
                   "md": bool(g(s, "ex_valid_q") and g(s, "ex_muldiv_q"))},
             "br": {"ex": hx(g(s, "redirect_pc")) if mispredicted else None,

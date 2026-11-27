@@ -91,7 +91,7 @@ The core has no address decoder of its own: every address goes out on its ports.
 | Address | Today (simulation) | Plan (SoC, stage 2) |
 |---|---|---|
 | `0x0000_0000` | — | Boot ROM |
-| `0x0200_0000` | CLINT, a model in the harness ([modules/clint.md](modules/clint.md)) | CLINT (`rtl/soc/clint.sv`): `msip`, `mtimecmp`, `mtime` |
+| `0x0200_0000` | CLINT: a model in the core harness; the RTL in `soc_top` ([modules/clint.md](modules/clint.md)) | CLINT (`rtl/soc/clint.sv`): `msip`, `mtimecmp`, `mtime` |
 | `0x0C00_0000` | — | PLIC |
 | `0x1000_0000` | — | UART |
 | `0x1000_1000` | — | GPIO |

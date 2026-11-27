@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: CERN-OHL-S-2.0 */
 /* SPDX-FileCopyrightText: 2026 Denys Kachanov */
-/* Startup: set the stack, call main, report main's return value through tohost and wait */
+/* Startup: set the stack, call main, report main's return value through tohost and wait.
+   Built with -DSMP (the programs in sw/smp, ADR 019), several harts start here: hart 0 runs main; hart
+   h > 0 gets its own stack, 32 KiB per hart below hart 0's, and calls secondary(h); a program without
+   secondary() leaves them asleep. Without SMP nothing reads mhartid, so the single-cycle reference core,
+   which stops on CSR instructions, runs the same startup */
 
 	.section .text.init
 	.globl _start
@@ -39,6 +43,10 @@ _start:
 	li   x29, 0
 	li   x30, 0
 	li   x31, 0
+#ifdef SMP
+	csrr t0, mhartid
+	bnez t0, 2f
+#endif
 	la   sp, _stack_top
 	call main
 	slli a0, a0, 1
@@ -46,6 +54,21 @@ _start:
 	la   t0, tohost
 	sd   a0, 0(t0)
 1:	j    1b
+
+#ifdef SMP
+2:	la   sp, _stack_top
+	slli t1, t0, 15
+	sub  sp, sp, t1
+	mv   a0, t0
+	call secondary
+3:	wfi
+	j    3b
+
+	/* the default secondary(): return at once, then the hart sleeps */
+	.weak secondary
+secondary:
+	ret
+#endif
 
 	.section .tohost, "aw", @progbits
 	.align 6

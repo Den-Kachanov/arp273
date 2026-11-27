@@ -41,5 +41,5 @@ fires the interrupt (the usual sequence of the privileged specification).
 `tick_i`, the timer line of each hart and its delay, the unsigned 64-bit comparison, `msip` (only bit 0 is
 stored), byte strobes, a write responds with 0, a write to `mtime` wins over the increment, unmapped
 offsets, no write without valid. Mutation check: `make mutate M=clint`, 15 mutants, all caught. With the core: `tb/unit/test_irq.py` uses a Python model
-of the same registers; `make irq` uses the model in `tb/core/main.cpp`. The RTL CLINT and the core meet
-in the SoC top (stage 2, step 3).
+of the same registers; `make irq` uses the model in `tb/core/main.cpp`. The RTL CLINT and the cores meet in
+`soc_top` ([soc_top.md](soc_top.md)): `tb/unit/test_soc.py`, `make smp`.
